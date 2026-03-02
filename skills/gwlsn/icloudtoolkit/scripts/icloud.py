@@ -26,7 +26,34 @@ def load_config():
     cfg["calendar_base"] = os.path.expanduser(cfg["calendar_base"])
     if "contacts_base" in cfg:
         cfg["contacts_base"] = os.path.expanduser(cfg["contacts_base"])
+    if "subscribed_calendar_base" in cfg:
+        cfg["subscribed_calendar_base"] = os.path.expanduser(cfg["subscribed_calendar_base"])
     return cfg
+
+
+def save_config_field(field, value):
+    """Update a single field in config.json without expanding paths.
+
+    Reads the raw JSON, sets config[field] = value, writes back.
+    This avoids load_config()'s path expansion (expanduser) which would
+    bake absolute paths into the file, breaking portability.
+    """
+    script_dir = Path(__file__).resolve().parent
+    config_path = script_dir.parent / "config" / "config.json"
+    with open(config_path) as f:
+        raw = json.load(f)
+    raw[field] = value
+    with open(config_path, "w") as f:
+        json.dump(raw, f, indent=2)
+        f.write("\n")
+
+
+def load_raw_config():
+    """Load config.json without path expansion. For reading fields like disabled_calendars."""
+    script_dir = Path(__file__).resolve().parent
+    config_path = script_dir.parent / "config" / "config.json"
+    with open(config_path) as f:
+        return json.load(f)
 
 
 # --- Calendar Helpers ---
@@ -122,6 +149,15 @@ def generate_allday_ics(summary, date_str, uid, description=None):
     return "\r\n".join(lines) + "\r\n"
 
 
+def _validate_dir_id(dir_id, label="directory ID"):
+    """Reject dir_ids that could cause path traversal."""
+    if not dir_id or ".." in dir_id or "/" in dir_id or "\\" in dir_id:
+        print(f"Error: Invalid {label}: {dir_id!r} — must be a plain directory "
+              f"name, not a path.", file=sys.stderr)
+        sys.exit(1)
+    return dir_id
+
+
 def resolve_calendar_dir(calendar_name, config):
     """Map a calendar name to its filesystem directory."""
     calendars = config.get("calendars", {})
@@ -129,7 +165,7 @@ def resolve_calendar_dir(calendar_name, config):
         valid = ", ".join(sorted(calendars.keys()))
         print(f"Error: Unknown calendar '{calendar_name}'. Valid: {valid}", file=sys.stderr)
         sys.exit(1)
-    dir_id = calendars[calendar_name]
+    dir_id = _validate_dir_id(calendars[calendar_name], f"calendar '{calendar_name}'")
     cal_dir = os.path.join(config["calendar_base"], dir_id)
     if not os.path.isdir(cal_dir):
         print(f"Error: Calendar directory not found: {cal_dir}", file=sys.stderr)
@@ -137,8 +173,173 @@ def resolve_calendar_dir(calendar_name, config):
     return cal_dir
 
 
+def sanitize_feed_ics(raw_ics):
+    """Strip VCALENDAR-level UID lines from an ICS feed.
+
+    Some providers (e.g. MetricAid) put a UID: line on the VCALENDAR wrapper
+    itself.  vdirsyncer's Item.ident does a flat scan for the first UID: line,
+    so when it splits the feed into individual VEVENTs every item gets the
+    same ident — dict collision — only one survives.
+
+    This function removes any UID: or UID;...: line (including RFC 5545
+    folded continuation lines) that appears between BEGIN:VCALENDAR and
+    the first component (BEGIN:VEVENT / BEGIN:VTODO / BEGIN:VJOURNAL).
+    VEVENT-level UIDs are left untouched.
+    """
+    lines = raw_ics.splitlines(keepends=True)
+    out = []
+    in_header = False  # between BEGIN:VCALENDAR and first component
+    skip_folded = False  # consuming folded continuation of a UID line
+
+    for line in lines:
+        stripped = line.strip()
+
+        if stripped == "BEGIN:VCALENDAR":
+            in_header = True
+            skip_folded = False
+            out.append(line)
+            continue
+
+        # End of header region — first component found
+        if in_header and stripped.startswith("BEGIN:"):
+            in_header = False
+            skip_folded = False
+
+        if in_header:
+            # RFC 5545 folded continuation: line starts with space or tab
+            if skip_folded and line[:1] in (" ", "\t"):
+                continue  # drop continuation of the UID line
+            skip_folded = False
+
+            # Match UID: or UID;param: (case-insensitive)
+            upper = stripped.upper()
+            if upper.startswith("UID:") or upper.startswith("UID;"):
+                skip_folded = True  # next lines might be folded continuations
+                continue  # drop this line
+
+        out.append(line)
+
+    return "".join(out)
+
+
+MAX_FEED_SIZE = 10 * 1024 * 1024  # 10 MB — reject oversized feeds
+
+
+def _validate_ics_feed(content, dir_id):
+    """Validate that content is structurally valid ICS before caching.
+
+    Rejects content that isn't a well-formed iCalendar feed to prevent
+    malformed data from reaching downstream parsers (vdirsyncer, khal).
+    Returns True if valid, raises ValueError if not.
+    """
+    if not content or not content.strip():
+        raise ValueError(f"Feed {dir_id}: empty content")
+
+    if len(content) > MAX_FEED_SIZE:
+        raise ValueError(
+            f"Feed {dir_id}: exceeds {MAX_FEED_SIZE // 1024 // 1024}MB limit "
+            f"({len(content)} bytes)")
+
+    # Must be text-based iCalendar — reject binary content
+    # Check for null bytes which indicate binary data
+    if "\x00" in content:
+        raise ValueError(f"Feed {dir_id}: contains binary data (null bytes)")
+
+    # Structural check: must have VCALENDAR wrapper and at least one component
+    upper = content.upper()
+    if "BEGIN:VCALENDAR" not in upper:
+        raise ValueError(f"Feed {dir_id}: missing BEGIN:VCALENDAR")
+    if "END:VCALENDAR" not in upper:
+        raise ValueError(f"Feed {dir_id}: missing END:VCALENDAR")
+    if "BEGIN:VEVENT" not in upper and "BEGIN:VTODO" not in upper:
+        raise ValueError(f"Feed {dir_id}: no VEVENT or VTODO components")
+
+    # BEGIN/END count parity — catches truncated or concatenated feeds.
+    # Prefix with newline so the first line is also matchable, then count
+    # "\nBEGIN:" and "\nEND:" to avoid substring hits like DTEND:.
+    normed = "\n" + upper.replace("\r\n", "\n").replace("\r", "\n")
+    begin_count = normed.count("\nBEGIN:")
+    end_count = normed.count("\nEND:")
+    if begin_count != end_count:
+        raise ValueError(
+            f"Feed {dir_id}: mismatched BEGIN/END count "
+            f"({begin_count} vs {end_count})")
+
+    return True
+
+
+def _validate_feed_url(url):
+    """Reject feed URLs with dangerous schemes.
+
+    Only allow http/https — block file://, ftp://, data://, etc. that
+    could be used to read local files or access unexpected protocols.
+    """
+    from urllib.parse import urlparse
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(
+            f"Blocked feed URL with scheme {parsed.scheme!r}: {url} "
+            f"— only http/https allowed")
+    return url
+
+
+def fetch_and_sanitize_feeds(config):
+    """Pre-fetch and sanitize all subscribed calendar HTTP feeds.
+
+    For each URL in config["subscribed_sources"], fetches the ICS content,
+    validates it is structurally sound iCalendar data, strips any
+    VCALENDAR-level UID (which causes vdirsyncer ident collisions),
+    and writes the sanitized content to a local cache file.  vdirsyncer then
+    reads from these cache files via singlefile storage instead of fetching
+    the raw (broken) feeds directly.
+
+    On fetch failure the existing cache file is preserved — no data is lost.
+    """
+    from urllib.request import Request, urlopen
+    from urllib.error import HTTPError, URLError
+
+    sources = config.get("subscribed_sources", {})
+    if not sources:
+        return
+
+    sub_base = config.get("subscribed_calendar_base",
+                          os.path.expanduser("~/.local/share/vdirsyncer/subscriptions"))
+    cache_dir = os.path.join(sub_base, "_feed_cache")
+    os.makedirs(cache_dir, exist_ok=True)
+
+    for dir_id, url in sources.items():
+        _validate_dir_id(dir_id, f"subscribed source '{dir_id}'")
+        cache_path = os.path.join(cache_dir, f"{dir_id}.ics")
+        try:
+            _validate_feed_url(url)
+
+            req = Request(url)
+            req.add_header("User-Agent", "icloud-toolkit/1.0")
+            resp = urlopen(req, timeout=60)
+            raw = resp.read().decode("utf-8", errors="replace")
+
+            _validate_ics_feed(raw, dir_id)
+            sanitized = sanitize_feed_ics(raw)
+
+            # Atomic write: write to temp then rename so a crash mid-write
+            # doesn't corrupt the cache
+            tmp_path = cache_path + ".tmp"
+            with open(tmp_path, "w") as f:
+                f.write(sanitized)
+            os.replace(tmp_path, cache_path)
+
+        except ValueError as e:
+            print(f"  Warning: Rejected feed for {dir_id}: {e}",
+                  file=sys.stderr)
+        except (HTTPError, URLError, OSError) as e:
+            print(f"  Warning: Failed to fetch feed for {dir_id}: {e}",
+                  file=sys.stderr)
+            # Preserve existing cache — don't overwrite with nothing
+
+
 def run_sync(config):
-    """Run vdirsyncer sync."""
+    """Run vdirsyncer sync, pre-fetching subscribed feeds first."""
+    fetch_and_sanitize_feeds(config)
     vdirsyncer = config["bins"]["vdirsyncer"]
     result = subprocess.run(
         [vdirsyncer, "sync"],
@@ -256,6 +457,7 @@ def cmd_calendar_delete(args, config):
     uid = args.uid
     found = None
     for cal_name, dir_id in config["calendars"].items():
+        _validate_dir_id(dir_id, f"calendar '{cal_name}'")
         cal_dir = os.path.join(config["calendar_base"], dir_id)
         ics_path = os.path.join(cal_dir, f"{uid}.ics")
         if os.path.exists(ics_path):
@@ -299,6 +501,72 @@ def cmd_calendar_sync(args, config):
         print("Sync complete.")
     else:
         print("Sync completed with warnings.", file=sys.stderr)
+
+
+def cmd_calendar_disable(args, config):
+    """Disable a calendar so it's excluded from listings and searches."""
+    name = args.name
+    raw = load_raw_config()
+
+    # Validate: the calendar must exist in owned or subscribed calendars
+    all_cals = dict(raw.get("calendars", {}))
+    all_cals.update(raw.get("subscribed_calendars", {}))
+    if name not in all_cals:
+        print(f"Error: Unknown calendar '{name}'.", file=sys.stderr)
+        print(f"Valid calendars: {', '.join(sorted(all_cals.keys()))}", file=sys.stderr)
+        sys.exit(1)
+
+    disabled = raw.get("disabled_calendars", [])
+    if name in disabled:
+        print(f"Calendar '{name}' is already disabled.")
+        return
+
+    disabled.append(name)
+    save_config_field("disabled_calendars", disabled)
+
+    # Regenerate khal config so the disabled calendar is excluded
+    from setup import generate_khal_config
+    cal_base = os.path.expanduser(raw.get("calendar_base", "~/.local/share/vdirsyncer/calendars"))
+    sub_cal_base = raw.get("subscribed_calendar_base")
+    if sub_cal_base:
+        sub_cal_base = os.path.expanduser(sub_cal_base)
+    generate_khal_config(
+        raw.get("calendars", {}), cal_base, raw.get("default_calendar", ""),
+        tz=raw.get("timezone"),
+        subscribed_calendars=raw.get("subscribed_calendars"),
+        disabled_calendars=disabled,
+        subscribed_cal_base=sub_cal_base,
+    )
+    print(f"Disabled calendar '{name}'. It will no longer appear in listings.")
+
+
+def cmd_calendar_enable(args, config):
+    """Re-enable a disabled calendar."""
+    name = args.name
+    raw = load_raw_config()
+
+    disabled = raw.get("disabled_calendars", [])
+    if name not in disabled:
+        print(f"Calendar '{name}' is not disabled.")
+        return
+
+    disabled.remove(name)
+    save_config_field("disabled_calendars", disabled)
+
+    # Regenerate khal config so the calendar is included again
+    from setup import generate_khal_config
+    cal_base = os.path.expanduser(raw.get("calendar_base", "~/.local/share/vdirsyncer/calendars"))
+    sub_cal_base = raw.get("subscribed_calendar_base")
+    if sub_cal_base:
+        sub_cal_base = os.path.expanduser(sub_cal_base)
+    generate_khal_config(
+        raw.get("calendars", {}), cal_base, raw.get("default_calendar", ""),
+        tz=raw.get("timezone"),
+        subscribed_calendars=raw.get("subscribed_calendars"),
+        disabled_calendars=disabled,
+        subscribed_cal_base=sub_cal_base,
+    )
+    print(f"Enabled calendar '{name}'. It will appear in listings again.")
 
 
 # --- Email Commands ---
@@ -674,6 +942,7 @@ def find_vcf_by_uid(uid, config):
     addressbooks = config.get("addressbooks", {})
 
     for ab_name, dir_id in addressbooks.items():
+        _validate_dir_id(dir_id, f"addressbook '{ab_name}'")
         ab_dir = os.path.join(contacts_base, dir_id)
         if not os.path.isdir(ab_dir):
             continue
@@ -700,7 +969,7 @@ def resolve_addressbook_dir(addressbook_name, config):
         valid = ", ".join(sorted(addressbooks.keys()))
         print(f"Error: Unknown address book '{addressbook_name}'. Valid: {valid}", file=sys.stderr)
         sys.exit(1)
-    dir_id = addressbooks[addressbook_name]
+    dir_id = _validate_dir_id(addressbooks[addressbook_name], f"addressbook '{addressbook_name}'")
     ab_dir = os.path.join(config["contacts_base"], dir_id)
     if not os.path.isdir(ab_dir):
         print(f"Error: Address book directory not found: {ab_dir}", file=sys.stderr)
@@ -1003,13 +1272,214 @@ def cmd_contact_edit(args, config):
     _print_contact(contact)
 
 
+# --- Calendar Refresh ---
+
+def cmd_calendar_refresh(args, config):
+    """Re-discover calendars via CalDAV PROPFIND and update config mappings.
+
+    Steps:
+    1. vdirsyncer discover + sync (pulls new collections from iCloud)
+    2. PROPFIND to get calendar metadata (display names, owned/subscribed, source URLs)
+    3. For subscribed calendars with source_url not yet on disk:
+       a. Add to subscribed_sources
+       b. Regenerate vdirsyncer config with HTTP pairs
+       c. Re-run vdirsyncer discover + sync (creates local dirs for HTTP feeds)
+    4. Cross-reference all PROPFIND results against local dirs
+    5. Save config + regenerate khal config
+    """
+    from setup import (run_vdirsyncer_discover, propfind_calendars,
+                        generate_khal_config, generate_vdirsyncer_config)
+
+    raw = load_raw_config()
+    cal_base = os.path.expanduser(raw.get("calendar_base", "~/.local/share/vdirsyncer/calendars"))
+    sub_cal_base = os.path.expanduser(
+        raw.get("subscribed_calendar_base", "~/.local/share/vdirsyncer/subscriptions"))
+
+    # Step 1: Pre-fetch subscribed feeds + vdirsyncer discover + sync
+    vdirsyncer_bin = config["bins"]["vdirsyncer"]
+    print("Syncing calendar collections from iCloud...")
+    fetch_and_sanitize_feeds(config)
+    run_vdirsyncer_discover(vdirsyncer_bin)
+
+    # Step 2: Resolve apple_id for PROPFIND auth
+    apple_id = raw.get("apple_id")
+    if not apple_id:
+        addresses = raw.get("email_addresses", [])
+        apple_id = addresses[-1] if addresses else None
+        if not apple_id:
+            print("Error: No apple_id in config and no email_addresses to fall back to.",
+                  file=sys.stderr)
+            print("Re-run 'setup finalize' to populate apple_id.", file=sys.stderr)
+            sys.exit(1)
+        save_config_field("apple_id", apple_id)
+        print(f"  Backfilled apple_id from email_addresses: {apple_id}")
+
+    script_dir = Path(__file__).resolve().parent
+    auth_path = script_dir.parent / "config" / "auth"
+
+    # Step 3: PROPFIND discovery
+    propfind_results = None
+    try:
+        propfind_results = propfind_calendars(apple_id, auth_path)
+        print(f"  PROPFIND returned {len(propfind_results)} calendar(s)")
+    except Exception as e:
+        print(f"  Warning: CalDAV PROPFIND failed: {e}")
+        print("  Falling back to local-only discovery.")
+
+    # Step 4: Handle subscribed calendars with source URLs
+    # Scan current local dirs from both base paths
+    def _scan_local_dirs():
+        dirs = set()
+        if os.path.isdir(cal_base):
+            dirs |= {e for e in os.listdir(cal_base)
+                      if os.path.isdir(os.path.join(cal_base, e))}
+        if os.path.isdir(sub_cal_base):
+            dirs |= {e for e in os.listdir(sub_cal_base)
+                      if os.path.isdir(os.path.join(sub_cal_base, e))}
+        return dirs
+
+    local_dirs = _scan_local_dirs()
+
+    # Load existing subscribed_sources and check for new ones from PROPFIND
+    subscribed_sources = dict(raw.get("subscribed_sources", {}))
+    sources_changed = False
+
+    if propfind_results:
+        for cal in propfind_results:
+            source_url = cal.get("source_url")
+            if not source_url:
+                continue
+            dir_id = cal["dir_id"]
+            if dir_id not in subscribed_sources:
+                subscribed_sources[dir_id] = source_url
+                sources_changed = True
+
+    # If we have subscribed sources with missing local dirs, regenerate
+    # vdirsyncer config with HTTP pairs and re-sync to create them
+    if subscribed_sources:
+        missing_dirs = [d for d in subscribed_sources if d not in local_dirs]
+        if missing_dirs or sources_changed:
+            print(f"  Regenerating vdirsyncer config with {len(subscribed_sources)} "
+                  f"HTTP feed(s)...")
+            generate_vdirsyncer_config(apple_id, auth_path,
+                                       subscribed_sources=subscribed_sources)
+            if missing_dirs:
+                print(f"  Syncing {len(missing_dirs)} new subscribed calendar(s)...")
+                fetch_and_sanitize_feeds(config)
+                run_vdirsyncer_discover(vdirsyncer_bin)
+            # Re-scan after sync created new dirs
+            local_dirs = _scan_local_dirs()
+
+    # Step 5: Cross-reference PROPFIND results against local filesystem
+    calendars = dict(raw.get("calendars", {}))
+    subscribed_calendars = dict(raw.get("subscribed_calendars", {}))
+    disabled = raw.get("disabled_calendars", [])
+
+    mapped_dirs = {}
+    for name, dir_id in calendars.items():
+        mapped_dirs[dir_id] = name
+    for name, dir_id in subscribed_calendars.items():
+        mapped_dirs[dir_id] = name
+
+    all_names = set(calendars.keys()) | set(subscribed_calendars.keys())
+
+    added = []
+    already_mapped = 0
+    skipped_no_dir = 0
+
+    if propfind_results:
+        for cal in propfind_results:
+            dir_id = cal["dir_id"]
+
+            if dir_id in mapped_dirs:
+                already_mapped += 1
+                continue
+
+            if dir_id not in local_dirs:
+                skipped_no_dir += 1
+                continue
+
+            name = cal["name"]
+            if name in all_names:
+                suffix = 2
+                while f"{name} ({suffix})" in all_names:
+                    suffix += 1
+                name = f"{name} ({suffix})"
+
+            if cal["subscribed"]:
+                subscribed_calendars[name] = dir_id
+            else:
+                calendars[name] = dir_id
+
+            all_names.add(name)
+            added.append({"name": name, "dir_id": dir_id,
+                           "type": "subscribed" if cal["subscribed"] else "owned"})
+
+    # Step 6: Detect stale mappings (dir_ids in config but not on disk)
+    stale = []
+    for name, dir_id in list(calendars.items()) + list(subscribed_calendars.items()):
+        if dir_id not in local_dirs:
+            stale.append({"name": name, "dir_id": dir_id})
+
+    # Step 7: Save if anything changed
+    changed = False
+    if added:
+        save_config_field("calendars", calendars)
+        save_config_field("subscribed_calendars", subscribed_calendars)
+        changed = True
+
+    if sources_changed or (subscribed_sources and "subscribed_sources" not in raw):
+        save_config_field("subscribed_sources", subscribed_sources)
+        save_config_field("subscribed_calendar_base",
+                          "~/.local/share/vdirsyncer/subscriptions")
+        changed = True
+
+    if changed:
+        generate_khal_config(
+            calendars, cal_base, raw.get("default_calendar", ""),
+            tz=raw.get("timezone"),
+            subscribed_calendars=subscribed_calendars,
+            disabled_calendars=disabled,
+            subscribed_cal_base=sub_cal_base,
+        )
+
+    # Step 8: Print summary
+    print(f"\nRefresh summary:")
+    print(f"  Already mapped: {already_mapped}")
+    if added:
+        print(f"  Newly added ({len(added)}):")
+        for a in added:
+            print(f"    + {a['name']} ({a['type']})")
+    else:
+        print(f"  Newly added: 0")
+    if skipped_no_dir:
+        print(f"  Skipped (not on disk): {skipped_no_dir}")
+    if stale:
+        print(f"  Stale mappings (dir missing from disk):")
+        for s in stale:
+            print(f"    ! {s['name']} → {s['dir_id']}")
+        print("  (Use 'calendar disable' to suppress or remove manually from config.json)")
+    if disabled:
+        print(f"  Disabled: {len(disabled)} ({', '.join(disabled)})")
+    if not propfind_results and not added:
+        unmapped_local = local_dirs - set(mapped_dirs.keys())
+        if unmapped_local:
+            print(f"\n  Unmapped local directories (couldn't resolve names without PROPFIND):")
+            for d in sorted(unmapped_local):
+                print(f"    ? {d}")
+            print("  Retry 'calendar refresh' or map manually in config.json")
+
+
 # --- Setup Commands ---
 
 def cmd_setup_discover(args, config):
     """Discover calendars and cross-reference with config.json."""
     cal_base = config["calendar_base"]
     configured = config.get("calendars", {})
+    subscribed = config.get("subscribed_calendars", {})
     id_to_name = {v: k for k, v in configured.items()}
+    for name, dir_id in subscribed.items():
+        id_to_name[dir_id] = f"{name} (subscribed)"
 
     print(f"Calendar base: {cal_base}\n")
     print(f"{'Directory':<45} {'ICS Files':<12} {'Mapped As'}")
@@ -1027,7 +1497,8 @@ def cmd_setup_discover(args, config):
         mapped = id_to_name.get(entry, "UNMAPPED")
         print(f"{entry:<45} {ics_count:<12} {mapped}")
 
-    print(f"\nConfigured calendars: {len(configured)}")
+    total_configured = len(configured) + len(subscribed)
+    print(f"\nConfigured calendars: {total_configured} ({len(configured)} owned, {len(subscribed)} subscribed)")
     unmapped = [e for e in os.listdir(cal_base)
                 if os.path.isdir(os.path.join(cal_base, e)) and e not in id_to_name]
     if unmapped:
@@ -1070,6 +1541,158 @@ def run_self_test():
     assert "DTSTART;VALUE=DATE:20260315" in ics_ad
     assert "DTEND;VALUE=DATE:20260316" in ics_ad
     assert "VTIMEZONE" not in ics_ad
+
+    # --- Feed validation tests ---
+
+    valid_feed = (
+        "BEGIN:VCALENDAR\r\nVERSION:2.0\r\n"
+        "BEGIN:VEVENT\r\nUID:test\r\nSUMMARY:Test\r\nEND:VEVENT\r\n"
+        "END:VCALENDAR\r\n"
+    )
+    assert _validate_ics_feed(valid_feed, "test") is True
+
+    # Reject empty content
+    try:
+        _validate_ics_feed("", "empty")
+        assert False, "Should reject empty"
+    except ValueError:
+        pass
+
+    # Reject binary content
+    try:
+        _validate_ics_feed("BEGIN:VCALENDAR\x00binary", "bin")
+        assert False, "Should reject binary"
+    except ValueError:
+        pass
+
+    # Reject missing VCALENDAR
+    try:
+        _validate_ics_feed("just some text", "bad")
+        assert False, "Should reject non-ICS"
+    except ValueError:
+        pass
+
+    # Reject mismatched BEGIN/END
+    try:
+        _validate_ics_feed("BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nEND:VCALENDAR\r\n", "mismatch")
+        assert False, "Should reject mismatched"
+    except ValueError:
+        pass
+
+    # DTEND must not false-match as END: (regression test)
+    feed_with_dtend = (
+        "BEGIN:VCALENDAR\r\nVERSION:2.0\r\n"
+        "BEGIN:VEVENT\r\nUID:dt1\r\nDTSTART:20260315T080000Z\r\n"
+        "DTEND:20260315T200000Z\r\nSUMMARY:Shift\r\nEND:VEVENT\r\n"
+        "END:VCALENDAR\r\n"
+    )
+    assert _validate_ics_feed(feed_with_dtend, "dtend") is True
+
+    # Reject oversized (mock via lowered limit not practical, just verify the check exists)
+    try:
+        _validate_ics_feed("x" * (MAX_FEED_SIZE + 1), "huge")
+        assert False, "Should reject oversized"
+    except ValueError:
+        pass
+
+    # URL scheme validation
+    assert _validate_feed_url("https://example.com/feed.ics") == "https://example.com/feed.ics"
+    assert _validate_feed_url("http://example.com/feed.ics") == "http://example.com/feed.ics"
+    try:
+        _validate_feed_url("file:///etc/passwd")
+        assert False, "Should reject file:// scheme"
+    except ValueError:
+        pass
+    try:
+        _validate_feed_url("ftp://example.com/feed.ics")
+        assert False, "Should reject ftp:// scheme"
+    except ValueError:
+        pass
+
+    # dir_id validation
+    try:
+        _validate_dir_id("../../../.ssh", "test")
+        assert False, "Should reject path traversal"
+    except SystemExit:
+        pass
+    try:
+        _validate_dir_id("foo/bar", "test")
+        assert False, "Should reject slashes"
+    except SystemExit:
+        pass
+
+    # --- Feed sanitization tests ---
+
+    # Multi-event ICS with a VCALENDAR-level UID (like MetricAid feeds)
+    feed_with_cal_uid = (
+        "BEGIN:VCALENDAR\r\n"
+        "VERSION:2.0\r\n"
+        "PRODID:-//Test//Test//EN\r\n"
+        "UID:calendar-level-uid-bad\r\n"
+        "BEGIN:VEVENT\r\n"
+        "UID:event-uid-001\r\n"
+        "SUMMARY:Shift A\r\n"
+        "DTSTART:20260315T080000Z\r\n"
+        "DTEND:20260315T200000Z\r\n"
+        "END:VEVENT\r\n"
+        "BEGIN:VEVENT\r\n"
+        "UID:event-uid-002\r\n"
+        "SUMMARY:Shift B\r\n"
+        "DTSTART:20260316T080000Z\r\n"
+        "DTEND:20260316T200000Z\r\n"
+        "END:VEVENT\r\n"
+        "END:VCALENDAR\r\n"
+    )
+    sanitized = sanitize_feed_ics(feed_with_cal_uid)
+    assert "calendar-level-uid-bad" not in sanitized, "VCALENDAR UID not stripped"
+    assert "UID:event-uid-001" in sanitized, "VEVENT UID 001 was wrongly stripped"
+    assert "UID:event-uid-002" in sanitized, "VEVENT UID 002 was wrongly stripped"
+    assert "BEGIN:VCALENDAR" in sanitized
+    assert "VERSION:2.0" in sanitized
+    assert "PRODID:-//Test//Test//EN" in sanitized
+
+    # UID with parameters (UID;VALUE=TEXT:...) should also be stripped
+    feed_with_param_uid = (
+        "BEGIN:VCALENDAR\r\n"
+        "UID;VALUE=TEXT:param-uid-bad\r\n"
+        "BEGIN:VEVENT\r\n"
+        "UID:event-uid-003\r\n"
+        "SUMMARY:Test\r\n"
+        "END:VEVENT\r\n"
+        "END:VCALENDAR\r\n"
+    )
+    sanitized2 = sanitize_feed_ics(feed_with_param_uid)
+    assert "param-uid-bad" not in sanitized2, "UID;param not stripped"
+    assert "UID:event-uid-003" in sanitized2
+
+    # Folded UID continuation line should be stripped too
+    feed_with_folded_uid = (
+        "BEGIN:VCALENDAR\r\n"
+        "UID:very-long-uid-that-gets\r\n"
+        " -folded-onto-next-line\r\n"
+        "BEGIN:VEVENT\r\n"
+        "UID:event-uid-004\r\n"
+        "SUMMARY:Folded\r\n"
+        "END:VEVENT\r\n"
+        "END:VCALENDAR\r\n"
+    )
+    sanitized3 = sanitize_feed_ics(feed_with_folded_uid)
+    assert "very-long-uid" not in sanitized3, "Folded UID not stripped"
+    assert "folded-onto-next-line" not in sanitized3, "Folded continuation not stripped"
+    assert "UID:event-uid-004" in sanitized3
+
+    # Feed without VCALENDAR-level UID should pass through unchanged
+    clean_feed = (
+        "BEGIN:VCALENDAR\r\n"
+        "VERSION:2.0\r\n"
+        "BEGIN:VEVENT\r\n"
+        "UID:clean-uid\r\n"
+        "SUMMARY:Clean\r\n"
+        "END:VEVENT\r\n"
+        "END:VCALENDAR\r\n"
+    )
+    sanitized4 = sanitize_feed_ics(clean_feed)
+    assert sanitized4 == clean_feed, "Clean feed was modified"
 
     # --- vCard tests ---
 
@@ -1189,6 +1812,72 @@ def run_self_test():
     print("All tests passed!")
 
 
+# --- Heartbeat management ---
+
+
+def cmd_heartbeat_enable(args, config):
+    """Add the heartbeat cron job (every 5 minutes)."""
+    skill_dir = Path(__file__).resolve().parent.parent
+    cron_script = skill_dir / "scripts" / "heartbeat-cron.py"
+    cron_line = f"*/5 * * * * /usr/bin/python3 {cron_script}"
+    marker = "icloud-toolkit/scripts/heartbeat-cron.py"
+
+    # Read existing crontab
+    result = subprocess.run(["crontab", "-l"], capture_output=True, text=True)
+    existing = result.stdout if result.returncode == 0 else ""
+
+    if marker in existing:
+        print("Heartbeat cron is already enabled.")
+        return
+
+    # Append the new line
+    new_crontab = existing.rstrip("\n") + "\n" + cron_line + "\n"
+    subprocess.run(["crontab", "-"], input=new_crontab, text=True, check=True)
+    print(f"Heartbeat cron enabled: {cron_line}")
+
+
+def cmd_heartbeat_disable(args, config):
+    """Remove the heartbeat cron job."""
+    marker = "icloud-toolkit/scripts/heartbeat-cron.py"
+
+    result = subprocess.run(["crontab", "-l"], capture_output=True, text=True)
+    if result.returncode != 0 or marker not in result.stdout:
+        print("Heartbeat cron is not enabled.")
+        return
+
+    # Filter out the heartbeat line
+    lines = [l for l in result.stdout.splitlines() if marker not in l]
+    new_crontab = "\n".join(lines) + "\n" if lines else ""
+    subprocess.run(["crontab", "-"], input=new_crontab, text=True, check=True)
+    print("Heartbeat cron disabled.")
+
+
+def cmd_heartbeat_status(args, config):
+    """Show heartbeat cron and state info."""
+    marker = "icloud-toolkit/scripts/heartbeat-cron.py"
+
+    # Check crontab
+    result = subprocess.run(["crontab", "-l"], capture_output=True, text=True)
+    cron_active = result.returncode == 0 and marker in result.stdout
+    print(f"Cron: {'enabled' if cron_active else 'disabled'}")
+
+    # Check state file
+    skill_dir = Path(__file__).resolve().parent.parent
+    state_file = skill_dir / "state" / "heartbeat-state.json"
+    if state_file.exists():
+        try:
+            with open(state_file) as f:
+                state = json.load(f)
+            last_run = state.get("last_fetch", "unknown")
+            notified = len(state.get("notified_ids", []))
+            print(f"Last run: {last_run}")
+            print(f"Notified IDs tracked: {notified}")
+        except (json.JSONDecodeError, OSError):
+            print("State file exists but is unreadable.")
+    else:
+        print("State: never run")
+
+
 # --- CLI ---
 
 def build_parser():
@@ -1229,6 +1918,14 @@ def build_parser():
     cal_delete.add_argument("uid", help="Event UID")
 
     cal_sub.add_parser("sync", help="Manual sync with iCloud")
+
+    cal_disable = cal_sub.add_parser("disable", help="Disable a calendar from listings")
+    cal_disable.add_argument("name", help="Calendar name to disable")
+
+    cal_enable = cal_sub.add_parser("enable", help="Re-enable a disabled calendar")
+    cal_enable.add_argument("name", help="Calendar name to enable")
+
+    cal_sub.add_parser("refresh", help="Re-discover calendars via CalDAV PROPFIND")
 
     # Email
     email_parser = subparsers.add_parser("email", help="Email operations")
@@ -1342,12 +2039,20 @@ def build_parser():
     setup_finalize.add_argument("--apple-id", help="Apple ID for iCloud auth (defaults to --email)")
     setup_finalize.add_argument("--name", required=True, help="Display name for sent emails")
     setup_finalize.add_argument("--timezone", required=True, help="IANA timezone")
-    setup_finalize.add_argument("--calendars", required=True, help='JSON mapping: \'{"Name": "dir_id", ...}\'')
+    setup_finalize.add_argument("--calendars", help='JSON mapping (optional — auto-discovered via PROPFIND if omitted)')
     setup_finalize.add_argument("--default", required=True, help="Default calendar name")
     setup_finalize.add_argument("--addressbooks", help='JSON mapping: \'{"Name": "dir_id", ...}\'')
     setup_finalize.add_argument("--default-addressbook", help="Default address book name")
+    setup_finalize.add_argument("--subscribed-calendars", help='JSON mapping: \'{"Name": "dir_id", ...}\'')
 
     setup_sub.add_parser("verify", help="Run verification against current config")
+
+    # Heartbeat
+    hb_parser = subparsers.add_parser("heartbeat", help="Email notification heartbeat")
+    hb_sub = hb_parser.add_subparsers(dest="hb_command")
+    hb_sub.add_parser("enable", help="Enable heartbeat cron job")
+    hb_sub.add_parser("disable", help="Disable heartbeat cron job")
+    hb_sub.add_parser("status", help="Show heartbeat status")
 
     return parser
 
@@ -1390,6 +2095,19 @@ def main():
             cmd_setup_verify(args, script_dir)
             return
 
+    if args.command == "heartbeat":
+        hb_cmd = getattr(args, "hb_command", None)
+        if not hb_cmd:
+            print("Usage: icloud.py heartbeat {enable|disable|status}")
+            return
+        handlers = {
+            "enable": cmd_heartbeat_enable,
+            "disable": cmd_heartbeat_disable,
+            "status": cmd_heartbeat_status,
+        }
+        handlers[hb_cmd](args, None)
+        return
+
     if not config_path.exists():
         print("SETUP_REQUIRED")
         print("This skill needs to be configured before use.")
@@ -1400,7 +2118,7 @@ def main():
 
     if args.command == "calendar":
         if not args.cal_command:
-            print("Usage: icloud.py calendar {list|search|create|create-allday|delete|sync}")
+            print("Usage: icloud.py calendar {list|search|create|create-allday|delete|sync|enable|disable|refresh}")
             return
         handlers = {
             "create": cmd_calendar_create,
@@ -1409,6 +2127,9 @@ def main():
             "search": cmd_calendar_search,
             "delete": cmd_calendar_delete,
             "sync": cmd_calendar_sync,
+            "disable": cmd_calendar_disable,
+            "enable": cmd_calendar_enable,
+            "refresh": cmd_calendar_refresh,
         }
         handlers[args.cal_command](args, config)
 

@@ -1,5 +1,6 @@
 """setup.py — Setup commands for iCloud Toolkit."""
 
+import base64
 import getpass
 import json
 import os
@@ -7,8 +8,11 @@ import shutil
 import stat
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
 
 
 REQUIRED_BINS = ["vdirsyncer", "khal", "himalaya", "khard"]
@@ -18,6 +22,21 @@ KHAL_COLORS = ["dark green", "dark blue", "dark red", "dark magenta", "dark cyan
 
 
 # --- Helpers ---
+
+def validate_dir_id(dir_id, label="directory ID"):
+    """Reject dir_ids that could cause path traversal.
+
+    dir_ids come from CalDAV PROPFIND (trusted) or from --calendars /
+    --addressbooks JSON (agent-provided).  They should be bare directory
+    names (UUIDs, slugs) — never paths.  Reject anything with path
+    separators or parent-directory references.
+    """
+    if not dir_id or ".." in dir_id or "/" in dir_id or "\\" in dir_id:
+        raise ValueError(
+            f"Invalid {label}: {dir_id!r} — must be a plain directory name, "
+            f"not a path (no '..', '/', or '\\\\')")
+    return dir_id
+
 
 def _print_step(number, title):
     print(f"\n{'='*60}")
@@ -94,8 +113,15 @@ def write_auth_file(auth_path, password):
 
 # --- Config Generators ---
 
-def generate_vdirsyncer_config(apple_id, auth_path):
-    """Generate ~/.config/vdirsyncer/config for iCloud CalDAV."""
+def generate_vdirsyncer_config(apple_id, auth_path, subscribed_sources=None):
+    """Generate ~/.config/vdirsyncer/config for iCloud CalDAV.
+
+    When subscribed_sources is provided ({dir_id: source_url}), appends
+    singlefile storage pairs for each subscribed calendar. These read from
+    pre-sanitized local cache files (fetched by fetch_and_sanitize_feeds())
+    rather than fetching HTTP directly — this avoids vdirsyncer ident
+    collisions caused by non-standard VCALENDAR-level UIDs in some feeds.
+    """
     config_path = Path.home() / ".config" / "vdirsyncer" / "config"
     config_path.parent.mkdir(parents=True, exist_ok=True)
     _backup_if_exists(config_path)
@@ -139,6 +165,34 @@ type = "filesystem"
 path = "~/.local/share/vdirsyncer/contacts/"
 fileext = ".vcf"
 """
+
+    # Append singlefile pairs for subscribed calendars (sanitized ICS feeds).
+    # fetch_and_sanitize_feeds() downloads the raw HTTP feed, strips any
+    # VCALENDAR-level UID that would cause ident collisions, and writes
+    # the result to _feed_cache/{dir_id}.ics.  vdirsyncer reads from
+    # that cache via singlefile storage (read_only so it won't write back).
+    if subscribed_sources:
+        for dir_id, source_url in subscribed_sources.items():
+            # Sanitize dir_id for TOML bare key names (hyphens → underscores)
+            safe_id = dir_id.replace("-", "_")
+            content += f"""
+[pair sub_{safe_id}]
+a = "sub_{safe_id}_remote"
+b = "sub_{safe_id}_local"
+collections = null
+conflict_resolution = "a wins"
+
+[storage sub_{safe_id}_remote]
+type = "singlefile"
+path = "~/.local/share/vdirsyncer/subscriptions/_feed_cache/{dir_id}.ics"
+read_only = true
+
+[storage sub_{safe_id}_local]
+type = "filesystem"
+path = "~/.local/share/vdirsyncer/subscriptions/{dir_id}/"
+fileext = ".ics"
+"""
+
     config_path.write_text(content)
     print(f"  Wrote {config_path}")
     return config_path
@@ -207,9 +261,148 @@ def discover_addressbooks(contacts_base):
     return discovered
 
 
+def propfind_calendars(apple_id, auth_path):
+    """Query iCloud CalDAV for all calendars via PROPFIND.
+
+    Uses a 3-step flow:
+      1. PROPFIND caldav.icloud.com/ → current-user-principal href
+      2. PROPFIND <principal> → calendar-home-set href
+      3. PROPFIND <calendar-home> Depth:1 → all calendars
+
+    Returns a list of dicts:
+      [{"name": "Social", "dir_id": "294D4503-...", "subscribed": False,
+        "source_url": None}, ...]
+
+    Subscribed calendars include source_url (the original ICS feed URL).
+
+    Raises Exception on auth or network errors so callers can handle gracefully.
+    """
+    password = Path(auth_path).read_text().strip()
+    creds = base64.b64encode(f"{apple_id}:{password}".encode()).decode()
+    auth_header = f"Basic {creds}"
+
+    # Namespaces used in CalDAV/WebDAV responses
+    DAV = "{DAV:}"
+    CALDAV = "{urn:ietf:params:xml:ns:caldav}"
+    CS = "{http://calendarserver.org/ns/}"
+
+    def _propfind(url, body, depth="0"):
+        """Send a PROPFIND request and return parsed XML root."""
+        req = Request(url, data=body.encode("utf-8"), method="PROPFIND")
+        req.add_header("Authorization", auth_header)
+        req.add_header("Content-Type", "application/xml; charset=utf-8")
+        req.add_header("Depth", depth)
+        resp = urlopen(req, timeout=30)
+        return ET.fromstring(resp.read()), resp.url
+
+    def _mkurl(base_url, href):
+        """Build full URL from a base URL and an href.
+
+        iCloud may return absolute URLs pointing to a shard
+        (e.g. https://p110-caldav.icloud.com:443/...) — use those as-is.
+        For relative paths, prepend the scheme+host from the response URL.
+        """
+        if href.startswith("http://") or href.startswith("https://"):
+            return href
+        from urllib.parse import urlparse
+        parsed = urlparse(base_url)
+        return f"{parsed.scheme}://{parsed.netloc}{href}"
+
+    # Step 1: Get principal URL
+    body1 = """<?xml version="1.0" encoding="utf-8"?>
+<d:propfind xmlns:d="DAV:">
+  <d:prop><d:current-user-principal/></d:prop>
+</d:propfind>"""
+
+    root1, base1 = _propfind("https://caldav.icloud.com/", body1)
+    principal_el = root1.find(f".//{DAV}current-user-principal/{DAV}href")
+    if principal_el is None or not principal_el.text:
+        raise Exception("PROPFIND: could not find current-user-principal")
+    principal_url = _mkurl(base1, principal_el.text)
+
+    # Step 2: Get calendar-home-set URL
+    body2 = """<?xml version="1.0" encoding="utf-8"?>
+<d:propfind xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+  <d:prop><c:calendar-home-set/></d:prop>
+</d:propfind>"""
+
+    root2, base2 = _propfind(principal_url, body2)
+    home_el = root2.find(f".//{CALDAV}calendar-home-set/{DAV}href")
+    if home_el is None or not home_el.text:
+        raise Exception("PROPFIND: could not find calendar-home-set")
+    home_url = _mkurl(base2, home_el.text)
+
+    # Step 3: List all calendars with Depth:1
+    # Include cs:source to get the original ICS feed URL for subscribed calendars
+    body3 = """<?xml version="1.0" encoding="utf-8"?>
+<d:propfind xmlns:d="DAV:" xmlns:cs="http://calendarserver.org/ns/">
+  <d:prop>
+    <d:displayname/>
+    <d:resourcetype/>
+    <cs:source/>
+  </d:prop>
+</d:propfind>"""
+
+    root3, base3 = _propfind(home_url, body3, depth="1")
+
+    calendars = []
+    for response in root3.findall(f"{DAV}response"):
+        href_el = response.find(f"{DAV}href")
+        if href_el is None or not href_el.text:
+            continue
+
+        # Extract dir_id from href: /12345/calendars/<dir_id>/
+        href = href_el.text.rstrip("/")
+        parts = href.split("/")
+        if len(parts) < 2:
+            continue
+        dir_id = parts[-1]
+
+        # Skip the calendar-home itself (its dir_id would be "calendars")
+        if dir_id == "calendars" or dir_id == "":
+            continue
+
+        # Check resourcetype for calendar or subscribed
+        propstat = response.find(f"{DAV}propstat")
+        if propstat is None:
+            continue
+        restype = propstat.find(f"{DAV}prop/{DAV}resourcetype")
+        if restype is None:
+            continue
+
+        is_calendar = restype.find(f"{CALDAV}calendar") is not None
+        is_subscribed = restype.find(f"{CS}subscribed") is not None
+
+        # Must be a calendar (owned or subscribed) — skip notification
+        # collections and other non-calendar resources
+        if not is_calendar and not is_subscribed:
+            continue
+
+        displayname_el = propstat.find(f"{DAV}prop/{DAV}displayname")
+        name = displayname_el.text if displayname_el is not None and displayname_el.text else dir_id
+
+        # Extract source URL for subscribed calendars (original ICS feed)
+        source_url = None
+        source_el = propstat.find(f"{DAV}prop/{CS}source")
+        if source_el is not None:
+            source_href = source_el.find(f"{DAV}href")
+            if source_href is not None and source_href.text:
+                source_url = source_href.text
+
+        calendars.append({
+            "name": name,
+            "dir_id": dir_id,
+            "subscribed": is_subscribed,
+            "source_url": source_url,
+        })
+
+    return calendars
+
+
 def write_config_json(config_path, email, apple_id, display_name, tz,
                       calendars, default_calendar, bins,
-                      addressbooks=None, default_addressbook=None, contacts_base=None):
+                      addressbooks=None, default_addressbook=None, contacts_base=None,
+                      subscribed_calendars=None, subscribed_sources=None):
     """Write the main config.json."""
     config_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -225,6 +418,7 @@ def write_config_json(config_path, email, apple_id, display_name, tz,
     config = {
         "timezone": tz,
         "account_email": email,
+        "apple_id": apple_id,
         "display_name": display_name,
         "calendars": calendars,
         "default_calendar": default_calendar,
@@ -239,6 +433,13 @@ def write_config_json(config_path, email, apple_id, display_name, tz,
         config["default_addressbook"] = default_addressbook
         config["contacts_base"] = contacts_base or "~/.local/share/vdirsyncer/contacts"
 
+    if subscribed_calendars:
+        config["subscribed_calendars"] = subscribed_calendars
+
+    if subscribed_sources:
+        config["subscribed_sources"] = subscribed_sources
+        config["subscribed_calendar_base"] = "~/.local/share/vdirsyncer/subscriptions"
+
     with open(config_path, "w") as f:
         json.dump(config, f, indent=2)
         f.write("\n")
@@ -247,19 +448,49 @@ def write_config_json(config_path, email, apple_id, display_name, tz,
     return config
 
 
-def generate_khal_config(calendars, cal_base, default_calendar, tz=None):
-    """Generate ~/.config/khal/config with explicit calendar entries."""
+def generate_khal_config(calendars, cal_base, default_calendar, tz=None,
+                         subscribed_calendars=None, disabled_calendars=None,
+                         subscribed_cal_base=None):
+    """Generate ~/.config/khal/config with explicit calendar entries.
+
+    Skips any calendar whose name appears in disabled_calendars.
+    Adds subscribed_calendars with readonly = True so khal can display
+    but not write to externally-owned calendars.
+
+    When subscribed_cal_base is provided, subscribed calendar paths use
+    that base directory instead of cal_base (for HTTP-synced feeds stored
+    in a separate directory).
+    """
     config_path = Path.home() / ".config" / "khal" / "config"
     config_path.parent.mkdir(parents=True, exist_ok=True)
     _backup_if_exists(config_path)
 
+    disabled = set(disabled_calendars or [])
+
     lines = ["[calendars]"]
-    for i, (name, dir_id) in enumerate(calendars.items()):
-        color = KHAL_COLORS[i % len(KHAL_COLORS)]
+    color_idx = 0
+    for name, dir_id in calendars.items():
+        if name in disabled:
+            continue
+        color = KHAL_COLORS[color_idx % len(KHAL_COLORS)]
+        color_idx += 1
         lines.extend([
             f"[[{name}]]",
             f"path = {cal_base}/{dir_id}/",
             f"color = {color}",
+            "",
+        ])
+    sub_base = subscribed_cal_base or cal_base
+    for name, dir_id in (subscribed_calendars or {}).items():
+        if name in disabled:
+            continue
+        color = KHAL_COLORS[color_idx % len(KHAL_COLORS)]
+        color_idx += 1
+        lines.extend([
+            f"[[{name}]]",
+            f"path = {sub_base}/{dir_id}/",
+            f"color = {color}",
+            f"readonly = True",
             "",
         ])
 
@@ -453,22 +684,125 @@ def cmd_setup_configure(args, script_dir):
 
 
 def cmd_setup_finalize(args, script_dir):
-    """Phase 2: write all config files after user picks calendar names."""
+    """Phase 2: write all config files after user picks calendar names.
+
+    When --calendars is provided, uses the explicit JSON mapping (backward compat).
+    When --calendars is omitted, auto-discovers via CalDAV PROPFIND and cross-
+    references against local filesystem directories from vdirsyncer.
+    """
     bins = detect_binary_paths()
     apple_id = args.apple_id or args.email
+    auth_path = script_dir.parent / "config" / "auth"
+    cal_base = os.path.expanduser("~/.local/share/vdirsyncer/calendars")
 
-    try:
-        calendars = json.loads(args.calendars)
-    except json.JSONDecodeError as e:
-        print(f"Error: Invalid JSON for --calendars: {e}", file=sys.stderr)
-        sys.exit(1)
+    if args.calendars:
+        # Explicit mapping provided — use as-is (backward compat)
+        try:
+            calendars = json.loads(args.calendars)
+        except json.JSONDecodeError as e:
+            print(f"Error: Invalid JSON for --calendars: {e}", file=sys.stderr)
+            sys.exit(1)
 
-    if not calendars:
-        print("Error: --calendars must contain at least one mapping.", file=sys.stderr)
-        sys.exit(1)
+        if not calendars:
+            print("Error: --calendars must contain at least one mapping.", file=sys.stderr)
+            sys.exit(1)
 
-    if args.default not in calendars:
-        print(f"Error: --default '{args.default}' not found in --calendars.", file=sys.stderr)
+        # Validate dir_ids to prevent path traversal
+        try:
+            for name, dir_id in calendars.items():
+                validate_dir_id(dir_id, f"calendar dir_id for '{name}'")
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+
+        subscribed_calendars = None
+        subscribed_sources = None
+        if getattr(args, "subscribed_calendars", None):
+            try:
+                subscribed_calendars = json.loads(args.subscribed_calendars)
+            except json.JSONDecodeError as e:
+                print(f"Error: Invalid JSON for --subscribed-calendars: {e}", file=sys.stderr)
+                sys.exit(1)
+            try:
+                for name, dir_id in subscribed_calendars.items():
+                    validate_dir_id(dir_id, f"subscribed calendar dir_id for '{name}'")
+            except ValueError as e:
+                print(f"Error: {e}", file=sys.stderr)
+                sys.exit(1)
+    else:
+        # Auto-discover via PROPFIND
+        print("  No --calendars provided, auto-discovering via CalDAV PROPFIND...")
+        try:
+            discovered = propfind_calendars(apple_id, auth_path)
+        except Exception as e:
+            print(f"Error: CalDAV PROPFIND failed: {e}", file=sys.stderr)
+            print("\nTo proceed manually, re-run with explicit --calendars:", file=sys.stderr)
+            print(f"  setup finalize ... --calendars '{{\"Name\":\"dir_id\"}}' "
+                  f"--subscribed-calendars '{{\"Name\":\"dir_id\"}}'", file=sys.stderr)
+            sys.exit(1)
+
+        if not discovered:
+            print("Error: PROPFIND returned no calendars.", file=sys.stderr)
+            sys.exit(1)
+
+        # Build subscribed_sources from PROPFIND results that have source_url
+        subscribed_sources = {}
+        for cal in discovered:
+            if cal.get("source_url"):
+                subscribed_sources[cal["dir_id"]] = cal["source_url"]
+
+        # If we have subscribed sources, regenerate vdirsyncer config with
+        # HTTP pairs and re-discover to create local dirs for them
+        sub_cal_base = os.path.expanduser("~/.local/share/vdirsyncer/subscriptions")
+        if subscribed_sources:
+            print(f"  Found {len(subscribed_sources)} subscribed calendar(s) with ICS feed URLs")
+            generate_vdirsyncer_config(apple_id, auth_path,
+                                       subscribed_sources=subscribed_sources)
+            run_vdirsyncer_discover(bins["vdirsyncer"])
+
+        # Cross-reference against local filesystem — scan both owned and
+        # subscribed base paths for directory matches
+        local_dirs = set()
+        if os.path.isdir(cal_base):
+            local_dirs = {e for e in os.listdir(cal_base)
+                          if os.path.isdir(os.path.join(cal_base, e))}
+        if os.path.isdir(sub_cal_base):
+            local_dirs |= {e for e in os.listdir(sub_cal_base)
+                           if os.path.isdir(os.path.join(sub_cal_base, e))}
+
+        calendars = {}
+        subscribed_calendars = {}
+        skipped = []
+        for cal in discovered:
+            if cal["dir_id"] not in local_dirs:
+                skipped.append(cal)
+                continue
+            if cal["subscribed"]:
+                subscribed_calendars[cal["name"]] = cal["dir_id"]
+            else:
+                calendars[cal["name"]] = cal["dir_id"]
+
+        if not calendars and not subscribed_calendars:
+            print("Error: No discovered calendars match local directories.", file=sys.stderr)
+            print("Run 'setup configure' first to sync calendars from iCloud.", file=sys.stderr)
+            sys.exit(1)
+
+        if skipped:
+            print(f"  Skipped {len(skipped)} calendar(s) not found on disk: "
+                  f"{', '.join(c['name'] for c in skipped)}")
+        print(f"  Discovered {len(calendars)} owned + "
+              f"{len(subscribed_calendars)} subscribed calendar(s)")
+
+        # Don't pass empty dict — use None so write_config_json skips the key
+        if not subscribed_sources:
+            subscribed_sources = None
+        if not subscribed_calendars:
+            subscribed_calendars = None
+
+    if args.default not in (calendars | (subscribed_calendars or {})):
+        print(f"Error: --default '{args.default}' not found in calendars.", file=sys.stderr)
+        all_names = sorted(list(calendars.keys()) + list((subscribed_calendars or {}).keys()))
+        print(f"Available: {', '.join(all_names)}", file=sys.stderr)
         sys.exit(1)
 
     addressbooks = None
@@ -480,6 +814,12 @@ def cmd_setup_finalize(args, script_dir):
         except json.JSONDecodeError as e:
             print(f"Error: Invalid JSON for --addressbooks: {e}", file=sys.stderr)
             sys.exit(1)
+        try:
+            for name, dir_id in addressbooks.items():
+                validate_dir_id(dir_id, f"addressbook dir_id for '{name}'")
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
         default_addressbook = args.default_addressbook or next(iter(addressbooks), "")
         contacts_base = os.path.expanduser("~/.local/share/vdirsyncer/contacts")
 
@@ -489,12 +829,19 @@ def cmd_setup_finalize(args, script_dir):
         calendars, args.default, bins,
         addressbooks=addressbooks, default_addressbook=default_addressbook,
         contacts_base=contacts_base,
+        subscribed_calendars=subscribed_calendars,
+        subscribed_sources=subscribed_sources,
     )
 
-    cal_base = os.path.expanduser("~/.local/share/vdirsyncer/calendars")
-    generate_khal_config(calendars, cal_base, args.default, args.timezone)
+    # Use subscribed_cal_base if we have subscribed sources, otherwise
+    # subscribed calendars use cal_base (backward compat for explicit mapping)
+    sub_cal_base = None
+    if subscribed_sources:
+        sub_cal_base = os.path.expanduser("~/.local/share/vdirsyncer/subscriptions")
+    generate_khal_config(calendars, cal_base, args.default, args.timezone,
+                         subscribed_calendars=subscribed_calendars,
+                         subscribed_cal_base=sub_cal_base)
 
-    auth_path = script_dir.parent / "config" / "auth"
     config_dir = script_dir.parent / "config"
     generate_himalaya_config(args.email, apple_id, args.name, auth_path, config_dir=config_dir)
 
@@ -508,6 +855,7 @@ def cmd_setup_finalize(args, script_dir):
         "status": "ok" if all_passed else "partial",
         "config_written": str(config_path),
         "calendars": calendars,
+        "subscribed_calendars": subscribed_calendars or {},
         "default_calendar": args.default,
         "verification_passed": all_passed,
     }
