@@ -77,16 +77,17 @@ curl -s -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_URL/api/v1/tv/TMDB_ID"
 ## Workflow
 
 1. Search for the title
-2. Filter to `movie`/`tv` results; present top 1–3 matches (title, year, brief overview)
-3. If a single clear match exists, confirm with the user and request it
-4. If multiple plausible matches, ask the user to pick
-5. If already available (`mediaInfo.status` = 5), inform the user
-6. After requesting, confirm it has been queued
-7. For TV, ask whether the user wants all seasons or specific ones unless they already specified
+2. Filter to `movie`/`tv` results; present top 1–3 matches (title, year, rating, overview)
+3. Check if already available:
+   - If `mediaInfo.status` = 5 (available), inform the user and skip requesting
+   - If NOT available (status is 1-4, or missing), automatically request it via the API
+4. After requesting, confirm with the user that it was queued
+5. For TV, ask whether the user wants all seasons or specific ones unless they already specified
+6. Always include the Seerr URL link in the response
 
 ## Discord Integration
 
-When responding in Discord, use interactive cards with buttons instead of plain text. This gives the user a one-click experience.
+When responding in Discord, send plain text messages with inline links and optional poster images. Do not use interactive components — OpenClaw doesn't support them yet.
 
 ### Discord Message Format
 
@@ -95,40 +96,18 @@ When responding in Discord, use interactive cards with buttons instead of plain 
   "action": "send",
   "channel": "discord",
   "to": "channel:<CHANNEL_ID>",
-  "message": "<title> (<year>)\n<overview snippet...>",
-  "components": {
-    "type": "container",
-    "blocks": [
-      {
-        "type": "text",
-        "text": "**Results for:** <query>",
-        "style": "rich"
-      },
-      {
-        "type": "context",
-        "content": "Each result: title, year, status badge, request button"
-      },
-      {
-        "type": "action_row",
-        "buttons": [
-          {
-            "type": "button",
-            "label": "Request Movie",
-            "style": "primary",
-            "url": "$SEERR_URL/<mediaType>/<tmdbId>"
-          }
-        ]
-      }
-    ]
-  }
+  "message": "<title> (<year>) — ⭐ <rating>\n<genre>\n\n<overview snippet...>\n\n<status emoji> <status text>\n\n🔗 [View in Seerr]($SEERR_URL/<mediaType>/<tmdbId>)",
+  "media": "<poster image URL>"
 }
 ```
 
 ### Key Points
 
-- Use `components` (Discord v2) not `embeds` — they can't be combined
-- Buttons use `url` field to link to Seerr's direct request page
-- Build URL as: `$SEERR_URL/<mediaType>/<tmdbId>` (e.g., `$SEERR_URL/movie/550` or `$SEERR_URL/tv/1396`)
-- For multiple results, use a `select` component or multiple button rows
-- Keep message text brief — let the card carry the detail
-- Include status badges (available/pending/processing) using emoji: ✅ available, ⏳ pending, 🔄 processing
+- Send plain text with markdown formatting — bold titles, emoji for status
+- Use `media` field to attach poster images from TMDB (e.g., `https://image.tmdb.org/t/p/w500/<posterPath>`)
+- Use inline links for the Seerr URL: `[$SEERR_URL/<mediaType>/<tmdbId>]`
+- Include status badges using emoji: ✅ available, ⏳ pending/processing, 🔄 partially available
+- After presenting a result, check if it's already available:
+  - If NOT available (`mediaInfo.status` != 5), automatically request it via the API
+  - Then respond with confirmation that it was requested
+- Always include the Seerr link so user can view in UI if they want
