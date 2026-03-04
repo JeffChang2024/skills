@@ -1,0 +1,11 @@
+{
+  "owner": "helloeveryworlds",
+  "slug": "feishu-voice-tts",
+  "displayName": "Feishu Voice Tts",
+  "latest": {
+    "version": "1.1.0",
+    "publishedAt": 1772542043965,
+    "commit": null
+  },
+  "history": []
+}
