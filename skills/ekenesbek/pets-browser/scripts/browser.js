@@ -200,6 +200,7 @@ function makeProxy(sessionId = null, country = null) {
 
   if (!_proxyAllowed) {
     // Trial expired or getCredentials() hasn't been called yet / returned sessionGranted=false
+    console.warn('[clawnet:proxy] _proxyAllowed=false → no managed proxy (trial expired or getCredentials not called)');
     return null;
   }
 
@@ -211,12 +212,14 @@ function makeProxy(sessionId = null, country = null) {
 
   try {
     const proxyHost = new URL(apiUrl).hostname;
-    const proxyPort = process.env.CN_PROXY_PORT || '8080';
-    return {
+    const proxyPort = process.env.CN_PROXY_PORT || '8088';
+    const proxyConfig = {
       server:   `http://${proxyHost}:${proxyPort}`,
       username: `${creds.agentId}|${cty}`,  // forward proxy splits on '|' to get country
       password: creds.agentSecret,
     };
+    console.log(`[clawnet:proxy] managed proxy → ${proxyConfig.server}  user=${creds.agentId.slice(0,8)}…|${cty}  secret=${creds.agentSecret.slice(0,6)}…`);
+    return proxyConfig;
   } catch (_) {
     console.warn('[clawnet] Could not parse CN_API_URL for managed proxy host.');
     return null;
@@ -484,12 +487,13 @@ function resolveAgentToken() {
  * @returns {{ agentId, agentSecret, recoveryCode } | null}
  */
 async function autoRegisterAgent(apiUrl) {
-  // Security: if credentials file or directory already exists, an agent was
-  // previously registered. Refuse to generate new ones — the user must either
-  // provide existing credentials via importCredentials() / env vars, or
-  // re-run postinstall interactively.
-  const credentialsDir = _path.dirname(CREDENTIALS_FILE);
-  if (_fs.existsSync(CREDENTIALS_FILE) || _fs.existsSync(credentialsDir)) {
+  // Security: if the credentials FILE already exists, an agent was previously
+  // registered. Refuse to generate new ones — the user must either provide
+  // existing credentials via importCredentials() / env vars, or re-run
+  // postinstall interactively.
+  // NOTE: We check only the file, not the directory — ~/.clawnet/ may exist
+  // from logs or other data without valid credentials being present.
+  if (_fs.existsSync(CREDENTIALS_FILE)) {
     console.error('[clawnet] Agent account already exists.');
     console.error('  Cannot generate new credentials — use importCredentials() to');
     console.error('  provide your existing agentId and agentSecret instead.');
@@ -500,7 +504,7 @@ async function autoRegisterAgent(apiUrl) {
   const agentSecret = _crypto.randomBytes(32).toString('base64url');
   const recoveryCode = _crypto.randomBytes(24).toString('base64url');
 
-  console.log('[clawnet] First run — registering new agent...');
+  console.log(`[clawnet:reg] First run — registering agent ${agentId.slice(0,8)}… at ${apiUrl}`);
 
   try {
     const resp = await fetch(`${apiUrl.replace(/\/$/, '')}/agents/register`, {
@@ -512,12 +516,12 @@ async function autoRegisterAgent(apiUrl) {
 
     if (!resp.ok) {
       const text = await resp.text().catch(() => '');
-      console.warn(`[clawnet] Auto-registration failed (HTTP ${resp.status}): ${text}`);
+      console.warn(`[clawnet:reg] Registration failed (HTTP ${resp.status}): ${text}`);
       return null;
     }
 
     const data = await resp.json();
-    console.log(`[clawnet] Agent registered. Trial: ${data.trialLimit ?? 1} free session(s).`);
+    console.log(`[clawnet:reg] Agent registered OK → created=${data.created}, status=${data.status}, trial=${data.trialLimit ?? 1}`);
   } catch (err) {
     console.warn(`[clawnet] Auto-registration failed: ${err.message}`);
     return null;
@@ -627,11 +631,12 @@ async function getCredentials() {
 
     if (!resp.ok) {
       const text = await resp.text().catch(() => '');
-      console.warn(`[clawnet] Credentials API returned ${resp.status}: ${text}`);
+      console.warn(`[clawnet:creds] API ${resp.status}: ${text}`);
       return { ok: false, reason: 'api_error', status: resp.status };
     }
 
     const data = await resp.json();
+    console.log(`[clawnet:creds] API OK → sessionGranted=${data.sessionGranted}, rotate=${!!(data.newAgentSecret)}, trialRemainingMs=${data.trialRemainingMs ?? 'n/a'}, subscriptionActive=${data.subscriptionActive ?? 'n/a'}`);
 
     // Handle secret rotation: server rotates the secret on every /credentials call.
     // Save the new secret to disk and update process env so that makeProxy() uses it.
@@ -650,8 +655,9 @@ async function getCredentials() {
       try {
         _fs.mkdirSync(_path.dirname(CREDENTIALS_FILE), { recursive: true, mode: 0o700 });
         _fs.writeFileSync(CREDENTIALS_FILE, JSON.stringify(rotatedCreds, null, 2), { mode: 0o600 });
-      } catch (_) {
-        // Best effort — if save fails, the previous secret still works for one more rotation
+        console.log(`[clawnet:creds] Secret rotated → saved to ${CREDENTIALS_FILE}  newSecret=${data.newAgentSecret.slice(0,6)}…`);
+      } catch (saveErr) {
+        console.error(`[clawnet:creds] ⚠ Secret rotated but FAILED to save: ${saveErr.message} — next launch will use stale secret!`);
       }
 
       // Update process env so makeProxy() picks up the new secret
@@ -1048,6 +1054,241 @@ async function solveCaptcha(page, opts = {}) {
 
   log('Token injected');
   return { token, type: detected.type, sitekey: detected.sitekey };
+}
+
+// ─── DAEMON CLIENT ──────────────────────────────────────────────────────────
+// Persistent browser daemon: keeps Chromium alive between short-lived scripts.
+// When CN_DAEMON=1 (or auto-detected), launchBrowser() connects to the daemon
+// HTTP server instead of launching Chromium in-process.
+
+const DAEMON_FILE = _path.join(_os.homedir(), '.clawnet', 'daemon.json');
+const DAEMON_SCRIPT = _path.join(__dirname, 'browser-daemon.js');
+const DAEMON_STARTUP_TIMEOUT = 15_000; // max ms to wait for daemon to become healthy
+
+/**
+ * Check if the daemon process is alive.
+ * @returns {{ pid: number, port: number } | null}
+ */
+function _readDaemonInfo() {
+  try {
+    if (!_fs.existsSync(DAEMON_FILE)) return null;
+    const info = JSON.parse(_fs.readFileSync(DAEMON_FILE, 'utf-8'));
+    if (!info.pid || !info.port) return null;
+    // Check if process is alive
+    try { process.kill(info.pid, 0); } catch (_) { return null; }
+    return info;
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * Send a POST request to the daemon.
+ */
+async function _daemonPost(port, endpoint, body = {}) {
+  const resp = await fetch(`http://127.0.0.1:${port}${endpoint}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(120_000),
+  });
+  const data = await resp.json();
+  if (!resp.ok || data.error) {
+    throw new Error(data.error || `Daemon ${endpoint} failed (HTTP ${resp.status})`);
+  }
+  return data;
+}
+
+/**
+ * Check daemon health via GET /health.
+ * @returns {boolean}
+ */
+async function _daemonHealthy(port) {
+  try {
+    const resp = await fetch(`http://127.0.0.1:${port}/health`, {
+      signal: AbortSignal.timeout(2000),
+    });
+    const data = await resp.json();
+    return data.ok === true;
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
+ * Spawn the daemon as a detached child process and wait for it to become healthy.
+ * @returns {{ pid: number, port: number }}
+ */
+async function _spawnDaemon() {
+  const { spawn } = require('child_process');
+
+  // Find node executable
+  const nodeExe = process.execPath;
+
+  console.log('[clawnet:daemon] Starting daemon...');
+  const child = spawn(nodeExe, [DAEMON_SCRIPT], {
+    detached: true,
+    stdio: 'ignore',
+    env: { ...process.env },
+  });
+  child.unref();
+
+  // Wait for daemon.json to appear and health check to pass
+  const deadline = Date.now() + DAEMON_STARTUP_TIMEOUT;
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, 300));
+    const info = _readDaemonInfo();
+    if (info && await _daemonHealthy(info.port)) {
+      console.log(`[clawnet:daemon] Daemon ready on port ${info.port} (pid ${info.pid})`);
+      return info;
+    }
+  }
+  throw new Error('[clawnet:daemon] Daemon failed to start within timeout');
+}
+
+/**
+ * Connect to an existing daemon or spawn a new one.
+ * @returns {{ port: number, pid: number }}
+ */
+async function _connectDaemon() {
+  // Try existing daemon first
+  const existing = _readDaemonInfo();
+  if (existing && await _daemonHealthy(existing.port)) {
+    console.log(`[clawnet:daemon] Reusing daemon on port ${existing.port} (pid ${existing.pid})`);
+    return existing;
+  }
+  // Spawn new daemon
+  return _spawnDaemon();
+}
+
+/**
+ * Build a result object that proxies all calls through the daemon HTTP API.
+ * Has the same interface as buildResult() so the agent sees no difference.
+ *
+ * Multi-tab: the returned object has a `tabId` property. When the agent opens
+ * a new tab via `newTab()`, it gets a new result with its own tabId.
+ * All actions are scoped to that tab automatically.
+ */
+function buildDaemonResult(daemonPort, logger, tabId = null) {
+  const post = (endpoint, body) => _daemonPost(daemonPort, endpoint, body);
+
+  // All action calls include tabId so the daemon knows which tab to target
+  const _t = (extra) => tabId ? { tabId, ...extra } : extra;
+
+  // Create a page-like proxy object
+  const page = {
+    goto:    (url, opts) => post('/goto', _t({ url, ...(opts || {}) })),
+    url:     () => fetch(`http://127.0.0.1:${daemonPort}/health`)
+                    .then(r => r.json())
+                    .then(d => {
+                      const tab = (d.tabs || []).find(t => t.tabId === (tabId || d.activeTabId));
+                      return tab?.url || '';
+                    }).catch(() => ''),
+    waitForTimeout: (ms) => post('/wait', _t({ ms })),
+    evaluate: (expression) => post('/eval', _t({
+      expression: typeof expression === 'string' ? expression : `(${expression.toString()})()`,
+    })).then(r => r.result),
+
+    // Locator-based methods proxied through batchActions
+    click:        (sel, opts) => post('/batchActions', _t({ actions: [{ action: 'click', selector: sel, options: opts }] })),
+    fill:         (sel, text) => post('/batchActions', _t({ actions: [{ action: 'fill', selector: sel, text }] })),
+    type:         (sel, text, opts) => post('/batchActions', _t({ actions: [{ action: 'type', selector: sel, text, options: opts }] })),
+    press:        (sel, key) => post('/batchActions', _t({ actions: [{ action: 'press', selector: sel, key }] })),
+    hover:        (sel, opts) => post('/batchActions', _t({ actions: [{ action: 'hover', selector: sel, options: opts }] })),
+    selectOption: (sel, val) => post('/batchActions', _t({ actions: [{ action: 'select', selector: sel, value: val }] })),
+    waitForSelector: (sel, opts) => post('/batchActions', _t({ actions: [{ action: 'waitForSelector', selector: sel, options: opts }] })),
+
+    // Screenshot
+    screenshot: (opts) => post('/screenshot', _t(opts || {})).then(r => Buffer.from(r.base64, 'base64')),
+  };
+
+  return {
+    browser: null,  // not available in daemon mode
+    ctx:     null,
+    page,
+    logger,
+    _daemonPort: daemonPort,
+    _isDaemon: true,
+    tabId,
+
+    // ── Tab management ──
+    // Open a new tab (optionally navigate to url).
+    // Returns a NEW result object scoped to the new tab.
+    newTab: async (opts = {}) => {
+      const r = await post('/newTab', opts);
+      logger.log('newTab', { tabId: r.tabId, url: opts.url });
+      return buildDaemonResult(daemonPort, logger, r.tabId);
+    },
+    // List all open tabs
+    listTabs: () => post('/listTabs', {}),
+    // Close a specific tab (defaults to this tab)
+    closeTab: (id) => post('/closeTab', { tabId: id || tabId }),
+    // Switch active tab (returns result scoped to that tab)
+    switchTab: async (id) => {
+      await post('/switchTab', { tabId: id });
+      return buildDaemonResult(daemonPort, logger, id);
+    },
+
+    // Human-like interaction
+    humanClick:     async (pg, x, y) => post('/batchActions', _t({ actions: [{ action: 'humanClick', selector: `body` }] })),
+    humanMouseMove: async () => {},
+    humanType:      async (pg, sel, text) => post('/batchActions', _t({ actions: [{ action: 'humanType', selector: sel, text }] })),
+    humanScroll:    async () => post('/eval', _t({ expression: 'window.scrollBy(0, 400)' })),
+    humanRead:      async () => post('/wait', _t({ ms: 2000 })),
+
+    solveCaptcha: async () => {
+      throw new Error('[daemon] solveCaptcha not yet supported in daemon mode. Use direct mode.');
+    },
+
+    takeScreenshot: async (opts) => {
+      const r = await post('/screenshot', _t(opts || {}));
+      return r.base64;
+    },
+
+    screenshotAndReport: async (message, opts) => {
+      const r = await post('/screenshot', _t(opts || {}));
+      return { message, screenshot: r.base64, mimeType: 'image/png' };
+    },
+
+    // Observation layer
+    snapshot:                (opts) => post('/snapshot', _t(opts || {})).then(r => r.snapshot),
+    snapshotAI:              (opts) => post('/snapshotAI', _t(opts || {})),
+    dumpInteractiveElements: (opts) => post('/snapshot', _t({ ...(opts || {}), interactiveOnly: true })).then(r => r.snapshot),
+
+    // Ref-based interactions
+    clickRef:  (ref, opts) => post('/clickRef',  _t({ ref, ...(opts || {}) })),
+    fillRef:   (ref, value, opts) => post('/fillRef',  _t({ ref, value, ...(opts || {}) })),
+    typeRef:   (ref, text, opts) => post('/typeRef',   _t({ ref, text, ...(opts || {}) })),
+    selectRef: (ref, value, opts) => post('/selectRef', _t({ ref, value, ...(opts || {}) })),
+    hoverRef:  (ref, opts) => post('/hoverRef',  _t({ ref, ...(opts || {}) })),
+
+    // Text extraction
+    extractText: (opts) => post('/extractText', _t(opts || {})),
+
+    // Cookie management (context-level, shared across tabs)
+    getCookies:   (urls) => post('/getCookies', { urls }).then(r => r.cookies),
+    setCookies:   (cookies) => post('/setCookies', { cookies }),
+    clearCookies: () => post('/clearCookies', {}),
+
+    // Batch actions
+    batchActions: (actions, opts) => post('/batchActions', _t({ actions, ...(opts || {}) })),
+
+    sleep,
+    rand,
+    getSessionLog: () => logger.getLog(),
+  };
+}
+
+/**
+ * Whether daemon mode is enabled.
+ * Auto-enabled inside Docker/container runtimes, or when CN_DAEMON=1.
+ */
+function isDaemonEnabled() {
+  const env = process.env.CN_DAEMON?.trim().toLowerCase();
+  if (env === '1' || env === 'true' || env === 'yes') return true;
+  if (env === '0' || env === 'false' || env === 'no') return false;
+  // Auto-enable in Docker / container runtimes where process dies between steps
+  return isDockerRuntime();
 }
 
 // ─── LAUNCH ───────────────────────────────────────────────────────────────────
@@ -1450,6 +1691,26 @@ async function launchBrowser(opts = {}) {
   logger.log('launch', { country: cty, mobile, profile: profileName, useProxy, headless, logLevel: level });
   if (task) logger.log('task', { prompt: typeof task === 'string' ? task : JSON.stringify(task) });
 
+  // ── Daemon mode: persistent browser via HTTP ──
+  // When running inside containers where each step is a separate process,
+  // delegate to the browser daemon so Chromium survives between invocations.
+  if (isDaemonEnabled()) {
+    logger.log('daemon', { mode: 'connecting' });
+    try {
+      const daemon = await _connectDaemon();
+      // Tell daemon to launch browser (no-op if already launched)
+      const launchResult = await _daemonPost(daemon.port, '/launch', {
+        country: cty, mobile, useProxy, headless, profile: profileName,
+      });
+      logger.log('daemon', { mode: 'connected', port: daemon.port, pid: daemon.pid, tabId: launchResult.tabId });
+      console.log(`[clawnet] Connected to daemon (port ${daemon.port}, tab ${launchResult.tabId})`);
+      return buildDaemonResult(daemon.port, logger, launchResult.tabId);
+    } catch (err) {
+      console.warn(`[clawnet:daemon] Daemon mode failed: ${err.message} — falling back to direct launch`);
+      logger.log('daemon_fallback', { error: err.message });
+    }
+  }
+
   // ── Reuse: return existing browser if alive ──
   // Reuse is only safe when requested proxy mode matches the live context.
   // Playwright cannot swap proxy config on an already running context.
@@ -1572,6 +1833,15 @@ async function launchBrowser(opts = {}) {
  * @param {string} profile — Profile name to close (default: 'default')
  */
 async function closeBrowser(profile = 'default') {
+  // If daemon mode is active, tell the daemon to shut down
+  if (isDaemonEnabled()) {
+    const info = _readDaemonInfo();
+    if (info) {
+      try { await _daemonPost(info.port, '/close'); } catch (_) {}
+    }
+    return;
+  }
+
   const active = _activeBrowsers.get(profile);
   if (!active) return;
   _activeBrowsers.delete(profile);
@@ -2119,8 +2389,8 @@ module.exports = {
   // Rich text editors
   pasteIntoEditor,
 
-  // Internals (exposed for advanced users)
-  makeProxy, buildDevice,
+  // Internals (exposed for advanced users / daemon)
+  makeProxy, buildDevice, resolveAgentCredentials,
 
   // Logging
   getSessionLogs, getSessionLog,

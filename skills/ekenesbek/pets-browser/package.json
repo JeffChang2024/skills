@@ -1,6 +1,6 @@
 {
   "name": "clawnet",
-  "version": "0.1.8",
+  "version": "0.2.2",
   "description": "Stealth Chromium for AI agents: anti-detection, residential proxies, CAPTCHA solving",
   "main": "./scripts/browser.js",
   "exports": {

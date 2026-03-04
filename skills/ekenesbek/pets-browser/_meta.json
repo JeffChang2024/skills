@@ -3,11 +3,16 @@
   "slug": "pets-browser",
   "displayName": "Clawnet",
   "latest": {
-    "version": "0.1.8",
-    "publishedAt": 1772540974857,
-    "commit": "https://github.com/openclaw/skills/commit/f6b3e930f6ef0bd742f194dfafa05160da4fd747"
+    "version": "0.2.2",
+    "publishedAt": 1772606672237,
+    "commit": null
   },
   "history": [
+    {
+      "version": "0.1.8",
+      "publishedAt": 1772540974857,
+      "commit": "https://github.com/openclaw/skills/commit/f6b3e930f6ef0bd742f194dfafa05160da4fd747"
+    },
     {
       "version": "0.1.6",
       "publishedAt": 1772460918554,
