@@ -3,9 +3,15 @@
   "slug": "smtp-sender",
   "displayName": "smtp-sender",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1772283740104,
-    "commit": "https://github.com/openclaw/skills/commit/1e3aa11d6c2dd7d6e1dcf2fc7529fb38af5c9d91"
+    "version": "1.0.2",
+    "publishedAt": 1772507735793,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1772283740104,
+      "commit": "https://github.com/openclaw/skills/commit/1e3aa11d6c2dd7d6e1dcf2fc7529fb38af5c9d91"
+    }
+  ]
 }
