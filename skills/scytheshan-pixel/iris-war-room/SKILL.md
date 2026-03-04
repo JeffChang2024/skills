@@ -7,6 +7,10 @@ description: "Run adversarial multi-agent war-room evaluations for any strategic
 
 Structured adversarial evaluation of any strategic proposal using 5 parallel subagents.
 
+## Language Rule
+
+Subagents and the final report MUST use the same language as the user's request. If the user writes in Chinese, all agents respond in Chinese and the report is in Chinese. If English, all English. Match the user's language — do not default to English.
+
 ## Roles
 
 | Role | Focus | Must Answer |
@@ -27,6 +31,8 @@ State the proposal, key assumptions, and GO/NO-GO criteria.
 
 Spawn all 5 in parallel with `sessions_spawn`, `mode: "run"`.
 
+**Language instruction**: Add to each agent's task prompt: "Respond in {user's language}."
+
 **Token optimization** (recommended for large proposals):
 1. Write proposal data to a temp file: `/tmp/rt_{topic}.md`
 2. Keep task prompts small (~500 tokens): role definition + deliverables + "Read /tmp/rt_{topic}.md for full context"
@@ -46,19 +52,26 @@ Wait for all 5 (auto-announced). Then apply the Critic lens:
 - Stress-test: "If [X] fails, the entire logic collapses."
 - Blind spots no agent raised
 
-### Phase 4: Ruling
+### Phase 4: Ruling and Report
 
-Output document must include ALL sections:
+**Generate the ruling report and save to file:**
+
+1. Write the full report to `~/roundtable/RT{N}_{TOPIC}_{YYYYMMDD}.md`
+   - Create `~/roundtable/` directory if it doesn't exist
+2. Reply to the user with the report content (not just a file path)
+
+**Report must include ALL sections:**
 
 1. Participants table (role, label, runtime, key contribution)
-2. Per-agent summaries with numbers
-3. Consensus points
-4. Disputes with explicit rulings and rationale
-5. Final plan with concrete numbers
-6. Scenario projections (bull/base/bear with probabilities)
-7. Retained doubts (mandatory: intellectual honesty)
-8. Ruling: GO / NO-GO / REWORK + conditions
-9. Task list: P0/P1/P2 with owners and deadlines
+2. Per-agent summaries with key numbers and arguments
+3. **Process highlights**: Notable quotes, strongest challenges, turning points
+4. **Consensus points** (4/5+ agree)
+5. **Disputes and contradictions** with explicit rulings and rationale
+6. Final plan with concrete numbers
+7. Scenario projections (bull/base/bear with probabilities)
+8. Retained doubts (mandatory: intellectual honesty)
+9. Ruling: GO / NO-GO / REWORK + conditions
+10. **Suggested action items**: P0/P1/P2 with owners and deadlines
 
 Audit ID format: `RT{N}-{TOPIC}-{YYYYMMDD}`
 
@@ -73,6 +86,7 @@ See [references/prompts.md](references/prompts.md) for spawn patterns and ruling
 
 ## Post-Ruling Checklist
 
-1. Write ruling to a file and commit
+1. Report file saved to `~/roundtable/` and report content replied to user
 2. Store key decisions to long-term memory with audit ID
-3. Update daily log
+3. Git commit the report if in a managed repo
+4. Update daily log

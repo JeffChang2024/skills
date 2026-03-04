@@ -1,5 +1,12 @@
 # War Room — Prompt Templates
 
+## Language Rule
+
+All spawn prompts must include the language instruction matching the user's language:
+- Chinese user → add "请用中文回复。" to each agent prompt
+- English user → no extra instruction needed (default)
+- Other → add "Respond in {language}."
+
 ## Token-Optimized Spawn (File-Based Context)
 
 For proposals over 1500 words, write context to a temp file first:
@@ -11,10 +18,11 @@ exec("cat > /tmp/rt_{topic}.md << 'DATA'\n{proposal_content}\nDATA")
 # Step 2: Spawn with lightweight prompts
 sessions_spawn(
   task="""You are the {ROLE} in an adversarial roundtable evaluation.
+{LANGUAGE_INSTRUCTION}
 
 **Topic**: {TOPIC}
 
-**Your task**: Read /tmp/rt_{topic}.md for the full proposal and data, then:
+Read /tmp/rt_{topic}.md for the full proposal and data, then:
 {DELIVERABLES}
 
 {MANDATORY_CLOSING_QUESTION}""",
@@ -32,6 +40,7 @@ For proposals under 1500 words, inline directly:
 ```python
 sessions_spawn(
   task="""You are the {ROLE} in an adversarial roundtable evaluation.
+{LANGUAGE_INSTRUCTION}
 
 **Topic**: {TOPIC}
 
@@ -62,10 +71,13 @@ sessions_spawn(
 
 ## Ruling Document Template
 
+Save to: `~/roundtable/RT{N}_{TOPIC}_{YYYYMMDD}.md`
+
 ```markdown
 # War Room #{N} — {TOPIC}
 
 **Audit ID**: RT{N}-{TOPIC_SHORT}-{YYYYMMDD}
+**Date**: {YYYY-MM-DD}
 **Ruling**: {GO/NO-GO/REWORK} — {conditions}
 
 ## I. Participants
@@ -73,30 +85,45 @@ sessions_spawn(
 |------|-------|---------|-----------------|
 
 ## II. Per-Agent Findings
-{Summaries with numbers}
+{Summaries with key numbers and arguments}
 
-## III. Consensus (4/5+)
-{Numbered list}
+## III. Process Highlights
+{Notable quotes, strongest challenges, turning points in the discussion}
+- **Strongest challenge**: {which agent raised what}
+- **Turning point**: {what shifted the consensus}
+- **Key tension**: {where agents most disagreed}
 
-## IV. Disputes and Rulings
-| Dispute | Pro | Con | Ruling |
+## IV. Consensus (4/5+)
+{Numbered list of agreed points}
 
-## V. Final Plan
+## V. Disputes and Contradictions
+| Dispute | Pro (who/what) | Con (who/what) | Ruling & Rationale |
+
+## VI. Final Plan
 {Concrete deliverables with numbers}
 
-## VI. Scenario Projections
+## VII. Scenario Projections
 | Scenario | Probability | Outcome |
 
-## VII. Retained Doubts
-{Numbered list of honest unknowns}
+## VIII. Retained Doubts
+{Numbered list of honest unknowns — mandatory}
 
-## VIII. Task List
+## IX. Ruling
+**{GO / NO-GO / REWORK}**
+Conditions: {if any}
+
+## X. Suggested Action Items
 | Priority | Task | Owner | Deadline |
+|----------|------|-------|----------|
+| P0 | | | |
+| P1 | | | |
+| P2 | | | |
 ```
 
 ## Post-Ruling Checklist
 
-1. Write ruling to file and git commit (include audit ID in commit message)
-2. Store key decisions to long-term memory with audit ID
-3. Update daily log file
-4. Archive previous session files if needed
+1. Save report to `~/roundtable/RT{N}_{TOPIC}_{YYYYMMDD}.md` (create dir if needed)
+2. Reply to user with the full report content
+3. Store key decisions to long-term memory with audit ID
+4. Git commit the report (if in a managed repo)
+5. Update daily log file
