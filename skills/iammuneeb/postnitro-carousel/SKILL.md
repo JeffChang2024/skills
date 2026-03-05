@@ -1,92 +1,35 @@
 ---
 name: postnitro-carousel
-description: >
-  Generate professional social media carousel posts using the PostNitro.ai Embed API.
-  Supports AI-powered content generation and manual content import for LinkedIn, Instagram,
-  TikTok, and X (Twitter) carousels. Use this skill whenever the user wants to create a
-  carousel, social media post, slide deck for social media, multi-slide content, or
-  mentions PostNitro. Also trigger when the user asks to turn text, articles, blog posts,
-  or topics into carousel posts, or wants to automate social media content creation.
-  Outputs PNG images or PDF files. Requires a PostNitro API key.
-metadata:
-  openclaw:
-    emoji: "🎠"
-    requires:
-      envs:
-        - POSTNITRO_API_KEY
-        - POSTNITRO_TEMPLATE_ID
-        - POSTNITRO_BRAND_ID
-        - POSTNITRO_PRESET_ID
+description: Generate professional social media carousel posts using the PostNitro.ai Embed API. Supports AI-powered content generation and manual content import for LinkedIn, Instagram, TikTok, and X (Twitter) carousels. Use this skill whenever the user wants to create a carousel, social media post, slide deck for social media, multi-slide content, or mentions PostNitro. Also trigger when the user asks to turn text, articles, blog posts, or topics into carousel posts, or wants to automate social media content creation. Outputs PNG images or PDF files. Requires a PostNitro API key.
+homepage: https://postnitro.ai
+metadata: {"openclaw":{"emoji":"🎠","primaryEnv":"POSTNITRO_API_KEY","requires":{"env":["POSTNITRO_API_KEY","POSTNITRO_TEMPLATE_ID","POSTNITRO_BRAND_ID","POSTNITRO_PRESET_ID"]}}}
 ---
 
 # PostNitro Carousel Generator
 
-Create social media carousel posts via the PostNitro.ai Embed API. Two workflows:
+Generate social media carousel posts via the PostNitro.ai Embed API. Two workflows: **AI generation** (topic/article/X post → carousel) and **content import** (your own slides, with optional infographics).
 
-- **AI Generation** — provide a topic, article, or text and let AI create the carousel
-- **Content Import** — provide your own slide content with full control, including infographics
+## Setup
 
-## Prerequisites
+1. Sign up at https://postnitro.ai (free plan: 5 credits/month)
+2. Go to account settings → "Embed" → generate an API key
+3. Set up your template, brand, and AI preset in the PostNitro dashboard
+4. Set environment variables:
+   ```bash
+   export POSTNITRO_API_KEY="your-api-key"
+   export POSTNITRO_TEMPLATE_ID="your-template-id"
+   export POSTNITRO_BRAND_ID="your-brand-id"
+   export POSTNITRO_PRESET_ID="your-ai-preset-id"
+   ```
 
-Set the following environment variables:
+Base URL: `https://embed-api.postnitro.ai`
+Auth header: `embed-api-key: $POSTNITRO_API_KEY`
 
-1. `POSTNITRO_API_KEY` — Obtained from PostNitro.ai account settings under "Embed".
-2. `POSTNITRO_TEMPLATE_ID` — ID of a carousel template from the user's PostNitro account.
-3. `POSTNITRO_BRAND_ID` — ID of a brand profile from the user's PostNitro account.
-4. `POSTNITRO_PRESET_ID` — (Required for AI generation) An AI preset ID from the user's PostNitro account.
+## Core Workflow
 
-If the user doesn't have these, direct them to https://postnitro.ai to sign up (free plan: 5 credits/month).
+All carousel creation is asynchronous: **Initiate → Poll Status → Get Output**.
 
-## API Overview
-
-**Base URL**: `https://embed-api.postnitro.ai`
-
-**Authentication**: All requests require the header `embed-api-key: $POSTNITRO_API_KEY`.
-
-**Content-Type**: `application/json` (for POST requests).
-
-### Async Workflow
-
-All carousel creation is asynchronous:
-
-1. **Initiate** — `POST /post/initiate/generate` or `POST /post/initiate/import` → returns `embedPostId`
-2. **Poll Status** — `GET /post/status/{embedPostId}` → poll until `status` is `"COMPLETED"`
-3. **Get Output** — `GET /post/output/{embedPostId}` → download the finished carousel
-
----
-
-## Endpoint 1: AI-Powered Generation
-
-`POST /post/initiate/generate`
-
-Use when the user provides a topic, article URL, or text and wants AI to generate carousel content.
-
-### Request Body
-
-| Field | Type | Required | Description | Allowed Values |
-|-------|------|----------|-------------|----------------|
-| `postType` | string | Yes | Type of post | `"CAROUSEL"` |
-| `requestorId` | string | No | Custom tracking identifier | Any string |
-| `templateId` | string | Yes | Template ID | Valid template ID |
-| `brandId` | string | Yes | Brand configuration ID | Valid brand ID |
-| `presetId` | string | Yes | AI configuration preset ID | Valid preset ID |
-| `responseType` | string | No | Output format (default: `"PDF"`) | `"PDF"`, `"PNG"` |
-| `aiGeneration` | object | Yes | AI generation config | See below |
-
-### aiGeneration Object
-
-| Field | Type | Required | Description | Allowed Values |
-|-------|------|----------|-------------|----------------|
-| `type` | string | Yes | Type of AI generation | `"text"`, `"article"`, `"x"` |
-| `context` | string | Yes | For `"text"`: the text content. For `"article"`: an article URL. For `"x"`: an X post/thread URL. | Any string |
-| `instructions` | string | No | Additional style/tone instructions | Any string |
-
-**`aiGeneration.type` values:**
-- `"text"` — Generate from user-provided text content
-- `"article"` — Generate from an article URL (pass the URL as `context`)
-- `"x"` — Generate from an X (Twitter) post or thread URL
-
-### Example (from text)
+### 1. Generate a carousel with AI
 
 ```bash
 curl -X POST 'https://embed-api.postnitro.ai/post/initiate/generate' \
@@ -94,122 +37,28 @@ curl -X POST 'https://embed-api.postnitro.ai/post/initiate/generate' \
   -H "embed-api-key: $POSTNITRO_API_KEY" \
   -d '{
     "postType": "CAROUSEL",
-    "requestorId": "user123",
     "templateId": "'"$POSTNITRO_TEMPLATE_ID"'",
     "brandId": "'"$POSTNITRO_BRAND_ID"'",
     "presetId": "'"$POSTNITRO_PRESET_ID"'",
     "responseType": "PNG",
     "aiGeneration": {
       "type": "text",
-      "context": "Digital marketing tips for small businesses: 1. Focus on local SEO 2. Use social proof 3. Start email marketing early",
-      "instructions": "Focus on actionable tips that can be implemented immediately"
+      "context": "5 tips for growing your LinkedIn audience in 2026",
+      "instructions": "Professional tone, actionable advice"
     }
   }'
 ```
 
-### Example (from article URL)
+Returns `{ "success": true, "data": { "embedPostId": "post123", "status": "PENDING" } }`. Save the `embedPostId`.
 
-```bash
-curl -X POST 'https://embed-api.postnitro.ai/post/initiate/generate' \
-  -H 'Content-Type: application/json' \
-  -H "embed-api-key: $POSTNITRO_API_KEY" \
-  -d '{
-    "postType": "CAROUSEL",
-    "requestorId": "user123",
-    "templateId": "'"$POSTNITRO_TEMPLATE_ID"'",
-    "brandId": "'"$POSTNITRO_BRAND_ID"'",
-    "presetId": "'"$POSTNITRO_PRESET_ID"'",
-    "responseType": "PNG",
-    "aiGeneration": {
-      "type": "article",
-      "context": "https://example.com/blog/digital-marketing-tips",
-      "instructions": "Focus on actionable tips for small businesses"
-    }
-  }'
-```
+**`aiGeneration.type` values:**
+- `"text"` — context is the text content to turn into a carousel
+- `"article"` — context is an article URL to extract and convert
+- `"x"` — context is an X (Twitter) post or thread URL
 
-### Response
+See [examples/generate-from-text.json](examples/generate-from-text.json), [examples/generate-from-article.json](examples/generate-from-article.json), and [examples/generate-from-x-post.json](examples/generate-from-x-post.json).
 
-```json
-{
-  "success": true,
-  "message": "CAROUSEL generation initiated",
-  "data": {
-    "embedPostId": "post123",
-    "status": "PENDING"
-  }
-}
-```
-
-**Credit cost**: 2 credits per slide.
-
----
-
-## Endpoint 2: Content Import
-
-`POST /post/initiate/import`
-
-Use when the user provides their own slide content.
-
-### Request Body
-
-| Field | Type | Required | Description | Allowed Values |
-|-------|------|----------|-------------|----------------|
-| `postType` | string | Yes | Type of post | `"CAROUSEL"` |
-| `requestorId` | string | No | Custom tracking identifier | Any string |
-| `templateId` | string | Yes | Template ID | Valid template ID |
-| `brandId` | string | Yes | Brand configuration ID | Valid brand ID |
-| `responseType` | string | No | Output format (default: `"PDF"`) | `"PDF"`, `"PNG"` |
-| `slides` | array | Yes | Array of slide objects | See below |
-
-### Slide Structure
-
-| Field | Type | Required | Description | Allowed Values |
-|-------|------|----------|-------------|----------------|
-| `type` | string | Yes | Slide type | `"starting_slide"`, `"body_slide"`, `"ending_slide"` |
-| `heading` | string | Yes | Main heading text | Any string |
-| `sub_heading` | string | No | Subtitle text | Any string |
-| `description` | string | No | Description text | Any string |
-| `image` | string | No | Foreground image URL | Valid URL |
-| `background_image` | string | No | Background image URL | Valid URL |
-| `cta_button` | string | No | Call-to-action button text | Any string |
-| `layoutType` | string | No | Slide layout type | `"default"`, `"infographics"` |
-| `layoutConfig` | object | No | Infographics configuration | See below |
-
-### Slide Rules
-
-- **Exactly 1** `starting_slide` (required)
-- **At least 1** `body_slide` (required)
-- **Exactly 1** `ending_slide` (required)
-
-### Infographics Layout
-
-Set `layoutType` to `"infographic"` on a `body_slide` to replace the image area with structured data.
-
-**layoutConfig object:**
-
-| Field | Type | Required | Description | Allowed Values |
-|-------|------|----------|-------------|----------------|
-| `columnCount` | number | Yes | Number of columns | `1`, `2`, `3` |
-| `columnDisplay` | string | Yes | Layout mode | `"cycle"`, `"grid"` |
-| `displayCounterAs` | string | Yes | Counter display | `"none"`, `"counter"` |
-| `hasHeader` | boolean | Yes | Show column headers | `true`, `false` |
-| `columnData` | array | No | Column content | See below |
-
-**columnData items:**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `header` | string | Yes | Column header text |
-| `content` | array | Yes | Array of `{"title": "...", "description": "..."}` objects |
-
-**Infographics notes:**
-- `layoutType: "infographic"` replaces the slide image with the infographic
-- Column count must not exceed 3
-- Cyclical display (`"cycle"`) only uses data from the first column
-- Grid display (`"grid"`) uses data from all columns
-
-### Example (Default Slides)
+### 2. Import your own slide content
 
 ```bash
 curl -X POST 'https://embed-api.postnitro.ai/post/initiate/import' \
@@ -221,277 +70,96 @@ curl -X POST 'https://embed-api.postnitro.ai/post/initiate/import' \
     "brandId": "'"$POSTNITRO_BRAND_ID"'",
     "responseType": "PNG",
     "slides": [
-      {
-        "type": "starting_slide",
-        "sub_heading": "My Awesome Subtitle",
-        "heading": "Welcome to the Carousel!",
-        "description": "This is how you start with a bang.",
-        "cta_button": "Swipe to learn more"
-      },
-      {
-        "type": "body_slide",
-        "heading": "Section 1: The Core Idea",
-        "description": "Explain your first key point here."
-      },
-      {
-        "type": "body_slide",
-        "heading": "Section 2: Deeper Dive",
-        "description": "More details for the second point."
-      },
-      {
-        "type": "ending_slide",
-        "heading": "Get Started Today!",
-        "sub_heading": "Ready to Act?",
-        "description": "A final encouraging message.",
-        "cta_button": "Visit Our Website"
-      }
+      { "type": "starting_slide", "heading": "Your Title", "description": "Intro text" },
+      { "type": "body_slide", "heading": "Key Point", "description": "Details here" },
+      { "type": "ending_slide", "heading": "Take Action!", "cta_button": "Learn More" }
     ]
   }'
 ```
 
-### Example (With Infographics)
+Returns same response format with `embedPostId`.
 
-```bash
-curl -X POST 'https://embed-api.postnitro.ai/post/initiate/import' \
-  -H 'Content-Type: application/json' \
-  -H "embed-api-key: $POSTNITRO_API_KEY" \
-  -d '{
-    "postType": "CAROUSEL",
-    "templateId": "'"$POSTNITRO_TEMPLATE_ID"'",
-    "brandId": "'"$POSTNITRO_BRAND_ID"'",
-    "responseType": "PNG",
-    "slides": [
-      {
-        "type": "starting_slide",
-        "heading": "PostNitro Infographics",
-        "sub_heading": "Import API Feature",
-        "description": "Create stunning visual carousels with structured data."
-      },
-      {
-        "type": "body_slide",
-        "heading": "Grid Layout",
-        "description": "Display data in an organized grid format.",
-        "layoutType": "infographic",
-        "layoutConfig": {
-          "columnCount": 2,
-          "columnDisplay": "grid",
-          "displayCounterAs": "counter",
-          "hasHeader": true,
-          "columnData": [
-            {
-              "header": "Features",
-              "content": [
-                {"title": "Grid Display", "description": "Organized columns for comparison."},
-                {"title": "Counter Support", "description": "Numbered items for sequence."}
-              ]
-            },
-            {
-              "header": "Options",
-              "content": [
-                {"title": "Column Headers", "description": "Enable/disable per column."},
-                {"title": "Flexible Columns", "description": "Choose 1, 2, or 3 columns."}
-              ]
-            }
-          ]
-        }
-      },
-      {
-        "type": "ending_slide",
-        "heading": "Try PostNitro Infographics",
-        "sub_heading": "Start Creating Today",
-        "cta_button": "Get Your API Key"
-      }
-    ]
-  }'
-```
+**Slide rules:**
+- Exactly 1 `starting_slide` (required)
+- At least 1 `body_slide` (required)
+- Exactly 1 `ending_slide` (required)
+- `heading` is required on every slide
 
-### Response
+**Slide fields:** `heading` (required), `sub_heading`, `description`, `image` (URL), `background_image` (URL), `cta_button`, `layoutType`, `layoutConfig`.
 
-```json
-{
-  "success": true,
-  "message": "CAROUSEL generation initiated",
-  "data": {
-    "embedPostId": "post123",
-    "status": "PENDING"
-  }
-}
-```
+For infographic slides, set `layoutType: "infographic"` on body slides — replaces the image with structured data columns. See [examples/import-infographics.json](examples/import-infographics.json) and [references/api-reference.md](references/api-reference.md) for full infographics config.
 
-**Credit cost**: 1 credit per slide.
-
----
-
-## Endpoint 3: Check Post Status
-
-`GET /post/status/{embedPostId}`
-
-No request body. Pass `embedPostId` as a path parameter.
-
-**Headers:** `embed-api-key: $POSTNITRO_API_KEY` (required)
+### 3. Check post status
 
 ```bash
 curl -X GET "https://embed-api.postnitro.ai/post/status/$EMBED_POST_ID" \
   -H "embed-api-key: $POSTNITRO_API_KEY"
 ```
 
-### Response
+Poll every 3–5 seconds until `data.embedPost.status` is `"COMPLETED"`. The `logs` array shows step-by-step progress.
 
-```json
-{
-  "success": true,
-  "data": {
-    "embedPostId": "post123",
-    "embedPost": {
-      "id": "post123",
-      "postType": "CAROUSEL",
-      "status": "COMPLETED",
-      "createdAt": "2024-01-15T10:30:00Z",
-      "updatedAt": "2024-01-15T10:35:00Z"
-    },
-    "logs": [
-      {
-        "id": "log1",
-        "embedPostId": "post123",
-        "step": "INITIATED",
-        "status": "SUCCESS",
-        "message": "Post generation initiated",
-        "timestamp": "2024-01-15T10:30:00Z"
-      },
-      {
-        "id": "log2",
-        "embedPostId": "post123",
-        "step": "PROCESSING",
-        "status": "SUCCESS",
-        "message": "Content generated successfully",
-        "timestamp": "2024-01-15T10:32:00Z"
-      },
-      {
-        "id": "log3",
-        "embedPostId": "post123",
-        "step": "COMPLETED",
-        "status": "SUCCESS",
-        "message": "Post generation completed",
-        "timestamp": "2024-01-15T10:35:00Z"
-      }
-    ]
-  }
-}
-```
-
-Poll every 3–5 seconds. Check `data.embedPost.status` for completion. The `logs` array provides step-by-step progress.
-
----
-
-## Endpoint 4: Get Output
-
-`GET /post/output/{embedPostId}`
-
-No request body. Pass `embedPostId` as a path parameter.
-
-**Headers:** `embed-api-key: $POSTNITRO_API_KEY` (required)
+### 4. Get the output
 
 ```bash
 curl -X GET "https://embed-api.postnitro.ai/post/output/$EMBED_POST_ID" \
   -H "embed-api-key: $POSTNITRO_API_KEY"
 ```
 
-### Response (PNG)
+Returns downloadable URLs in `data.result.data`:
+- **PNG**: Array of URLs (one per slide)
+- **PDF**: Single URL
+
+See [references/api-reference.md](references/api-reference.md) for full response schemas.
+
+## Common Patterns
+
+### Pattern 1: LinkedIn thought leadership carousel
+
+Generate a carousel from a topic with professional tone:
 
 ```json
 {
-  "success": true,
-  "data": {
-    "embedPost": {
-      "id": "post123",
-      "postType": "CAROUSEL",
-      "responseType": "PNG",
-      "status": "COMPLETED",
-      "credits": 4,
-      "createdAt": "2026-02-19T21:11:50.115Z",
-      "updatedAt": "2026-02-19T21:12:08.333Z"
-    },
-    "result": {
-      "id": "result123",
-      "name": "Welcome to the Carousel!",
-      "size": {
-        "id": "4:5",
-        "dimensions": { "width": 1080, "height": 1350 }
-      },
-      "type": "png",
-      "mimeType": "image/png",
-      "data": [
-        "https://...supabase.co/.../slide_0.png",
-        "https://...supabase.co/.../slide_1.png"
-      ]
-    }
+  "aiGeneration": {
+    "type": "text",
+    "context": "5 mistakes startups make with their LinkedIn strategy and how to fix each one",
+    "instructions": "Professional but conversational tone. Each slide should have one clear takeaway."
   }
 }
 ```
 
-### Response (PDF)
+### Pattern 2: Repurpose a blog post
+
+Turn an existing article into a carousel:
 
 ```json
 {
-  "success": true,
-  "data": {
-    "embedPost": {
-      "id": "post123",
-      "postType": "CAROUSEL",
-      "responseType": "PDF",
-      "status": "COMPLETED",
-      "credits": 10,
-      "createdAt": "2026-02-19T21:11:50.115Z",
-      "updatedAt": "2026-02-19T21:12:08.333Z"
-    },
-    "result": {
-      "id": "result123",
-      "name": "Welcome to the Carousel!",
-      "size": {
-        "id": "4:5",
-        "dimensions": { "width": 1080, "height": 1350 }
-      },
-      "type": "pdf",
-      "mimeType": "application/pdf",
-      "data": "https://...supabase.co/.../output.pdf"
-    }
+  "aiGeneration": {
+    "type": "article",
+    "context": "https://yourblog.com/posts/social-media-strategy-2026",
+    "instructions": "Extract the 5 most actionable points. Keep slide text concise."
   }
 }
 ```
 
-### Result Object
+### Pattern 3: Repurpose an X thread
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Unique result identifier |
-| `name` | string | Design name (from template or "Untitled") |
-| `size` | object | `{ "id": "4:5", "dimensions": { "width": 1080, "height": 1350 } }` |
-| `type` | string | File type (`"png"` or `"pdf"`) |
-| `mimeType` | string | MIME type (`"image/png"` or `"application/pdf"`) |
-| `data` | string or array | **PNG**: Array of URLs (one per slide). **PDF**: Single URL. |
+Convert a viral X thread into a visual carousel:
 
-Download the URLs directly to save the carousel files.
+```json
+{
+  "aiGeneration": {
+    "type": "x",
+    "context": "https://x.com/username/status/1234567890",
+    "instructions": "Maintain the original voice and key points"
+  }
+}
+```
 
----
+### Pattern 4: Data-driven infographic carousel
 
-## Step-by-Step Usage
+Import slides with structured infographic layouts:
 
-### AI-Generated Carousel
-
-1. Confirm `POSTNITRO_API_KEY`, `POSTNITRO_TEMPLATE_ID`, `POSTNITRO_BRAND_ID`, and `POSTNITRO_PRESET_ID` are set.
-2. Ask the user for their generation type (`text`, `article`, or `x`), the corresponding content (text, article URL, or X post URL), and any style instructions.
-3. Send the generate request to `POST /post/initiate/generate`.
-4. Extract `embedPostId` from the response.
-5. Poll `GET /post/status/{embedPostId}` every 3–5 seconds until `status` is `"COMPLETED"`.
-6. Call `GET /post/output/{embedPostId}` to get the result. Download the URL(s) from `data` to save files.
-
-### Custom Content Carousel
-
-1. Confirm `POSTNITRO_API_KEY`, `POSTNITRO_TEMPLATE_ID`, and `POSTNITRO_BRAND_ID` are set.
-2. Gather slide content from the user. Structure as: 1 `starting_slide` → 1+ `body_slide` → 1 `ending_slide`.
-3. For data-heavy slides, use `layoutType: "infographic"` with a `layoutConfig` object.
-4. Send the import request to `POST /post/initiate/import`.
-5. Follow the same poll → output flow.
+See [examples/import-infographics.json](examples/import-infographics.json) for a complete example with grid and cycle layouts.
 
 ## Content Strategy Tips
 
@@ -500,17 +168,71 @@ Download the URLs directly to save the carousel files.
 - **TikTok**: Trendy, punchy, 4–7 slides, hook on slide 1.
 - **X (Twitter)**: Data-driven, 3–6 slides, provocative opening.
 
-## Error Handling
+## Common Gotchas
 
-- If the API returns an authentication error, verify `POSTNITRO_API_KEY` is correct and the account is active.
-- If credits are exhausted, inform the user. Free plan: 5 credits/month. Paid plan: 250+ credits/month ($10/month base).
-- If the status poll indicates failure, retry the initiation once before reporting the error.
-- All endpoints are rate-limited per API key — space requests appropriately.
-- Default `responseType` is `"PDF"`. Always specify `"PNG"` explicitly if individual slide images are needed.
+1. **Default responseType is PDF** — always specify `"PNG"` explicitly if you want individual slide images.
+2. **`heading` is required** on every slide — omitting it returns an error.
+3. **Slide structure is strict** — exactly 1 starting, at least 1 body, exactly 1 ending.
+4. **Article type needs a URL** — `"article"` type expects a URL as `context`, not plain text.
+5. **X type needs an X post URL** — `"x"` type expects `https://x.com/...` or `https://twitter.com/...` as `context`.
+6. **Infographics replace images** — setting `layoutType: "infographic"` overrides any `image` on that slide.
+7. **Cyclical infographics use first column only** — `columnDisplay: "cycle"` ignores data in columns 2+.
+8. **Max 3 columns** — `columnCount` cannot exceed 3 for infographic layouts.
+9. **Image URLs must be public** — `image` and `background_image` fields require publicly accessible URLs.
+10. **Credits vary by method** — AI generation costs 2 credits/slide, content import costs 1 credit/slide.
 
-## Links
+## Credits & Pricing
 
-- Documentation: https://postnitro.ai/docs/embed/api
-- Get API Key: https://postnitro.ai/app/embed
-- Postman Collection: https://www.postman.com/postnitro/postnitro-embed-apis/overview
-- Support: support@postnitro.ai
+| Plan | Price | Credits/Month |
+|------|-------|---------------|
+| Free | $0 | 5 |
+| Monthly | $10 | 250+ (scalable) |
+
+- Content import: 1 credit per slide
+- AI generation: 2 credits per slide
+
+## Supporting Resources
+
+**Reference docs:**
+- [references/api-reference.md](references/api-reference.md) — Complete endpoint reference with request/response schemas and infographics config
+
+**Ready-to-use examples:**
+- [examples/EXAMPLES.md](examples/EXAMPLES.md) — Index of all examples
+- [examples/generate-from-text.json](examples/generate-from-text.json) — AI generation from text
+- [examples/generate-from-article.json](examples/generate-from-article.json) — AI generation from article URL
+- [examples/generate-from-x-post.json](examples/generate-from-x-post.json) — AI generation from X post
+- [examples/import-default.json](examples/import-default.json) — Basic slide import
+- [examples/import-infographics.json](examples/import-infographics.json) — Import with infographic layouts
+
+## Quick Reference
+
+```
+# Auth
+Header: embed-api-key: $POSTNITRO_API_KEY
+
+# AI generation
+POST /post/initiate/generate  { postType, templateId, brandId, presetId, responseType?, requestorId?, aiGeneration: { type, context, instructions? } }
+
+# Content import
+POST /post/initiate/import  { postType, templateId, brandId, responseType?, requestorId?, slides: [{ type, heading, ... }] }
+
+# Check status (poll until COMPLETED)
+GET /post/status/{embedPostId}
+
+# Get output (download URLs)
+GET /post/output/{embedPostId}
+```
+
+## Tips for the Agent
+
+- Always confirm the user has set `POSTNITRO_API_KEY`, `POSTNITRO_TEMPLATE_ID`, `POSTNITRO_BRAND_ID` before calling any endpoint.
+- `POSTNITRO_PRESET_ID` is only required for AI generation, not for content import.
+- For `"article"` type, the `context` must be a URL — not article text. For article text, use `"text"` type.
+- For `"x"` type, the `context` must be an X/Twitter post URL.
+- Default `responseType` is `"PDF"` — always pass `"PNG"` if the user wants individual slide images.
+- When importing slides, always structure as: 1 `starting_slide` → 1+ `body_slide` → 1 `ending_slide`.
+- For data-heavy content, suggest using infographic layouts on body slides instead of plain text.
+- Poll `GET /post/status/{embedPostId}` every 3–5 seconds — don't hammer the endpoint.
+- After getting output, the `data` field contains download URLs — present them to the user directly.
+- If the user doesn't specify a platform, suggest LinkedIn (most common carousel use case).
+- Warn users about credit costs upfront: AI generation is 2x the cost of content import.
