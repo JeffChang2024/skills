@@ -1,0 +1,11 @@
+{
+  "owner": "wuhaichao87",
+  "slug": "family-expense-intent",
+  "displayName": "家庭消费意图识别 V4",
+  "latest": {
+    "version": "4.0.0",
+    "publishedAt": 1772605802707,
+    "commit": null
+  },
+  "history": []
+}
