@@ -1,13 +1,18 @@
 {
   "owner": "vince-winkintel",
   "slug": "gitlab-cli-skills",
-  "displayName": "GitLab CLI Skills",
+  "displayName": "Gitlab Cli Skills",
   "latest": {
-    "version": "1.6.0",
-    "publishedAt": 1772553498071,
-    "commit": "https://github.com/openclaw/skills/commit/9b417fa982701d0a5855b1c9413df68202ee95f8"
+    "version": "1.8.0",
+    "publishedAt": 1772674943972,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.6.0",
+      "publishedAt": 1772553498071,
+      "commit": "https://github.com/openclaw/skills/commit/9b417fa982701d0a5855b1c9413df68202ee95f8"
+    },
     {
       "version": "1.5.0",
       "publishedAt": 1772480006710,
