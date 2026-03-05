@@ -1,0 +1,11 @@
+{
+  "owner": "vext-labs",
+  "slug": "vext-shield",
+  "displayName": "Vext Shield",
+  "latest": {
+    "version": "1.2.0",
+    "publishedAt": 1772672428500,
+    "commit": null
+  },
+  "history": []
+}
