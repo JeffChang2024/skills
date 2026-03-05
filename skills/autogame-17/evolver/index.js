@@ -277,6 +277,132 @@ async function main() {
       process.exit(2);
     }
 
+  } else if (command === 'review' || command === '--review') {
+    const { getEvolutionDir, getRepoRoot } = require('./src/gep/paths');
+    const { loadGenes } = require('./src/gep/assetStore');
+    const { execSync } = require('child_process');
+
+    const statePath = path.join(getEvolutionDir(), 'evolution_solidify_state.json');
+    const state = readJsonSafe(statePath);
+    const lastRun = state && state.last_run ? state.last_run : null;
+
+    if (!lastRun || !lastRun.run_id) {
+      console.log('[Review] No pending evolution run to review.');
+      console.log('Run "node index.js run" first to produce changes, then review before solidifying.');
+      process.exit(0);
+    }
+
+    const lastSolid = state && state.last_solidify ? state.last_solidify : null;
+    if (lastSolid && String(lastSolid.run_id) === String(lastRun.run_id)) {
+      console.log('[Review] Last run has already been solidified. Nothing to review.');
+      process.exit(0);
+    }
+
+    const repoRoot = getRepoRoot();
+    let diff = '';
+    try {
+      const unstaged = execSync('git diff', { cwd: repoRoot, encoding: 'utf8', timeout: 30000 }).trim();
+      const staged = execSync('git diff --cached', { cwd: repoRoot, encoding: 'utf8', timeout: 30000 }).trim();
+      const untracked = execSync('git ls-files --others --exclude-standard', { cwd: repoRoot, encoding: 'utf8', timeout: 10000 }).trim();
+      if (staged) diff += '=== Staged Changes ===\n' + staged + '\n\n';
+      if (unstaged) diff += '=== Unstaged Changes ===\n' + unstaged + '\n\n';
+      if (untracked) diff += '=== Untracked Files ===\n' + untracked + '\n';
+    } catch (e) {
+      diff = '(failed to capture diff: ' + (e.message || e) + ')';
+    }
+
+    const genes = loadGenes();
+    const geneId = lastRun.selected_gene_id ? String(lastRun.selected_gene_id) : null;
+    const gene = geneId ? genes.find(g => g && g.type === 'Gene' && g.id === geneId) : null;
+    const signals = Array.isArray(lastRun.signals) ? lastRun.signals : [];
+    const mutation = lastRun.mutation || null;
+
+    console.log('\n' + '='.repeat(60));
+    console.log('[Review] Pending evolution run: ' + lastRun.run_id);
+    console.log('='.repeat(60));
+    console.log('\n--- Gene ---');
+    if (gene) {
+      console.log('  ID:       ' + gene.id);
+      console.log('  Category: ' + (gene.category || '?'));
+      console.log('  Summary:  ' + (gene.summary || '?'));
+      if (Array.isArray(gene.strategy) && gene.strategy.length > 0) {
+        console.log('  Strategy:');
+        gene.strategy.forEach((s, i) => console.log('    ' + (i + 1) + '. ' + s));
+      }
+    } else {
+      console.log('  (no gene selected or gene not found: ' + (geneId || 'none') + ')');
+    }
+
+    console.log('\n--- Signals ---');
+    if (signals.length > 0) {
+      signals.forEach(s => console.log('  - ' + s));
+    } else {
+      console.log('  (no signals)');
+    }
+
+    console.log('\n--- Mutation ---');
+    if (mutation) {
+      console.log('  Category:   ' + (mutation.category || '?'));
+      console.log('  Risk Level: ' + (mutation.risk_level || '?'));
+      if (mutation.rationale) console.log('  Rationale:  ' + mutation.rationale);
+    } else {
+      console.log('  (no mutation data)');
+    }
+
+    if (lastRun.blast_radius_estimate) {
+      console.log('\n--- Blast Radius Estimate ---');
+      const br = lastRun.blast_radius_estimate;
+      console.log('  Files changed: ' + (br.files_changed || '?'));
+      console.log('  Lines changed: ' + (br.lines_changed || '?'));
+    }
+
+    console.log('\n--- Diff ---');
+    if (diff.trim()) {
+      console.log(diff.length > 5000 ? diff.slice(0, 5000) + '\n... (truncated, ' + diff.length + ' chars total)' : diff);
+    } else {
+      console.log('  (no changes detected)');
+    }
+    console.log('='.repeat(60));
+
+    if (args.includes('--approve')) {
+      console.log('\n[Review] Approved. Running solidify...\n');
+      try {
+        const res = solidify({
+          intent: lastRun.intent || undefined,
+          rollbackOnFailure: true,
+        });
+        const st = res && res.ok ? 'SUCCESS' : 'FAILED';
+        console.log(`[SOLIDIFY] ${st}`);
+        if (res && res.gene) console.log(JSON.stringify(res.gene, null, 2));
+        process.exit(res && res.ok ? 0 : 2);
+      } catch (error) {
+        console.error('[SOLIDIFY] Error:', error);
+        process.exit(2);
+      }
+    } else if (args.includes('--reject')) {
+      console.log('\n[Review] Rejected. Rolling back changes...');
+      try {
+        execSync('git checkout -- .', { cwd: repoRoot, encoding: 'utf8', timeout: 30000 });
+        execSync('git clean -fd', { cwd: repoRoot, encoding: 'utf8', timeout: 30000 });
+        const evolDir = getEvolutionDir();
+        const sp = path.join(evolDir, 'evolution_solidify_state.json');
+        if (fs.existsSync(sp)) {
+          const s = readJsonSafe(sp);
+          if (s && s.last_run) {
+            s.last_solidify = { run_id: s.last_run.run_id, rejected: true, timestamp: new Date().toISOString() };
+            fs.writeFileSync(sp, JSON.stringify(s, null, 2));
+          }
+        }
+        console.log('[Review] Changes rolled back.');
+      } catch (e) {
+        console.error('[Review] Rollback failed:', e.message || e);
+        process.exit(2);
+      }
+    } else {
+      console.log('\nTo approve and solidify:  node index.js review --approve');
+      console.log('To reject and rollback:   node index.js review --reject');
+    }
+
   } else if (command === 'asset-log') {
     const { summarizeCallLog, readCallLog, getLogPath } = require('./src/gep/assetCallLog');
 
@@ -321,12 +447,15 @@ async function main() {
     }
 
   } else {
-    console.log(`Usage: node index.js [run|/evolve|solidify|distill|asset-log] [--loop]
+    console.log(`Usage: node index.js [run|/evolve|solidify|review|distill|asset-log] [--loop]
   - solidify flags:
     - --dry-run
     - --no-rollback
     - --intent=repair|optimize|innovate
     - --summary=...
+  - review flags:
+    - --approve                (approve and solidify the pending changes)
+    - --reject                 (reject and rollback the pending changes)
   - distill flags:
     - --response-file=<path>  (LLM response file for skill distillation)
   - asset-log flags:

@@ -6,9 +6,13 @@
 //     matching via memory graph history.
 // ---------------------------------------------------------------------------
 
-const { getNodeId } = require('./a2aProtocol');
+const { getNodeId, buildHubHeaders } = require('./a2aProtocol');
 
 const HUB_URL = process.env.A2A_HUB_URL || process.env.EVOMAP_HUB_URL || 'https://evomap.ai';
+
+function buildAuthHeaders() {
+  return buildHubHeaders();
+}
 
 const TASK_STRATEGY = String(process.env.TASK_STRATEGY || 'balanced').toLowerCase();
 const TASK_MIN_CAPABILITY_MATCH = Number(process.env.TASK_MIN_CAPABILITY_MATCH) || 0.1;
@@ -59,7 +63,7 @@ async function fetchTasks(opts) {
 
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: buildAuthHeaders(),
       body: JSON.stringify(msg),
       signal: controller.signal,
     });
@@ -299,7 +303,7 @@ async function claimTask(taskId) {
 
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: buildAuthHeaders(),
       body: JSON.stringify({ task_id: taskId, node_id: nodeId }),
       signal: controller.signal,
     });
@@ -328,7 +332,7 @@ async function completeTask(taskId, assetId) {
 
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: buildAuthHeaders(),
       body: JSON.stringify({ task_id: taskId, asset_id: assetId, node_id: nodeId }),
       signal: controller.signal,
     });
@@ -363,6 +367,58 @@ function taskToSignals(task) {
   return signals;
 }
 
+// ---------------------------------------------------------------------------
+// Worker Pool task operations (POST /a2a/work/*)
+// These use a separate API from bounty tasks and return assignment objects.
+// ---------------------------------------------------------------------------
+
+async function claimWorkerTask(taskId) {
+  const nodeId = getNodeId();
+  if (!nodeId || !taskId) return null;
+
+  try {
+    const url = `${HUB_URL.replace(/\/+$/, '')}/a2a/work/claim`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: buildAuthHeaders(),
+      body: JSON.stringify({ task_id: taskId, node_id: nodeId }),
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+async function completeWorkerTask(assignmentId, resultAssetId) {
+  const nodeId = getNodeId();
+  if (!nodeId || !assignmentId || !resultAssetId) return false;
+
+  try {
+    const url = `${HUB_URL.replace(/\/+$/, '')}/a2a/work/complete`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: buildAuthHeaders(),
+      body: JSON.stringify({ assignment_id: assignmentId, node_id: nodeId, result_asset_id: resultAssetId }),
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 module.exports = {
   fetchTasks,
   selectBestTask,
@@ -371,4 +427,6 @@ module.exports = {
   claimTask,
   completeTask,
   taskToSignals,
+  claimWorkerTask,
+  completeWorkerTask,
 };

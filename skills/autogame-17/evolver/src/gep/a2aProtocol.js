@@ -83,6 +83,10 @@ function getNodeId() {
     return _cachedNodeId;
   }
 
+  console.warn('[a2aProtocol] A2A_NODE_ID is not set. Computing node ID from device fingerprint. ' +
+    'This ID may change across machines or environments. ' +
+    'Set A2A_NODE_ID after registering at https://evomap.ai to use a stable identity.');
+
   const deviceId = getDeviceId();
   const agentName = process.env.AGENT_NAME || 'default';
   const raw = deviceId + '|' + agentName + '|' + process.cwd();
@@ -207,6 +211,12 @@ function buildFetch(opts) {
   };
   if (Array.isArray(o.signals) && o.signals.length > 0) {
     fetchPayload.signals = o.signals;
+  }
+  if (o.searchOnly === true) {
+    fetchPayload.search_only = true;
+  }
+  if (Array.isArray(o.assetIds) && o.assetIds.length > 0) {
+    fetchPayload.asset_ids = o.assetIds;
   }
   return buildMessage({
     messageType: 'fetch',
@@ -343,10 +353,9 @@ function httpTransportSend(message, opts) {
   if (!hubUrl) return { ok: false, error: 'A2A_HUB_URL not set' };
   var endpoint = hubUrl.replace(/\/+$/, '') + '/a2a/' + message.message_type;
   var body = JSON.stringify(message);
-  // Use dynamic import for fetch (available in Node 18+)
   return fetch(endpoint, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: buildHubHeaders(),
     body: body,
   })
     .then(function (res) { return res.json(); })
@@ -363,7 +372,7 @@ function httpTransportReceive(opts) {
   var endpoint = hubUrl.replace(/\/+$/, '') + '/a2a/fetch';
   return fetch(endpoint, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: buildHubHeaders(),
     body: JSON.stringify(fetchMsg),
   })
     .then(function (res) { return res.json(); })
@@ -387,9 +396,39 @@ var _heartbeatStartedAt = null;
 var _heartbeatConsecutiveFailures = 0;
 var _heartbeatTotalSent = 0;
 var _heartbeatTotalFailed = 0;
+var _latestAvailableWork = [];
+var _cachedHubNodeSecret = null;
+
+var NODE_SECRET_FILE = path.join(NODE_ID_DIR, 'node_secret');
+
+function _loadPersistedNodeSecret() {
+  try {
+    if (fs.existsSync(NODE_SECRET_FILE)) {
+      var s = fs.readFileSync(NODE_SECRET_FILE, 'utf8').trim();
+      if (s && /^[a-f0-9]{64}$/i.test(s)) return s;
+    }
+  } catch {}
+  return null;
+}
+
+function _persistNodeSecret(secret) {
+  try {
+    if (!fs.existsSync(NODE_ID_DIR)) {
+      fs.mkdirSync(NODE_ID_DIR, { recursive: true, mode: 0o700 });
+    }
+    fs.writeFileSync(NODE_SECRET_FILE, secret, { encoding: 'utf8', mode: 0o600 });
+  } catch {}
+}
 
 function getHubUrl() {
   return process.env.A2A_HUB_URL || process.env.EVOMAP_HUB_URL || '';
+}
+
+function buildHubHeaders() {
+  var headers = { 'Content-Type': 'application/json' };
+  var secret = getHubNodeSecret();
+  if (secret) headers['Authorization'] = 'Bearer ' + secret;
+  return headers;
 }
 
 function sendHelloToHub() {
@@ -408,8 +447,27 @@ function sendHelloToHub() {
     signal: AbortSignal.timeout(15000),
   })
     .then(function (res) { return res.json(); })
-    .then(function (data) { return { ok: true, response: data }; })
+    .then(function (data) {
+      var secret = (data && data.payload && data.payload.node_secret)
+        || (data && data.node_secret)
+        || null;
+      if (secret && /^[a-f0-9]{64}$/i.test(secret)) {
+        _cachedHubNodeSecret = secret;
+        _persistNodeSecret(secret);
+      }
+      return { ok: true, response: data };
+    })
     .catch(function (err) { return { ok: false, error: err.message }; });
+}
+
+function getHubNodeSecret() {
+  if (_cachedHubNodeSecret) return _cachedHubNodeSecret;
+  var persisted = _loadPersistedNodeSecret();
+  if (persisted) {
+    _cachedHubNodeSecret = persisted;
+    return persisted;
+  }
+  return null;
 }
 
 function sendHeartbeat() {
@@ -418,19 +476,30 @@ function sendHeartbeat() {
 
   var endpoint = hubUrl.replace(/\/+$/, '') + '/a2a/heartbeat';
   var nodeId = getNodeId();
-  var body = JSON.stringify({
+  var bodyObj = {
     node_id: nodeId,
     sender_id: nodeId,
     version: PROTOCOL_VERSION,
     uptime_ms: _heartbeatStartedAt ? Date.now() - _heartbeatStartedAt : 0,
     timestamp: new Date().toISOString(),
-  });
+  };
+
+  if (process.env.WORKER_ENABLED === '1') {
+    var domains = (process.env.WORKER_DOMAINS || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+    bodyObj.meta = {
+      worker_enabled: true,
+      worker_domains: domains,
+      max_load: Math.max(1, Number(process.env.WORKER_MAX_LOAD) || 5),
+    };
+  }
+
+  var body = JSON.stringify(bodyObj);
 
   _heartbeatTotalSent++;
 
   return fetch(endpoint, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: buildHubHeaders(),
     body: body,
     signal: AbortSignal.timeout(10000),
   })
@@ -448,6 +517,9 @@ function sendHeartbeat() {
           return { ok: helloResult.ok, response: data, reregistered: helloResult.ok };
         });
       }
+      if (Array.isArray(data.available_work)) {
+        _latestAvailableWork = data.available_work;
+      }
       _heartbeatConsecutiveFailures = 0;
       return { ok: true, response: data };
     })
@@ -463,6 +535,16 @@ function sendHeartbeat() {
       }
       return { ok: false, error: err.message };
     });
+}
+
+function getLatestAvailableWork() {
+  return _latestAvailableWork;
+}
+
+function consumeAvailableWork() {
+  var work = _latestAvailableWork;
+  _latestAvailableWork = [];
+  return work;
 }
 
 function startHeartbeat(intervalMs) {
@@ -565,4 +647,8 @@ module.exports = {
   startHeartbeat,
   stopHeartbeat,
   getHeartbeatStats,
+  getLatestAvailableWork,
+  consumeAvailableWork,
+  getHubNodeSecret,
+  buildHubHeaders,
 };

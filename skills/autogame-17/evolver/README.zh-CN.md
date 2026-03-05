@@ -73,6 +73,17 @@ node src/ops/lifecycle.js status   # 查看运行状态
 node src/ops/lifecycle.js check    # 健康检查 + 停滞自动重启
 ```
 
+### Cron / 外部调度器保活
+如果你通过 cron 或外部调度器定期触发 evolver，建议使用单条简单命令，避免嵌套引号：
+
+推荐写法：
+
+```bash
+bash -lc 'node index.js --loop'
+```
+
+避免在 cron payload 中拼接多个 shell 片段（例如 `...; echo EXIT:$?`），因为嵌套引号在经过多层序列化/转义后容易出错。
+
 ## 典型使用场景
 
 - 需要审计与可追踪的提示词演进
@@ -189,6 +200,19 @@ MAJOR.MINOR.PATCH
 2. **稳定性优先**：如果近期错误率较高，强制进入修复模式，暂停创新功能。
 3. **环境检测**：外部集成（如 Git 同步）仅在检测到相应插件存在时才会启用。
 
+## 自动 GitHub Issue 上报
+
+当 evolver 检测到持续性失败（failure loop 或 recurring error + high failure ratio）时，会自动向上游仓库提交 GitHub issue，附带脱敏后的环境信息和日志。所有敏感数据（token、本地路径、邮箱等）在提交前均会被替换为 `[REDACTED]`。
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `EVOLVER_AUTO_ISSUE` | `true` | 是否启用自动 issue 上报 |
+| `EVOLVER_ISSUE_REPO` | `autogame-17/capability-evolver` | 目标 GitHub 仓库（owner/repo） |
+| `EVOLVER_ISSUE_COOLDOWN_MS` | `86400000`（24 小时） | 同类错误签名的冷却期 |
+| `EVOLVER_ISSUE_MIN_STREAK` | `5` | 触发上报所需的最低连续失败次数 |
+
+需要配置 `GITHUB_TOKEN`（或 `GH_TOKEN` / `GITHUB_PAT`），需具有 `repo` 权限。未配置 token 时该功能静默跳过。
+
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=autogame-17/evolver&type=Date)](https://star-history.com/#autogame-17/evolver&Date)
@@ -203,6 +227,8 @@ MAJOR.MINOR.PATCH
 - [LKCY33](https://github.com/LKCY33) -- 修复 .env 加载路径和目录权限问题 (PR #21)。
 - [hendrixAIDev](https://github.com/hendrixAIDev) -- 修复 dry-run 模式下 performMaintenance() 仍执行的问题 (PR #68)。
 - [toller892](https://github.com/toller892) -- 独立发现并报告了 events.jsonl forbidden_paths 冲突 bug (PR #149)。
+- [WeZZard](https://github.com/WeZZard) -- 为 SKILL.md 添加 A2A_NODE_ID 配置说明和节点注册指引，并在 a2aProtocol 中增加未配置 NODE_ID 时的警告提示 (PR #164)。
+- [Golden-Koi](https://github.com/Golden-Koi) -- 为 README 新增 cron/外部调度器保活最佳实践 (PR #167)。
 - [upbit](https://github.com/upbit) -- 在 evolver 和 evomap 技术的普及中起到了至关重要的作用。
 - [池建强](https://mowen.cn) -- 在传播和用户体验改进过程中做出了巨大贡献。
 

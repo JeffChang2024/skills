@@ -136,6 +136,7 @@ function rewritePackageJson(outDirAbs) {
       start: 'node index.js',
       run: 'node index.js run',
       solidify: 'node index.js solidify',
+      review: 'node index.js review',
       'a2a:export': 'node scripts/a2a_export.js',
       'a2a:ingest': 'node scripts/a2a_ingest.js',
       'a2a:promote': 'node scripts/a2a_promote.js',

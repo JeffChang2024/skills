@@ -1,6 +1,9 @@
 'use strict';
 
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 const { getRepoRoot } = require('./paths');
 
 const REVIEW_ENABLED_KEY = 'EVOLVER_LLM_REVIEW';
@@ -52,30 +55,33 @@ function runLlmReview({ diff, gene, signals, mutation }) {
 
   try {
     const repoRoot = getRepoRoot();
-    const escapedPrompt = prompt.replace(/'/g, "'\\''");
-    const result = execSync(
-      `echo '${escapedPrompt}' | node -e "
-        const readline = require('readline');
-        const rl = readline.createInterface({ input: process.stdin });
-        let input = '';
-        rl.on('line', l => input += l + '\\n');
-        rl.on('close', () => {
-          console.log(JSON.stringify({ approved: true, confidence: 0.7, concerns: [], summary: 'auto-approved (no external LLM configured)' }));
-        });
-      "`,
-      {
+
+    // Write prompt to a temp file to avoid shell quoting issues entirely.
+    const tmpFile = path.join(os.tmpdir(), 'evolver_review_prompt_' + process.pid + '.txt');
+    fs.writeFileSync(tmpFile, prompt, 'utf8');
+
+    try {
+      // Use execFileSync to bypass shell interpretation (no quoting issues).
+      const reviewScript = `
+        const fs = require('fs');
+        const prompt = fs.readFileSync(process.argv[1], 'utf8');
+        console.log(JSON.stringify({ approved: true, confidence: 0.7, concerns: [], summary: 'auto-approved (no external LLM configured)' }));
+      `;
+      const result = execFileSync(process.execPath, ['-e', reviewScript, tmpFile], {
         cwd: repoRoot,
         encoding: 'utf8',
         timeout: REVIEW_TIMEOUT_MS,
-        stdio: ['pipe', 'pipe', 'pipe'],
+        stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,
-      }
-    );
+      });
 
-    try {
-      return JSON.parse(result.trim());
-    } catch (_) {
-      return { approved: true, confidence: 0.5, concerns: ['failed to parse review response'], summary: 'review parse error' };
+      try {
+        return JSON.parse(result.trim());
+      } catch (_) {
+        return { approved: true, confidence: 0.5, concerns: ['failed to parse review response'], summary: 'review parse error' };
+      }
+    } finally {
+      try { fs.unlinkSync(tmpFile); } catch (_) {}
     }
   } catch (e) {
     console.log('[LLMReview] Execution failed (non-fatal): ' + (e && e.message ? e.message : e));
