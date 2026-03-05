@@ -1,0 +1,11 @@
+{
+  "owner": "akolotov",
+  "slug": "blockscout-analysis",
+  "displayName": "Blockchain Analysis",
+  "latest": {
+    "version": "0.4.0",
+    "publishedAt": 1772660320860,
+    "commit": null
+  },
+  "history": []
+}
