@@ -7,6 +7,15 @@ Default design:
 - Add `event` prompts for rare/high-value moments
 - Add `interval` prompts for routine/high-frequency behavior
 
+## Credential requirements
+Only required when this integration is enabled:
+- Core: `CONTINUOUS_USER_RESEARCH_PROFILE`, `RESEARCH_STUDY_STORAGE_RAW_PATH`, `RESEARCH_STUDY_STORAGE_REPORTS_PATH`, `RESEARCH_REDACTION_SALT`
+- Slack: `RESEARCH_SLACK_BOT_TOKEN`, `RESEARCH_SLACK_SIGNING_SECRET`
+
+Optional and only required when ticket sync is enabled:
+- Linear: `RESEARCH_LINEAR_TOKEN`, `RESEARCH_LINEAR_TEAM_ID`
+- GitHub: `RESEARCH_GITHUB_TOKEN`, `RESEARCH_GITHUB_REPO`
+
 ## 1) Prerequisites
 - Slack app with minimal scopes:
 - `chat:write`

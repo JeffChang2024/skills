@@ -3,11 +3,16 @@
   "slug": "continuous-user-research",
   "displayName": "Continuous User Research",
   "latest": {
-    "version": "1.0.2",
-    "publishedAt": 1772624838100,
-    "commit": "https://github.com/openclaw/skills/commit/71cf163e80bd71a577a191076b23625f15f9953c"
+    "version": "1.0.3",
+    "publishedAt": 1772637510354,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.2",
+      "publishedAt": 1772624838100,
+      "commit": "https://github.com/openclaw/skills/commit/71cf163e80bd71a577a191076b23625f15f9953c"
+    },
     {
       "version": "1.0.1",
       "publishedAt": 1772624695311,

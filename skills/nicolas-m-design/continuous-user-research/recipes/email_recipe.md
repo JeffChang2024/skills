@@ -7,6 +7,15 @@ Default design:
 - Use `event` triggers for rare/high-value moments
 - Use `interval` prompts for routine behavior
 
+## Credential requirements
+Only required when this integration is enabled:
+- Core: `CONTINUOUS_USER_RESEARCH_PROFILE`, `RESEARCH_STUDY_STORAGE_RAW_PATH`, `RESEARCH_STUDY_STORAGE_REPORTS_PATH`, `RESEARCH_REDACTION_SALT`
+- Email: `RESEARCH_EMAIL_PROVIDER`, `RESEARCH_EMAIL_API_KEY`, `RESEARCH_EMAIL_FROM`
+
+Optional and only required when ticket sync is enabled:
+- Linear: `RESEARCH_LINEAR_TOKEN`, `RESEARCH_LINEAR_TEAM_ID`
+- GitHub: `RESEARCH_GITHUB_TOKEN`, `RESEARCH_GITHUB_REPO`
+
 ## 1) Prerequisites
 - Email provider API integration (for example SendGrid, SES, Postmark)
 - Inbound reply webhook handling

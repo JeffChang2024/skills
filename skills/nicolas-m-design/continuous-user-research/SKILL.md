@@ -1,27 +1,19 @@
 ---
 name: continuous-user-research
 description: Run longitudinal, in-context diary studies for product teams and convert weekly participant entries into concise User Signals + Recommendations with evidence, confidence, and experiment-ready actions. Use for onboarding drop-off diagnosis, feature habit/frequency understanding, motivation and emotion analysis, multi-touchpoint journey mapping, and channel/device behavior comparisons. Supports event-based, interval-based, signal-based, and mixed timing designs with pilot validation, compliance monitoring, and privacy-redacted reporting.
+homepage: https://github.com/nicolas-m-design/user-research-bot
 metadata:
   openclaw:
     skillKey: continuous-user-research
     primaryEnv: CONTINUOUS_USER_RESEARCH_PROFILE
+    homepage: https://github.com/nicolas-m-design/user-research-bot
     always: false
     requires:
       env:
+        - CONTINUOUS_USER_RESEARCH_PROFILE
         - RESEARCH_STUDY_STORAGE_RAW_PATH
         - RESEARCH_STUDY_STORAGE_REPORTS_PATH
         - RESEARCH_REDACTION_SALT
-        - RESEARCH_NOTION_TOKEN
-        - RESEARCH_NOTION_DATABASE_ID
-        - RESEARCH_SLACK_BOT_TOKEN
-        - RESEARCH_SLACK_SIGNING_SECRET
-        - RESEARCH_EMAIL_PROVIDER
-        - RESEARCH_EMAIL_API_KEY
-        - RESEARCH_EMAIL_FROM
-        - RESEARCH_LINEAR_TOKEN
-        - RESEARCH_LINEAR_TEAM_ID
-        - RESEARCH_GITHUB_TOKEN
-        - RESEARCH_GITHUB_REPO
       config:
         - continuous_user_research.integrations.notion.enabled
         - continuous_user_research.integrations.slack.enabled
@@ -60,24 +52,24 @@ Automatically run a lightweight diary study and turn it into weekly product sign
 - Retention discipline: define and enforce retention windows per study; delete or anonymize raw data after the retention window.
 - Auditability: log consent status, prompt schedule events, reminder events, and report generation events.
 
-Credential contract (declare as runtime secrets, never in repo):
-- Core data handling:
+Credential contract:
+- Always required (all deployments):
+- `CONTINUOUS_USER_RESEARCH_PROFILE`: runtime profile selector used to choose enabled integrations and routing mode.
 - `RESEARCH_STUDY_STORAGE_RAW_PATH`: restricted location for raw entries.
 - `RESEARCH_STUDY_STORAGE_REPORTS_PATH`: redacted report output location.
 - `RESEARCH_REDACTION_SALT`: deterministic redaction tokenization salt.
-- Notion recipe:
-- `RESEARCH_NOTION_TOKEN`: integration token limited to the target study database.
-- `RESEARCH_NOTION_DATABASE_ID`: database ID used for participants/entries/reports.
-- Slack recipe:
-- `RESEARCH_SLACK_BOT_TOKEN`: bot token limited to study workspace/channels.
-- `RESEARCH_SLACK_SIGNING_SECRET`: webhook signature verification secret.
-- Email recipe:
-- `RESEARCH_EMAIL_PROVIDER`: provider ID (for example, postmark or resend).
-- `RESEARCH_EMAIL_API_KEY`: API key scoped to study sender identity.
-- `RESEARCH_EMAIL_FROM`: approved sender address.
-- Optional ticket sync:
-- `RESEARCH_LINEAR_TOKEN`, `RESEARCH_LINEAR_TEAM_ID` for Linear ticket creation.
-- `RESEARCH_GITHUB_TOKEN`, `RESEARCH_GITHUB_REPO` for GitHub issue creation.
+- Conditional (only when integration enabled):
+- Notion: `RESEARCH_NOTION_TOKEN`, `RESEARCH_NOTION_DATABASE_ID`.
+- Slack: `RESEARCH_SLACK_BOT_TOKEN`, `RESEARCH_SLACK_SIGNING_SECRET`.
+- Email: `RESEARCH_EMAIL_PROVIDER`, `RESEARCH_EMAIL_API_KEY`, `RESEARCH_EMAIL_FROM`.
+- Optional ticket sync: `RESEARCH_LINEAR_TOKEN`, `RESEARCH_LINEAR_TEAM_ID`, `RESEARCH_GITHUB_TOKEN`, `RESEARCH_GITHUB_REPO`.
+
+Profile selector note:
+- Example values: `core`, `slack`, `email`, `notion`, `mixed`.
+- `CONTINUOUS_USER_RESEARCH_PROFILE` is a non-secret selector and does not grant external API access.
+
+Strict rule:
+- Unset tokens for disabled integrations; do not preload unused credentials.
 
 ## Scope anchor + supported study types
 Primary scope anchor:
