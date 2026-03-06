@@ -1,55 +1,31 @@
-# bnbot-openclaw-skill
+# BNBot Skill
 
-OpenClaw Skill for [BNBOT](https://chromewebstore.google.com/detail/bnbot-your-ai-growth-agen/haammgigdkckogcgnbkigfleejpaiiln) - Control Twitter/X via AI.
+The safest and most efficient way to automate Twitter/X — [BNBot](https://chromewebstore.google.com/detail/bnbot-your-ai-growth-agen/haammgigdkckogcgnbkigfleejpaiiln) operates through a real browser session with 28 AI-powered tools.
 
 ## Install
 
 ```bash
-clawhub install jackleeio/bnbot-openclaw-skill
+clawhub install bnbot
 ```
 
 Or search for "bnbot" on [ClawHub](https://clawhub.ai/).
 
-## User Flow
+## Setup
 
-```mermaid
-flowchart TD
-    A["用户在 ClawHub 搜索 bnbot"] --> B["clawhub install bnbot"]
-    B --> C["Skill 下载到 ~/.openclaw/skills/"]
-    C --> D{"bnbot-mcp-server\n已安装?"}
-    D -- No --> E["npm install -g bnbot-mcp-server\n(自动安装)"]
-    E --> F["Skill 激活"]
-    D -- Yes --> F
-    F --> G["用户首次使用 BNBOT 功能"]
-    G --> H{"~/.openclaw/openclaw.json\n已配置 bnbot MCP?"}
-    H -- No --> I["AI 自动写入 mcpServers 配置"]
-    I --> J["提示用户重启 OpenClaw"]
-    J --> K["OpenClaw 重启"]
-    H -- Yes --> K
-    K --> L["MCP Server 自动启动\n(npx bnbot-mcp-server)"]
-    L --> M["WebSocket 连接\nlocalhost:18900"]
-    M --> N{"BNBOT 扩展\n已开启 OpenClaw?"}
-    N -- No --> O["提示用户在扩展\nSettings 中开启"]
-    O --> N
-    N -- Yes --> P["扩展连接 WebSocket"]
-    P --> Q["✅ 就绪！用户可以\n通过 AI 控制 Twitter/X"]
-
-    style A fill:#e8f4f8
-    style Q fill:#d4edda
-    style E fill:#fff3cd
-    style I fill:#fff3cd
-    style O fill:#f8d7da
-```
+1. Install the [BNBot Chrome Extension](https://chromewebstore.google.com/detail/bnbot-your-ai-growth-agen/haammgigdkckogcgnbkigfleejpaiiln)
+2. Open [Twitter/X](https://x.com) in Chrome
+3. Open the BNBot sidebar and enable **MCP** in Settings
+4. Add the MCP server config to your AI client (the skill will show you the config and ask for your approval before any changes)
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    subgraph OpenClaw
-        A[AI Agent] -->|"MCP (stdio)"| B[bnbot-mcp-server]
+    subgraph "AI Client"
+        A[Claude Code / OpenClaw / ChatGPT] -->|"MCP (stdio)"| B[bnbot-mcp-server]
     end
     subgraph Local
-        B -->|"WebSocket\nlocalhost:18900"| C[BNBOT Chrome Extension]
+        B -->|"WebSocket\nlocalhost:18900"| C[BNBot Chrome Extension]
     end
     subgraph Browser
         C -->|"DOM Operations"| D[Twitter/X]
@@ -63,21 +39,24 @@ flowchart LR
 
 ## What It Does
 
-This skill automatically configures the `bnbot-mcp-server` MCP server and lets your AI assistant:
+This skill lets your AI assistant control Twitter/X through 28 tools:
 
-- Scrape tweets, bookmarks, and search results
-- Post tweets and threads
-- Reply to tweets
-- Navigate Twitter/X pages
-- Get account analytics
+- **Post** tweets, threads, and long-form articles (with Markdown support)
+- **Engage** — like, retweet, quote tweet, reply, follow
+- **Scrape** timeline, bookmarks, search results, threads, and account analytics
+- **Fetch content** from WeChat, TikTok, and Xiaohongshu for cross-platform repurposing
+- **Navigate** Twitter pages (tweets, search, bookmarks, notifications)
+
+All actions go through your real browser session — indistinguishable from manual human behavior, so your account stays safe.
 
 ## Requirements
 
-- [BNBOT Chrome Extension](https://chromewebstore.google.com/detail/bnbot-your-ai-growth-agen/haammgigdkckogcgnbkigfleejpaiiln) installed
-- OpenClaw toggle enabled in BNBOT Settings
+- [BNBot Chrome Extension](https://chromewebstore.google.com/detail/bnbot-your-ai-growth-agen/haammgigdkckogcgnbkigfleejpaiiln) installed and MCP enabled
 - Twitter/X open in Chrome
+- [bnbot-mcp-server](https://www.npmjs.com/package/bnbot-mcp-server) configured in your AI client's MCP config
 
-## Related
+## Links
 
-- [bnbot-mcp-server](https://github.com/jackleeio/bnbot-mcp-server) - The MCP server this skill installs
-- [BNBOT Extension](https://github.com/jackleeio/BNBOT-Extension) - The Chrome extension
+- [BNBot Chrome Extension](https://chromewebstore.google.com/detail/bnbot-your-ai-growth-agen/haammgigdkckogcgnbkigfleejpaiiln)
+- [bnbot-mcp-server (npm)](https://www.npmjs.com/package/bnbot-mcp-server)
+- [GitHub: bnbot-mcp-server](https://github.com/jackleeio/bnbot-mcp-server)

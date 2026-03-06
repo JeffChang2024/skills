@@ -1,7 +1,7 @@
 ---
 name: bnbot
 description: The safest and most efficient way to automate Twitter/X — BNBot operates through a real browser session with 28 AI-powered tools. Grow your Twitter without API bans.
-version: 0.5.1
+version: 0.5.3
 homepage: https://github.com/jackleeio/bnbot-mcp-server
 metadata:
   openclaw:
@@ -88,7 +88,7 @@ If the MCP tools are not available at all, tell the user:
 AI Client (Claude Code / OpenClaw / ChatGPT / ...) → bnbot-mcp-server (stdio) → WebSocket (localhost:18900) → BNBOT Chrome Extension → Twitter/X
 ```
 
-## Available Tools (28)
+## Available Tools (29)
 
 ### Status
 
@@ -140,6 +140,10 @@ AI Client (Claude Code / OpenClaw / ChatGPT / ...) → bnbot-mcp-server (stdio) 
 - `upload_article_header_image` - Upload header image (params: `headerImage`)
 - `publish_article` - Publish or save as draft (params: optional `publish`, optional `asDraft`)
 - `create_article` - Full article creation flow (params: `title`, `content`, optional `format`, optional `headerImage`, optional `bodyImages`, optional `publish`)
+
+### Jobs
+
+- `search_jobs` - Search for available jobs with crypto rewards (params: optional `type`: boost/hire/all, optional `status`, `sort`, `limit`, `keyword`, `endingSoon`, `token`)
 
 ## Usage Examples
 
