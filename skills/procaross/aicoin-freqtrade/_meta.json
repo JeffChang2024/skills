@@ -1,0 +1,11 @@
+{
+  "owner": "procaross",
+  "slug": "aicoin-freqtrade",
+  "displayName": "Aicoin Freqtrade",
+  "latest": {
+    "version": "3.0.9",
+    "publishedAt": 1772795601217,
+    "commit": null
+  },
+  "history": []
+}
