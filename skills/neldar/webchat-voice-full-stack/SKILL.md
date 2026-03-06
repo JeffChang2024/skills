@@ -2,32 +2,34 @@
 name: webchat-voice-full-stack
 description: >
   One-step full-stack installer for OpenClaw WebChat voice input with local
-  speech-to-text. Deploys faster-whisper STT backend plus HTTPS/WSS WebChat
-  proxy with mic button in one command. Push-to-Talk (hold to speak) and Toggle
-  mode with keyboard shortcuts (Ctrl+Space PTT, Ctrl+Shift+M continuous recording).
-  Real-time VU meter, localized UI (English, German, Chinese), interactive
-  language selection during install. No recurring API costs, runs fully local
-  after initial model download (~1.5 GB). Combines faster-whisper-local-service
-  and webchat-voice-proxy.
-  Keywords: voice input, microphone, WebChat, speech to text, STT, local
-  transcription, whisper, full stack, one-click, voice button, push-to-talk,
-  PTT, keyboard shortcut, i18n.
+  speech-to-text. Orchestrates three focused skills in order: local STT backend
+  (faster-whisper-local-service), HTTPS/WSS reverse proxy (webchat-https-proxy),
+  and voice UI mic controls (webchat-voice-gui). Includes Push-to-Talk,
+  continuous recording shortcuts, VU meter, and localized UI (EN/DE/ZH).
+  Designed for transparent, user-level deployment with explicit, reversible
+  changes only (systemd user services, Control UI asset injection, gateway
+  allowed-origin update). No external telemetry and no recurring API costs after
+  initial model download. Keywords: voice input, microphone, WebChat, speech to
+  text, STT, local transcription, whisper, full stack, one-click, voice button,
+  push-to-talk, PTT, keyboard shortcut, i18n, HTTPS, WSS.
 ---
 
 # WebChat Voice Full Stack
 
-Meta-installer that orchestrates two standalone skills in the correct order:
+Meta-installer that orchestrates three standalone skills in the correct order:
 
 1. **`faster-whisper-local-service`** — local STT backend (HTTP on 127.0.0.1:18790)
-2. **`webchat-voice-proxy`** — HTTPS/WSS proxy + mic button for WebChat Control UI
+2. **`webchat-https-proxy`** — HTTPS/WSS reverse proxy for Control UI + WebSocket + transcription
+3. **`webchat-voice-gui`** — mic button, VU meter, keyboard shortcuts, i18n for WebChat
 
 ## Prerequisites
 
-Both skills must be installed before running this meta-installer:
+All three skills must be installed before running this meta-installer:
 
 ```bash
-clawdhub install faster-whisper-local-service
-clawdhub install webchat-voice-proxy
+npx clawhub install faster-whisper-local-service
+npx clawhub install webchat-https-proxy
+npx clawhub install webchat-voice-gui
 ```
 
 Additionally required on the system:
@@ -49,24 +51,40 @@ VOICE_HOST=10.0.0.42 VOICE_HTTPS_PORT=8443 TRANSCRIBE_PORT=18790 WHISPER_LANGUAG
 
 ## What this does (via downstream scripts)
 
-This skill does **not** contain deployment logic itself. It calls `deploy.sh` from each sub-skill. Here is what those scripts do:
+This skill does **not** contain deployment logic itself. It calls `deploy.sh` from each sub-skill:
 
-### faster-whisper-local-service deploys:
-- Creates Python venv at `$WORKSPACE/.venv-faster-whisper/`
-- Installs `faster-whisper==1.1.1` via pip
-- Writes `transcribe-server.py` to `$WORKSPACE/voice-input/`
-- Creates + enables systemd user service `openclaw-transcribe.service`
-- Downloads model weights from Hugging Face on first run (~1.5 GB for medium)
+### Step 1: faster-whisper-local-service
+- Creates Python venv, installs `faster-whisper==1.1.1`
+- Writes `transcribe-server.py` with input validation (magic-byte check, size limit)
+- Creates systemd user service `openclaw-transcribe.service`
+- Downloads model weights on first run (~1.5 GB for medium)
 
-### webchat-voice-proxy deploys:
-- Copies `voice-input.js` and `https-server.py` to `$WORKSPACE/voice-input/`
-- Injects `<script>` tag into Control UI `index.html`
-- Adds HTTPS origin to `gateway.controlUi.allowedOrigins` in `openclaw.json`
-- Creates + enables systemd user service `openclaw-voice-https.service`
-- Installs gateway startup hook at `~/.openclaw/hooks/voice-input-inject/`
-- Auto-generates self-signed TLS cert on first run
+### Step 2: webchat-https-proxy
+- Copies `https-server.py` to workspace
+- Adds HTTPS origin to `gateway.controlUi.allowedOrigins`
+- Creates systemd user service `openclaw-voice-https.service`
+- Auto-generates self-signed TLS cert (TLS 1.2+ enforced)
+
+### Step 3: webchat-voice-gui
+- Copies `voice-input.js` and injects `<script>` tag into Control UI
+- Installs gateway startup hook for update safety
+- Optional interactive language selection
 
 For full details, security notes, and uninstall instructions, see each skill's SKILL.md.
+
+## Security posture (why these changes are expected)
+
+This is a **meta-installer**, so it coordinates downstream skills and applies only the minimum required local changes:
+
+- **Persistence:** creates user-level systemd services so STT/proxy survive reboot (`openclaw-transcribe`, `openclaw-voice-https`)
+- **UI enablement:** injects one explicit `<script>` tag for `voice-input.js` in Control UI
+- **Gateway compatibility:** appends one HTTPS origin to `gateway.controlUi.allowedOrigins`
+
+Safety characteristics:
+- all changes are documented and reversible via uninstall scripts
+- no root/sudo required (user scope only)
+- no hidden background tasks beyond documented services
+- no outbound telemetry or data exfiltration behavior
 
 ## Verify
 
@@ -76,13 +94,16 @@ bash scripts/status.sh
 
 ## Uninstall
 
-Uninstall each skill separately:
+Uninstall each skill separately (in reverse order):
 
 ```bash
-# Proxy (service, hook, UI injection, gateway config)
-bash skills/webchat-voice-proxy/scripts/uninstall.sh
+# 1. Voice GUI (hook, UI injection, workspace files)
+bash skills/webchat-voice-gui/scripts/uninstall.sh
 
-# Backend (service, venv)
+# 2. HTTPS Proxy (service, gateway config, certs)
+bash skills/webchat-https-proxy/scripts/uninstall.sh
+
+# 3. STT Backend (service, venv)
 systemctl --user stop openclaw-transcribe.service
 systemctl --user disable openclaw-transcribe.service
 rm -f ~/.config/systemd/user/openclaw-transcribe.service
@@ -91,6 +112,6 @@ systemctl --user daemon-reload
 
 ## Notes
 
-- This meta-skill is a convenience wrapper. All actual logic lives in the two sub-skills.
-- Review both sub-skills' scripts before running if you haven't already.
-- The `WORKSPACE` and `SKILLS_DIR` paths are configurable via environment variables (default: `~/.openclaw/workspace` and `~/.openclaw/workspace/skills`).
+- This meta-skill is a convenience wrapper. All actual logic lives in the three sub-skills.
+- Review each sub-skill's scripts and security notes before running.
+- The `WORKSPACE` and `SKILLS_DIR` paths are configurable via environment variables.

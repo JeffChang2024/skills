@@ -1,13 +1,18 @@
 {
   "owner": "neldar",
   "slug": "webchat-voice-full-stack",
-  "displayName": "WebChat Voice Full Stack",
+  "displayName": "Webchat Voice Full Stack",
   "latest": {
-    "version": "0.2.1",
-    "publishedAt": 1771811543014,
-    "commit": "https://github.com/openclaw/skills/commit/9c88c455369f50d087707f9ce09735cf6db4b580"
+    "version": "0.3.0",
+    "publishedAt": 1772756817653,
+    "commit": null
   },
   "history": [
+    {
+      "version": "0.2.1",
+      "publishedAt": 1771811543014,
+      "commit": "https://github.com/openclaw/skills/commit/9c88c455369f50d087707f9ce09735cf6db4b580"
+    },
     {
       "version": "0.2.0",
       "publishedAt": 1771539659750,
