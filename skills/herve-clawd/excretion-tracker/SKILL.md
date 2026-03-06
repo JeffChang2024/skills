@@ -89,11 +89,16 @@ When the user says they went to the bathroom:
    - for poop: bristol (1–7)
 4) Log the event via CLI: `excretion log ...`.
 5) **Optional visual card (SOP):**
-   - Detect whether `nano-banana-pro` is installed.
+   - Cards are **disabled by default**.
+   - If the user enables cards, detect whether `nano-banana-pro` is installed.
    - If installed: follow `references/card_sop.md` to generate a consistent cute 3:4 card using **nano-banana-pro** and send it.
    - If not installed: **skip silently** (no extra questions).
 
-Note: This skill intentionally ships **no image-generation scripts**. The agent should execute the SOP by invoking `nano-banana-pro` when available.
+Enable/disable:
+- Enable: `excretion config set card_enabled 1`
+- Disable: `excretion config set card_enabled 0`
+
+Note: This skill intentionally ships **no image-generation scripts**. The agent executes the SOP by invoking `nano-banana-pro` only when cards are enabled.
 If user says “刚刚/刚才” → use now.
 If user provides duration like “2分钟” → convert to seconds.
 

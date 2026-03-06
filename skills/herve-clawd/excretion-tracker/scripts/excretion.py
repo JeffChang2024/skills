@@ -69,6 +69,8 @@ def init_db(con: sqlite3.Connection) -> None:
     )
     # default config
     cur.execute("INSERT OR IGNORE INTO config(key,value) VALUES(?,?)", ("poop_remind_hours","24"))
+    # card generation is optional and OFF by default (agent may use nano-banana-pro if enabled)
+    cur.execute("INSERT OR IGNORE INTO config(key,value) VALUES(?,?)", ("card_enabled","0"))
     con.commit()
 
 
