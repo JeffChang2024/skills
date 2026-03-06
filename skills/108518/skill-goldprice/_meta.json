@@ -1,0 +1,11 @@
+{
+  "owner": "108518",
+  "slug": "skill-goldprice",
+  "displayName": "Gold Price Query",
+  "latest": {
+    "version": "0.1.0",
+    "publishedAt": 1772695878405,
+    "commit": null
+  },
+  "history": []
+}
