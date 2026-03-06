@@ -1,10 +1,10 @@
 ---
 name: Self-Improving Agent (With Self-Reflection)
 slug: self-improving
-version: 1.1.3
+version: 1.2.9
 homepage: https://clawic.com/skills/self-improving
-description: Self-reflection + Self-criticism + learning from corrections. Agent evaluates its own work, catches mistakes, and improves permanently.
-changelog: Fixed skill title display.
+description: Self-reflection + Self-criticism + Self-learning + Self-organizing memory. Agent evaluates its own work, catches mistakes, and improves permanently. Use before starting work and after responding to the user.
+changelog: "Refined AGENTS.md memory-routing wording for clarity while preserving behavior."
 metadata: {"clawdbot":{"emoji":"🧠","requires":{"bins":[]},"os":["linux","darwin","win32"],"configPaths":["~/self-improving/"]}}
 ---
 
@@ -14,7 +14,7 @@ User corrects you or points out mistakes. You complete significant work and want
 
 ## Architecture
 
-Memory lives in `~/self-improving/` with tiered structure. See `memory-template.md` for setup.
+Memory lives in `~/self-improving/` with tiered structure. If `~/self-improving/` does not exist, run `setup.md`.
 
 ```
 ~/self-improving/
@@ -31,18 +31,12 @@ Memory lives in `~/self-improving/` with tiered structure. See `memory-template.
 | Topic | File |
 |-------|------|
 | Setup guide | `setup.md` |
+| Memory template | `memory-template.md` |
 | Learning mechanics | `learning.md` |
 | Security boundaries | `boundaries.md` |
 | Scaling rules | `scaling.md` |
 | Memory operations | `operations.md` |
 | Self-reflection log | `reflections.md` |
-
-## Data Storage
-
-All data stored in `~/self-improving/`. Create on first use:
-```bash
-mkdir -p ~/self-improving/{projects,domains,archive}
-```
 
 ## Detection Triggers
 
