@@ -30,11 +30,19 @@ import sys
 import urllib.error
 import urllib.request
 
+_WORDLIST_FILE = pathlib.Path(__file__).parent / "data" / "bip39_english.txt"
+
 BASE_URL = "https://web-production-5cce7.up.railway.app"
 
 _KEY_FILE      = pathlib.Path.home() / ".config" / "jackal-memory" / "key"
 _WALLET_FILE   = pathlib.Path.home() / ".config" / "jackal-memory" / "jackal-mnemonic"
 _MANIFEST_FILE = pathlib.Path.home() / ".config" / "jackal-memory" / "manifest.json"
+
+
+def _write_secret_file(path: pathlib.Path, value: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(value)
+    os.chmod(path, 0o600)
 
 
 # ── Encryption (mandatory) ────────────────────────────────────────────────────
@@ -48,8 +56,7 @@ def _encryption_key() -> bytes:
         return bytes.fromhex(_KEY_FILE.read_text().strip())
 
     key_hex = os.urandom(32).hex()
-    _KEY_FILE.parent.mkdir(parents=True, exist_ok=True)
-    _KEY_FILE.write_text(key_hex)
+    _write_secret_file(_KEY_FILE, key_hex)
     print(
         "\n[jackal-memory] Generated a new encryption key and saved it to:\n"
         f"  {_KEY_FILE}\n\n"
@@ -113,14 +120,13 @@ _BIP39_WORDS = None  # lazy-loaded
 def _load_wordlist() -> list:
     global _BIP39_WORDS
     if _BIP39_WORDS is None:
-        # BIP39 English wordlist embedded as a compact resource.
-        # Fetched once from the canonical source and cached in memory.
         try:
-            url = "https://raw.githubusercontent.com/trezor/python-mnemonic/master/src/mnemonic/wordlist/english.txt"
-            with urllib.request.urlopen(url, timeout=10) as r:
-                _BIP39_WORDS = r.read().decode().split()
+            _BIP39_WORDS = _WORDLIST_FILE.read_text().split()
         except Exception:
-            print("[jackal-memory] Could not fetch BIP39 wordlist. Check your internet connection.", file=sys.stderr)
+            print(f"[jackal-memory] Could not load local BIP39 wordlist at {_WORDLIST_FILE}.", file=sys.stderr)
+            sys.exit(1)
+        if len(_BIP39_WORDS) != 2048:
+            print("[jackal-memory] Invalid BIP39 wordlist (expected 2048 words).", file=sys.stderr)
             sys.exit(1)
     return _BIP39_WORDS
 
@@ -290,8 +296,7 @@ def _ensure_wallet_registered() -> None:
     if mnemonic is None:
         # Generate and save
         mnemonic = _generate_mnemonic()
-        _WALLET_FILE.parent.mkdir(parents=True, exist_ok=True)
-        _WALLET_FILE.write_text(mnemonic)
+        _write_secret_file(_WALLET_FILE, mnemonic)
         address = _mnemonic_to_jackal_address(mnemonic)
         print(
             "\n[jackal-memory] Generated your Jackal wallet and saved the mnemonic to:\n"
@@ -449,8 +454,7 @@ def cmd_walletgen() -> None:
         return
 
     mnemonic = _generate_mnemonic()
-    _WALLET_FILE.parent.mkdir(parents=True, exist_ok=True)
-    _WALLET_FILE.write_text(mnemonic)
+    _write_secret_file(_WALLET_FILE, mnemonic)
     address = _mnemonic_to_jackal_address(mnemonic)
 
     print(f"\nJackal wallet generated.")

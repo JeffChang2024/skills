@@ -20,6 +20,14 @@ Persist your memory across sessions and machines. Your data lives on Jackal Prot
 
 All content is encrypted client-side with AES-256-GCM before leaving your machine. The server never sees plaintext.
 
+## Trust & security quick facts
+
+- **Runtime API host:** `https://web-production-5cce7.up.railway.app` (separate from homepage domain)
+- **Data leaving your machine:** encrypted payloads + key metadata + your Jackal public address for provisioning
+- **Data not leaving your machine:** plaintext memory content, encryption key, wallet mnemonic/private key
+- **No runtime wordlist download:** BIP39 English wordlist is vendored locally in this skill package
+- **Secret file permissions:** locally generated key/mnemonic files are written with `0600` permissions
+
 - **Homepage:** https://obsideo.io
 - **Source code:** https://github.com/Regan-Milne/jackal-memory
 - **Publisher:** Obsideo (obsideo.io@gmail.com)
@@ -181,8 +189,8 @@ This skill interacts with:
 
 Local files written by this skill:
 
-- `~/.config/jackal-memory/key` (AES encryption key, if not provided via env)
-- `~/.config/jackal-memory/jackal-mnemonic` (wallet mnemonic, if not provided via env)
+- `~/.config/jackal-memory/key` (AES encryption key, if not provided via env; written with `0600`)
+- `~/.config/jackal-memory/jackal-mnemonic` (wallet mnemonic, if not provided via env; written with `0600`)
 - `.env` (read-only): `jackal-client.js` will load one directory up if present, to populate missing env vars.
 
 Operational note: run in a clean environment when possible to avoid unintentionally inheriting unrelated secrets from `.env`.
@@ -191,8 +199,8 @@ Operational note: run in a clean environment when possible to avoid unintentiona
 
 - All content is encrypted before leaving your machine — the server cannot read your memories
 - Your Jackal wallet private key never leaves your machine
-- Share your API key with your agent once to set it up, then never share it with anyone else
+- Set API keys and secrets directly in local environment variables; never paste them into chat
 - Back up both keys: `keygen` (encryption) and `wallet` (Jackal mnemonic)
 - Treat memory content as sensitive — it may contain personal or operational data
 - Do not proactively store raw secrets unless the user explicitly asks
-- The client currently fetches the BIP39 wordlist from `raw.githubusercontent.com` at runtime; for high-assurance environments, vendor/pin this wordlist locally.
+- BIP39 English wordlist is included locally in the package (no runtime fetch required).

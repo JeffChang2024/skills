@@ -3,11 +3,16 @@
   "slug": "claw-store",
   "displayName": "Claw Store",
   "latest": {
-    "version": "1.0.10",
-    "publishedAt": 1772726457871,
-    "commit": "https://github.com/openclaw/skills/commit/bb5a449ed1465ccf06df58fcaea982f1a592a808"
+    "version": "1.3.0",
+    "publishedAt": 1772733672693,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.10",
+      "publishedAt": 1772726457871,
+      "commit": "https://github.com/openclaw/skills/commit/bb5a449ed1465ccf06df58fcaea982f1a592a808"
+    },
     {
       "version": "1.0.8",
       "publishedAt": 1772642276716,
