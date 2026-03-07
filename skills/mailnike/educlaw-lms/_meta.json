@@ -1,11 +1,17 @@
 {
   "owner": "mailnike",
   "slug": "educlaw-lms",
-  "displayName": "EduClaw-LMS - AI-native education management for K-12, college, and university environments based on a ERPClaw",
+  "displayName": "Educlaw Lms",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1772824850446,
-    "commit": "https://github.com/openclaw/skills/commit/b005e5e2195d02a2e73d62c786a74dee87eb5aef"
+    "version": "2.1.0",
+    "publishedAt": 1772907766789,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1772824850446,
+      "commit": "https://github.com/openclaw/skills/commit/b005e5e2195d02a2e73d62c786a74dee87eb5aef"
+    }
+  ]
 }

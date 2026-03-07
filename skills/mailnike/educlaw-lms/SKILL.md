@@ -7,7 +7,7 @@ homepage: https://www.educlaw.ai
 source: https://github.com/avansaber/educlaw-lms
 tier: 4
 category: education
-requires: [erpclaw-setup, erpclaw-gl, erpclaw-selling, erpclaw-payments, erpclaw-hr, educlaw]
+requires: [erpclaw, erpclaw-people, educlaw]
 database: ~/.openclaw/erpclaw/data.sqlite
 scripts: scripts/db_query.py
 user-invocable: true
@@ -34,7 +34,7 @@ Credentials (OAuth secrets, tokens) are AES-256 encrypted before storage — nev
 - **COPPA guard**: Students with `is_coppa_applicable=1` are skipped (logged as `E_COPPA_UNVERIFIED`) unless `is_coppa_verified=1` on the connection
 - **FERPA auto-logging**: Every roster push logs a disclosure to `educlaw_data_access_log`; every grade pull logs an API access
 - **Immutable audit tables**: `educlaw_lms_sync_log` and `educlaw_lms_grade_sync` are append-only
-- **Submitted grade lock**: Grades with `is_grade_submitted=1` are never overwritten automatically — must use `resolve-grade-conflict` with explicit resolution
+- **Submitted grade lock**: Grades with `is_grade_submitted=1` are never overwritten automatically — must use `apply-grade-resolution` with explicit resolution
 - **SQL injection safe**: All queries use parameterized statements
 
 ### Environment Variables
@@ -56,8 +56,8 @@ for LMS, sync log, grade conflict, oneroster export, close course.
 # 1. Set encryption key (add to shell profile)
 export EDUCLAW_LMS_ENCRYPTION_KEY="your-secure-passphrase-here"
 
-# 2. Initialize database (erpclaw-setup + educlaw must already be installed)
-python3 {baseDir}/../erpclaw-setup/scripts/db_query.py --action initialize-database
+# 2. Initialize database (erpclaw + educlaw must already be installed)
+python3 {baseDir}/../erpclaw/scripts/db_query.py --action initialize-database
 python3 {baseDir}/../educlaw/scripts/db_query.py --action status
 
 # 3. Initialize LMS tables and verify
@@ -95,7 +95,7 @@ python3 {baseDir}/scripts/db_query.py --action status
 
 ```
 # Push all sections + students + instructors for a term
---action sync-courses \
+--action apply-course-sync \
   --connection-id {connection_id} \
   --academic-term-id {term_id} \
   --company-id {company_id}
@@ -111,12 +111,12 @@ python3 {baseDir}/scripts/db_query.py --action status
 
 ```
 # Push a SIS assessment to Canvas
---action push-assessment-to-lms \
+--action submit-assessment-to-lms \
   --assessment-id {assessment_id} \
   --connection-id {connection_id}
 
 # Pull grades from LMS into staging
---action pull-grades \
+--action import-grades \
   --connection-id {connection_id} \
   --section-id {section_id}
 
@@ -127,7 +127,7 @@ python3 {baseDir}/scripts/db_query.py --action status
 
 # Resolve any grade conflicts
 --action list-grade-conflicts --connection-id {connection_id} --section-id {section_id}
---action resolve-grade-conflict \
+--action apply-grade-resolution \
   --grade-sync-id {grade_sync_id} \
   --resolution lms_wins \
   --resolved-by {user_id}
@@ -153,13 +153,13 @@ python3 {baseDir}/scripts/db_query.py --action status
 
 ```
 # Export full term roster (6 CSV files, zipped)
---action export-oneroster-csv \
+--action generate-oneroster-csv \
   --academic-term-id {term_id} \
   --output-dir /tmp/oneroster_export \
   --company-id {company_id}
 
 # Export with grades (adds lineItems.csv + results.csv)
---action export-oneroster-csv \
+--action generate-oneroster-csv \
   --academic-term-id {term_id} \
   --output-dir /tmp/oneroster_export \
   --include-grades \
@@ -170,7 +170,7 @@ python3 {baseDir}/scripts/db_query.py --action status
 
 ```
 # After running submit-grades in educlaw, close the LMS mapping
---action close-lms-course \
+--action complete-lms-course \
   --section-id {section_id} \
   --connection-id {connection_id}
 ```
@@ -189,32 +189,32 @@ For all actions: `python3 {baseDir}/scripts/db_query.py --action <action> [flags
 | `update-lms-connection` | --connection-id [fields] | Update connection settings. Re-encrypts credentials if provided. Cannot update inactive/error connections without first resetting. |
 | `get-lms-connection` | --connection-id | Get full connection record. Credentials masked (last 4 chars only). Shows `last_sync_at`, `connection_status`. |
 | `list-lms-connections` | --company-id [--lms-type --connection-status] | List all connections. Returns id, display_name, lms_type, status, last_sync_at, has_dpa_signed, is_coppa_verified. |
-| `test-lms-connection` | --connection-id | Make live API call to validate credentials. On success: sets `status = 'active'`, populates `lms_version`/`lms_site_name`. On failure: sets `status = 'error'`. Requires `has_dpa_signed = 1`. |
-| `sync-courses` | --connection-id --academic-term-id --company-id [--section-id] | Full roster push for a term. Syncs: term→sections→users→enrollments. Creates sync log. FERPA disclosure per student. COPPA-restricted students skipped. Blocks concurrent runs. |
+| `activate-lms-connection` | --connection-id | Make live API call to validate credentials. On success: sets `status = 'active'`, populates `lms_version`/`lms_site_name`. On failure: sets `status = 'error'`. Requires `has_dpa_signed = 1`. |
+| `apply-course-sync` | --connection-id --academic-term-id --company-id [--section-id] | Full roster push for a term. Syncs: term→sections→users→enrollments. Creates sync log. FERPA disclosure per student. COPPA-restricted students skipped. Blocks concurrent runs. |
 | `list-sync-logs` | --connection-id [--sync-type --sync-status --from-date --to-date] | List sync run history. Returns summary stats per run (sections, students, grades, conflicts, errors). |
 | `get-sync-log` | --sync-log-id | Get full sync run details including `error_summary` JSON array. |
-| `resolve-sync-conflict` | --connection-id --entity-type --entity-id --resolution | Resolve user/course mapping conflict. Resolution: `sis_wins` (re-push), `lms_wins` (accept LMS state), `dismiss` (mark reviewed). |
+| `apply-sync-resolution` | --connection-id --entity-type --entity-id --resolution | Resolve user/course mapping conflict. Resolution: `sis_wins` (re-push), `lms_wins` (accept LMS state), `dismiss` (mark reviewed). |
 
 ### Assignments Domain (`assignments.py`)
 
 | Action | Key Parameters | Description |
 |---|---|---|
-| `push-assessment-to-lms` | --assessment-id --connection-id [--section-id] | Push SIS assessment to LMS as assignment. Idempotent (skips if already mapped). Creates `educlaw_lms_assignment_mapping`. Logs FERPA disclosure. |
-| `pull-lms-assignments` | --connection-id --section-id [--create-assessments --plan-id --category-id] | Pull LMS assignments not yet in EduClaw. Optionally creates stub `educlaw_assessment` records. Sets `push_direction = 'lms_to_sis'`. |
-| `sync-assessment-update` | --assessment-id --connection-id | Push updated assessment fields (name, max_points, due_date, is_published) to LMS. Warns if max_points changed. |
+| `submit-assessment-to-lms` | --assessment-id --connection-id [--section-id] | Push SIS assessment to LMS as assignment. Idempotent (skips if already mapped). Creates `educlaw_lms_assignment_mapping`. Logs FERPA disclosure. |
+| `import-lms-assignments` | --connection-id --section-id [--create-assessments --plan-id --category-id] | Pull LMS assignments not yet in EduClaw. Optionally creates stub `educlaw_assessment` records. Sets `push_direction = 'lms_to_sis'`. |
+| `apply-assessment-update` | --assessment-id --connection-id | Push updated assessment fields (name, max_points, due_date, is_published) to LMS. Warns if max_points changed. |
 | `list-lms-assignments` | --connection-id [--section-id --assignment-sync-status] | List assessments with LMS mappings. Shows SIS details + LMS URL, `is_published_in_lms`, `assignment_sync_status`. |
-| `unlink-lms-assignment` | --assessment-id --connection-id | Remove LMS mapping (soft delete via `sync_status = 'error'`). Does NOT delete LMS assignment. |
+| `delete-lms-assignment` | --assessment-id --connection-id | Remove LMS mapping (soft delete via `sync_status = 'error'`). Does NOT delete LMS assignment. |
 
 ### Online Gradebook Domain (`online_gradebook.py`)
 
 | Action | Key Parameters | Description |
 |---|---|---|
-| `pull-grades` | --connection-id --section-id [--assessment-id --academic-term-id] | Pull LMS grades into staging (`educlaw_lms_grade_sync`). Auto-applies new grades if `grade_direction = 'lms_to_sis'` and no SIS score. Submitted grades flagged as `submitted_grade_locked` conflict — never auto-overwritten. Logs FERPA pull per student. |
+| `import-grades` | --connection-id --section-id [--assessment-id --academic-term-id] | Pull LMS grades into staging (`educlaw_lms_grade_sync`). Auto-applies new grades if `grade_direction = 'lms_to_sis'` and no SIS score. Submitted grades flagged as `submitted_grade_locked` conflict — never auto-overwritten. Logs FERPA pull per student. |
 | `get-online-gradebook` | --section-id --connection-id | Return unified SIS+LMS gradebook matrix. Student rows × Assessment columns. Each cell: SIS score, LMS score, conflict flag, LMS URL. |
 | `list-grade-conflicts` | --connection-id [--section-id --conflict-type --conflict-status] | List grade conflicts for review. Shows student name, assessment, SIS score, LMS score, `is_grade_submitted`. |
-| `resolve-grade-conflict` | --grade-sync-id --resolution --resolved-by [--new-score --push-to-lms] | Resolve grade conflict. Options: `lms_wins` (apply LMS score), `sis_wins` (dismiss; optionally push SIS back), `manual` (enter custom score via `--new-score`). Submitted-grade conflicts route through amendment workflow. |
-| `export-oneroster-csv` | --academic-term-id --output-dir --company-id [--include-grades] | Generate OneRoster 1.1 CSV zip package. Base: 6 files (orgs, academicSessions, courses, classes, users, enrollments). With `--include-grades`: adds lineItems.csv + results.csv. COPPA minimization applied. |
-| `close-lms-course` | --section-id --connection-id | Mark LMS course mapping as `closed`. Blocks further grade pulls. Call after `submit-grades` in parent educlaw. |
+| `apply-grade-resolution` | --grade-sync-id --resolution --resolved-by [--new-score --push-to-lms] | Resolve grade conflict. Options: `lms_wins` (apply LMS score), `sis_wins` (dismiss; optionally push SIS back), `manual` (enter custom score via `--new-score`). Submitted-grade conflicts route through amendment workflow. |
+| `generate-oneroster-csv` | --academic-term-id --output-dir --company-id [--include-grades] | Generate OneRoster 1.1 CSV zip package. Base: 6 files (orgs, academicSessions, courses, classes, users, enrollments). With `--include-grades`: adds lineItems.csv + results.csv. COPPA minimization applied. |
+| `complete-lms-course` | --section-id --connection-id | Mark LMS course mapping as `closed`. Blocks further grade pulls. Call after `submit-grades` in parent educlaw. |
 
 ### Course Materials Domain (`course_materials.py`)
 
@@ -242,8 +242,8 @@ For all actions: `python3 {baseDir}/scripts/db_query.py --action <action> [flags
 |---|---|---|
 | `score_mismatch` | LMS score ≠ existing SIS score | `lms_wins`, `sis_wins`, or `manual` |
 | `submitted_grade_locked` | SIS grade has `is_grade_submitted = 1` | `lms_wins` routes through grade amendment; `sis_wins` dismisses |
-| `student_not_found` | LMS user not in `educlaw_lms_user_mapping` | Re-run `sync-courses` to remap; then `resolve-grade-conflict` |
-| `assignment_not_found` | LMS assignment not in `educlaw_lms_assignment_mapping` | Run `pull-lms-assignments --create-assessments`; then retry |
+| `student_not_found` | LMS user not in `educlaw_lms_user_mapping` | Re-run `apply-course-sync` to remap; then `apply-grade-resolution` |
+| `assignment_not_found` | LMS assignment not in `educlaw_lms_assignment_mapping` | Run `import-lms-assignments --create-assessments`; then retry |
 
 ### Sync Log Statuses
 
@@ -274,11 +274,11 @@ For all actions: `python3 {baseDir}/scripts/db_query.py --action <action> [flags
 
 ### Important Constraints
 
-- **DPA Required**: `has_dpa_signed = 0` → all `sync-courses`, `pull-grades`, `push-assessment-to-lms`, `export-oneroster-csv` calls return `{"error": "E_DPA_REQUIRED"}`. Update with `update-lms-connection --has-dpa-signed 1 --dpa-signed-date YYYY-MM-DD`.
+- **DPA Required**: `has_dpa_signed = 0` → all `apply-course-sync`, `import-grades`, `submit-assessment-to-lms`, `generate-oneroster-csv` calls return `{"error": "E_DPA_REQUIRED"}`. Update with `update-lms-connection --has-dpa-signed 1 --dpa-signed-date YYYY-MM-DD`.
 - **COPPA Students**: Students with `is_coppa_applicable = 1` are silently skipped in roster sync unless the connection has `is_coppa_verified = 1`. Each skipped student is logged as `E_COPPA_UNVERIFIED` in the sync log's `error_summary`.
-- **Concurrent Sync Prevention**: If a `sync-courses` or `pull-grades` run is already `running` for the same connection, a new call returns an error. Check with `list-sync-logs --sync-status running`.
-- **Closed Course Lock**: After `close-lms-course`, no further grade pulls are accepted for that section/connection pair. Create a new course mapping to re-enable (advanced; contact admin).
-- **Immutable Sync Records**: `educlaw_lms_sync_log` and `educlaw_lms_grade_sync` records are never deleted or fully updated. Only `educlaw_lms_grade_sync` resolution fields (`resolved_by`, `resolved_at`, `resolution`) may be updated by `resolve-grade-conflict`.
+- **Concurrent Sync Prevention**: If a `apply-course-sync` or `import-grades` run is already `running` for the same connection, a new call returns an error. Check with `list-sync-logs --sync-status running`.
+- **Closed Course Lock**: After `complete-lms-course`, no further grade pulls are accepted for that section/connection pair. Create a new course mapping to re-enable (advanced; contact admin).
+- **Immutable Sync Records**: `educlaw_lms_sync_log` and `educlaw_lms_grade_sync` records are never deleted or fully updated. Only `educlaw_lms_grade_sync` resolution fields (`resolved_by`, `resolved_at`, `resolution`) may be updated by `apply-grade-resolution`.
 - **OneRoster COPPA Minimization**: Under-13 students (`is_coppa_applicable = 1`) have email omitted from `users.csv`. Students with `directory_info_opt_out = 1` have names blanked in the export.
 
 ### OneRoster Export File Structure
