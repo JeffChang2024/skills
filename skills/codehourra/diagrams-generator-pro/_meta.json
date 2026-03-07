@@ -3,9 +3,15 @@
   "slug": "diagrams-generator-pro",
   "displayName": "Diagrams Generator Pro",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1772763027237,
-    "commit": "https://github.com/openclaw/skills/commit/f88aa8ac7c9019501e451543220ba913da4aa621"
+    "version": "1.1.0",
+    "publishedAt": 1772764192660,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1772763027237,
+      "commit": "https://github.com/openclaw/skills/commit/f88aa8ac7c9019501e451543220ba913da4aa621"
+    }
+  ]
 }

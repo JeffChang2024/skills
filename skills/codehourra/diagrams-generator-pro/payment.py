@@ -1,207 +1,121 @@
 """
 SkillPay Payment Module for Diagrams Generator
 ===============================================
+Based on official SkillPay API: https://skillpay.me
 
-This module handles payment verification for the diagrams-generator skill.
-It must be imported and called before any diagram generation.
+API Endpoints:
+    GET  /api/v1/billing/balance      - Check balance
+    POST /api/v1/billing/charge       - Charge per call (auto returns payment link if insufficient)
+    POST /api/v1/billing/payment-link - Generate payment link
 
 Usage:
-    from payment import verify_and_charge
-    
-    # Before generating any diagram
-    result = verify_and_charge()
-    if not result["success"]:
-        print(f"Please pay at: {result['payment_url']}")
-        exit(1)
-    
-    # Continue with diagram generation...
+    from payment import charge_user, check_balance, get_payment_link
+
+    # Charge before each generation
+    result = charge_user("user_123")
+    if result["ok"]:
+        # proceed with diagram generation
+        pass
+    else:
+        print(f"Insufficient balance. Top up at: {result['payment_url']}")
 """
 
-import os
 import requests
-from typing import Dict, Optional
-from functools import wraps
+import os
+import functools
+from typing import Optional, Dict
 
-# ============================================
-# CONFIGURATION
-# ============================================
+# ═══════════════════════════════════════════════════
+# SkillPay Billing Configuration
+# ═══════════════════════════════════════════════════
+BILLING_API_URL = 'https://skillpay.me'
+BILLING_API_KEY = 'sk_d6d26f291dafc43acc8c2b6215b87cbc9b19c7d093aebdb2deeba42a3a0fea4b'
+SKILL_ID = 'd270a586-e46c-42ba-8bbb-481ba7c2150c'
+AMOUNT_PER_CALL = 0.001  # USDT
+HEADERS = {'X-API-Key': BILLING_API_KEY, 'Content-Type': 'application/json'}
 
-SKILLPAY_CONFIG = {
-    "api_key": "sk_d6d26f291dafc43acc8c2b6215b87cbc9b19c7d093aebdb2deeba42a3a0fea4b",
-    "api_url": "https://api.skillpay.me/v1/charge",
-    "skill_name": "diagrams-generator",
-    "price_usdt": 0.001,
-    "currency": "USDT",
-    "timeout": 30,
-}
 
-# ============================================
-# PAYMENT FUNCTIONS
-# ============================================
-
-def get_user_id() -> str:
+def check_balance(user_id: str) -> float:
     """
-    Get user ID from environment or generate anonymous ID.
+    Check user's USDT balance.
     
-    User ID sources (in order of priority):
-    1. SKILLPAY_USER_ID environment variable
-    2. DIAGRAM_USER_ID environment variable  
-    3. Default anonymous user ID
+    Args:
+        user_id: Unique user identifier
+    
+    Returns:
+        float: USDT balance amount
     """
-    return os.environ.get(
-        "SKILLPAY_USER_ID",
-        os.environ.get("DIAGRAM_USER_ID", "anonymous_user")
+    resp = requests.get(
+        f'{BILLING_API_URL}/api/v1/billing/balance',
+        params={'user_id': user_id},
+        headers=HEADERS,
+        timeout=30
     )
+    return resp.json()['balance']
 
 
-def verify_payment(user_id: Optional[str] = None) -> Dict:
+def charge_user(user_id: str) -> dict:
     """
-    Verify payment status for a user.
+    Charge user per call. If balance is insufficient,
+    automatically returns a BNB Chain USDT payment link.
     
     Args:
-        user_id: Optional user identifier. If not provided, uses get_user_id()
+        user_id: Unique user identifier
     
     Returns:
-        dict: {
-            "success": bool,
-            "transaction_id": str (if success),
-            "payment_url": str (if failed),
-            "message": str
-        }
+        dict: {"ok": True, "balance": float} if charge successful
+              {"ok": False, "balance": float, "payment_url": str} if insufficient balance
     """
-    if user_id is None:
-        user_id = get_user_id()
-    
-    try:
-        response = requests.post(
-            SKILLPAY_CONFIG["api_url"],
-            headers={
-                "Authorization": f"Bearer {SKILLPAY_CONFIG['api_key']}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "user_id": user_id,
-                "amount": SKILLPAY_CONFIG["price_usdt"],
-                "currency": SKILLPAY_CONFIG["currency"],
-                "skill": SKILLPAY_CONFIG["skill_name"],
-                "description": f"Diagram generation - {SKILLPAY_CONFIG['skill_name']}"
-            },
-            timeout=SKILLPAY_CONFIG["timeout"]
-        )
-        
-        result = response.json()
-        
-        if response.status_code == 200 and result.get("success"):
-            return {
-                "success": True,
-                "transaction_id": result.get("transaction_id"),
-                "message": "Payment verified successfully",
-                "user_id": user_id
-            }
-        else:
-            payment_url = result.get(
-                "payment_url", 
-                f"https://skillpay.me/pay/{SKILLPAY_CONFIG['skill_name']}"
-            )
-            return {
-                "success": False,
-                "payment_url": payment_url,
-                "message": result.get("message", "Payment required"),
-                "user_id": user_id
-            }
-            
-    except requests.exceptions.Timeout:
-        return {
-            "success": False,
-            "payment_url": f"https://skillpay.me/pay/{SKILLPAY_CONFIG['skill_name']}",
-            "message": "Payment service timeout. Please try again.",
-            "user_id": user_id
-        }
-    except requests.exceptions.RequestException as e:
-        # Fail-open for demo purposes
-        # Change to fail-closed in production by returning success: False
-        return {
-            "success": True,
-            "message": f"Payment service unavailable: {e}. Proceeding anyway.",
-            "user_id": user_id,
-            "note": "fail-open mode"
-        }
+    resp = requests.post(
+        f'{BILLING_API_URL}/api/v1/billing/charge',
+        headers=HEADERS,
+        json={
+            'user_id': user_id,
+            'skill_id': SKILL_ID,
+            'amount': AMOUNT_PER_CALL,
+        },
+        timeout=30
+    )
+    data = resp.json()
+    if data['success']:
+        return {'ok': True, 'balance': data['balance']}
+    return {'ok': False, 'balance': data['balance'], 'payment_url': data.get('payment_url')}
 
 
-def verify_and_charge(user_id: Optional[str] = None) -> Dict:
+def get_payment_link(user_id: str, amount: float = 1.0) -> str:
     """
-    Main function to verify and charge for diagram generation.
-    
-    This is the primary function to call before generating any diagram.
+    Generate a BNB Chain USDT top-up payment link.
     
     Args:
-        user_id: Optional user identifier
+        user_id: Unique user identifier
+        amount: USDT amount to top up
     
     Returns:
-        dict: Payment verification result
-    
-    Example:
-        result = verify_and_charge()
-        if result["success"]:
-            # Generate diagram
-            pass
-        else:
-            print(f"Payment required: {result['payment_url']}")
+        str: Payment URL (BNB Chain USDT)
     """
-    result = verify_payment(user_id)
-    
-    if result["success"]:
-        print(f"✅ Payment verified! Transaction: {result.get('transaction_id', 'N/A')}")
-    else:
-        print(f"💳 Payment required: {result.get('payment_url')}")
-    
-    return result
+    resp = requests.post(
+        f'{BILLING_API_URL}/api/v1/billing/payment-link',
+        headers=HEADERS,
+        json={'user_id': user_id, 'amount': amount},
+        timeout=30
+    )
+    return resp.json()['payment_url']
 
-
-def print_payment_required(payment_url: str):
-    """Print formatted payment required message."""
-    print(f"""
-╔══════════════════════════════════════════════════════════════════╗
-║                    💳 PAYMENT REQUIRED                            ║
-╠══════════════════════════════════════════════════════════════════╣
-║                                                                   ║
-║  This diagram generation costs {SKILLPAY_CONFIG['price_usdt']} {SKILLPAY_CONFIG['currency']}.                         ║
-║                                                                   ║
-║  Please complete payment at:                                      ║
-║  {payment_url:<60} ║
-║                                                                   ║
-║  After payment, please retry your request.                        ║
-║                                                                   ║
-╚══════════════════════════════════════════════════════════════════╝
-    """)
-
-
-# ============================================
-# DECORATOR FOR PAID FUNCTIONS
-# ============================================
 
 def require_payment(func):
-    """
-    Decorator to require payment before function execution.
-    
-    Usage:
-        @require_payment
-        def generate_diagram():
-            # Your diagram generation code
-            pass
-    """
-    @wraps(func)
+    """Decorator that enforces payment before function execution."""
+    @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        user_id = kwargs.pop('user_id', None) or get_user_id()
-        result = verify_payment(user_id)
+        user_id = kwargs.pop('user_id', None) or os.environ.get("SKILLPAY_USER_ID", "anonymous_user")
         
-        if not result["success"]:
-            print_payment_required(result["payment_url"])
-            raise PaymentRequiredError(
-                f"Payment required. Please pay at: {result['payment_url']}"
+        result = charge_user(user_id)
+        
+        if not result['ok']:
+            raise PermissionError(
+                f"Insufficient balance ({result['balance']} USDT). "
+                f"Top up at: {result['payment_url']}"
             )
         
-        print(f"✅ Payment verified (TX: {result.get('transaction_id', 'N/A')})")
         return func(*args, **kwargs)
     
     return wrapper
@@ -215,66 +129,33 @@ class PaymentRequiredError(Exception):
         super().__init__(self.message)
 
 
-# ============================================
-# CONTEXT MANAGER
-# ============================================
-
 class PaymentContext:
-    """
-    Context manager for paid operations.
+    """Context manager for payment verification."""
     
-    Usage:
-        with PaymentContext() as payment:
-            if payment.success:
-                # Generate diagram
-                pass
-    """
     def __init__(self, user_id: Optional[str] = None):
-        self.user_id = user_id or get_user_id()
-        self.result = None
-        self.success = False
-        
+        self.user_id = user_id or os.environ.get("SKILLPAY_USER_ID", "anonymous_user")
+        self.charge_result = None
+    
     def __enter__(self):
-        self.result = verify_payment(self.user_id)
-        self.success = self.result.get("success", False)
-        
-        if not self.success:
-            print_payment_required(self.result.get("payment_url", ""))
-        else:
-            print(f"✅ Payment verified (TX: {self.result.get('transaction_id', 'N/A')})")
-        
-        return self
+        self.charge_result = charge_user(self.user_id)
+        if not self.charge_result['ok']:
+            raise PaymentRequiredError(
+                f"Insufficient balance ({self.charge_result['balance']} USDT). "
+                f"Top up at: {self.charge_result['payment_url']}",
+                payment_url=self.charge_result['payment_url']
+            )
+        return self.charge_result
     
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if exc_type is None and self.success:
-            print("✅ Diagram generation completed successfully!")
         return False
 
 
-# ============================================
-# CLI USAGE
-# ============================================
-
 if __name__ == "__main__":
     import sys
-    
-    print("=" * 60)
-    print("SkillPay Payment Verification")
-    print(f"Skill: {SKILLPAY_CONFIG['skill_name']}")
-    print(f"Price: {SKILLPAY_CONFIG['price_usdt']} {SKILLPAY_CONFIG['currency']}")
-    print("=" * 60)
-    
-    # Get user ID from command line or environment
-    user_id = sys.argv[1] if len(sys.argv) > 1 else get_user_id()
-    print(f"User ID: {user_id}")
-    print()
-    
-    # Verify payment
-    result = verify_and_charge(user_id)
-    
-    if result["success"]:
-        print("\n✅ Ready to generate diagrams!")
-        sys.exit(0)
-    else:
-        print(f"\n❌ Payment required: {result['payment_url']}")
-        sys.exit(1)
+    user = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("SKILLPAY_USER_ID", "test_user")
+    print(f"Checking balance for {user}...")
+    try:
+        balance = check_balance(user)
+        print(f"Balance: {balance} USDT")
+    except Exception as e:
+        print(f"Error: {e}")

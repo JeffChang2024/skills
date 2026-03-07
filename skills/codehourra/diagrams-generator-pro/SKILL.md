@@ -19,14 +19,18 @@ This skill is monetized via [SkillPay](https://skillpay.me). **Before generating
 ### Payment Configuration
 
 ```python
-SKILLPAY_CONFIG = {
-    "api_key": "sk_d6d26f291dafc43acc8c2b6215b87cbc9b19c7d093aebdb2deeba42a3a0fea4b",
-    "price_usdt": 0.001,
-    "skill_name": "diagrams-generator"
-}
+# ═══════════════════════════════════════════════════
+# SkillPay Billing Integration
+# ═══════════════════════════════════════════════════
+import requests
+
+BILLING_API_URL = 'https://skillpay.me'
+BILLING_API_KEY = 'sk_d6d26f291dafc43acc8c2b6215b87cbc9b19c7d093aebdb2deeba42a3a0fea4b'
+SKILL_ID = 'd270a586-e46c-42ba-8bbb-481ba7c2150c'
+HEADERS = {'X-API-Key': BILLING_API_KEY, 'Content-Type': 'application/json'}
 ```
 
-### Payment Verification Code (MANDATORY)
+### Billing API Functions (MANDATORY)
 
 **⚠️ THIS CODE MUST BE EXECUTED BEFORE ANY DIAGRAM GENERATION:**
 
@@ -34,52 +38,46 @@ SKILLPAY_CONFIG = {
 import requests
 import os
 
-def verify_payment(user_id: str) -> dict:
-    """
-    Verify payment before generating diagram.
-    Must be called BEFORE any diagram generation code.
-    
-    Returns:
-        dict: {"success": True} if payment successful
-              {"success": False, "payment_url": "..."} if payment required
-    """
-    SKILLPAY_API = "https://api.skillpay.me/v1/charge"
-    API_KEY = "sk_d6d26f291dafc43acc8c2b6215b87cbc9b19c7d093aebdb2deeba42a3a0fea4b"
-    
-    try:
-        response = requests.post(
-            SKILLPAY_API,
-            headers={
-                "Authorization": f"Bearer {API_KEY}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "user_id": user_id,
-                "amount": 0.001,
-                "currency": "USDT",
-                "skill": "diagrams-generator",
-                "description": "Diagram generation fee"
-            },
-            timeout=30
-        )
-        
-        result = response.json()
-        
-        if response.status_code == 200 and result.get("success"):
-            print("✅ Payment verified successfully!")
-            return {"success": True, "transaction_id": result.get("transaction_id")}
-        else:
-            payment_url = result.get("payment_url", "https://skillpay.me/pay/diagrams-generator")
-            print(f"💳 Payment required. Please pay at: {payment_url}")
-            return {"success": False, "payment_url": payment_url}
-            
-    except requests.exceptions.RequestException as e:
-        print(f"⚠️ Payment service unavailable: {e}")
-        # Fail-open for demo purposes, change to fail-closed in production
-        return {"success": True, "note": "Payment service unavailable, proceeding anyway"}
+BILLING_API_URL = 'https://skillpay.me'
+BILLING_API_KEY = 'sk_d6d26f291dafc43acc8c2b6215b87cbc9b19c7d093aebdb2deeba42a3a0fea4b'
+SKILL_ID = 'd270a586-e46c-42ba-8bbb-481ba7c2150c'
+HEADERS = {'X-API-Key': BILLING_API_KEY, 'Content-Type': 'application/json'}
 
-# User ID should be derived from session/conversation context
-# For MCP/Agent context, use a unique identifier
+# ① Check balance / 查余额
+def check_balance(user_id: str) -> float:
+    resp = requests.get(
+        f'{BILLING_API_URL}/api/v1/billing/balance',
+        params={'user_id': user_id},
+        headers=HEADERS
+    )
+    return resp.json()['balance']  # USDT amount
+
+# ② Charge per call / 每次调用扣费
+def charge_user(user_id: str) -> dict:
+    resp = requests.post(
+        f'{BILLING_API_URL}/api/v1/billing/charge',
+        headers=HEADERS,
+        json={
+            'user_id': user_id,
+            'skill_id': SKILL_ID,
+            'amount': 0.001,  # USDT per call
+        }
+    )
+    data = resp.json()
+    if data['success']:
+        return {'ok': True, 'balance': data['balance']}
+    # Insufficient balance → auto returns BNB Chain USDT payment link
+    return {'ok': False, 'balance': data['balance'], 'payment_url': data.get('payment_url')}
+
+# ③ Generate payment link / 生成充值链接
+def get_payment_link(user_id: str, amount: float) -> str:
+    resp = requests.post(
+        f'{BILLING_API_URL}/api/v1/billing/payment-link',
+        headers=HEADERS,
+        json={'user_id': user_id, 'amount': amount}
+    )
+    return resp.json()['payment_url']  # BNB Chain USDT
+
 USER_ID = os.environ.get("SKILLPAY_USER_ID", "anonymous_user")
 ```
 
@@ -87,30 +85,31 @@ USER_ID = os.environ.get("SKILLPAY_USER_ID", "anonymous_user")
 
 ```python
 # ========================================
-# STEP 0: PAYMENT VERIFICATION (MANDATORY)
+# STEP 0: CHARGE USER (MANDATORY)
 # ========================================
 # This must be the FIRST step before ANY diagram generation
 
-payment_result = verify_payment(USER_ID)
+charge_result = charge_user(USER_ID)
 
-if not payment_result.get("success"):
-    # Return payment URL to user
+if not charge_result['ok']:
+    # Insufficient balance → show payment link
     print(f"""
 ╔══════════════════════════════════════════════════════════════╗
-║  💳 PAYMENT REQUIRED                                          ║
+║  💳 INSUFFICIENT BALANCE                                      ║
 ║                                                               ║
 ║  This diagram generation costs 0.001 USDT.                   ║
+║  Current balance: {charge_result['balance']:<41}║
 ║                                                               ║
-║  Please complete payment at:                                  ║
-║  {payment_result.get('payment_url')}                          ║
+║  Please top up at:                                            ║
+║  {charge_result['payment_url']:<56}║
 ║                                                               ║
 ║  After payment, please retry your request.                   ║
 ╚══════════════════════════════════════════════════════════════╝
     """)
-    raise SystemExit("Payment required before diagram generation")
+    raise SystemExit("Insufficient balance for diagram generation")
 
-# If payment successful, continue with diagram generation...
-print(f"✅ Payment verified (TX: {payment_result.get('transaction_id', 'N/A')})")
+# If charge successful, continue with diagram generation...
+print(f"✅ Charged 0.001 USDT. Remaining balance: {charge_result['balance']} USDT")
 ```
 
 ---
@@ -357,68 +356,45 @@ After user confirms, generate Python code following these rules:
 import requests
 import os
 
-# ========================================
-# STEP 0: PAYMENT VERIFICATION (MANDATORY)
-# ========================================
+# ═══════════════════════════════════════════════════
+# STEP 0: SKILLPAY BILLING (MANDATORY)
+# ═══════════════════════════════════════════════════
 
-def verify_payment(user_id: str) -> dict:
-    """Verify payment before generating diagram."""
-    SKILLPAY_API = "https://api.skillpay.me/v1/charge"
-    API_KEY = "sk_d6d26f291dafc43acc8c2b6215b87cbc9b19c7d093aebdb2deeba42a3a0fea4b"
-    
-    try:
-        response = requests.post(
-            SKILLPAY_API,
-            headers={
-                "Authorization": f"Bearer {API_KEY}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "user_id": user_id,
-                "amount": 0.001,
-                "currency": "USDT",
-                "skill": "diagrams-generator",
-                "description": "Diagram generation fee"
-            },
-            timeout=30
-        )
-        
-        result = response.json()
-        
-        if response.status_code == 200 and result.get("success"):
-            print("✅ Payment verified successfully!")
-            return {"success": True, "transaction_id": result.get("transaction_id")}
-        else:
-            payment_url = result.get("payment_url", "https://skillpay.me/pay/diagrams-generator")
-            print(f"💳 Payment required. Please pay at: {payment_url}")
-            return {"success": False, "payment_url": payment_url}
-            
-    except requests.exceptions.RequestException as e:
-        print(f"⚠️ Payment service unavailable: {e}")
-        return {"success": True, "note": "Payment service unavailable, proceeding anyway"}
+BILLING_API_URL = 'https://skillpay.me'
+BILLING_API_KEY = 'sk_d6d26f291dafc43acc8c2b6215b87cbc9b19c7d093aebdb2deeba42a3a0fea4b'
+SKILL_ID = 'd270a586-e46c-42ba-8bbb-481ba7c2150c'
+HEADERS = {'X-API-Key': BILLING_API_KEY, 'Content-Type': 'application/json'}
 
-# Get user ID from environment or use default
+def charge_user(user_id: str) -> dict:
+    resp = requests.post(
+        f'{BILLING_API_URL}/api/v1/billing/charge',
+        headers=HEADERS,
+        json={'user_id': user_id, 'skill_id': SKILL_ID, 'amount': 0.001}
+    )
+    data = resp.json()
+    if data['success']:
+        return {'ok': True, 'balance': data['balance']}
+    return {'ok': False, 'balance': data['balance'], 'payment_url': data.get('payment_url')}
+
 USER_ID = os.environ.get("SKILLPAY_USER_ID", "anonymous_user")
-
-# Verify payment
-payment_result = verify_payment(USER_ID)
-
-if not payment_result.get("success"):
+charge_result = charge_user(USER_ID)
+if not charge_result['ok']:
     print(f"""
 ╔══════════════════════════════════════════════════════════════╗
-║  💳 PAYMENT REQUIRED                                          ║
+║  💳 INSUFFICIENT BALANCE                                      ║
 ║                                                               ║
 ║  This diagram generation costs 0.001 USDT.                   ║
+║  Current balance: {charge_result['balance']:<41}║
 ║                                                               ║
-║  Please complete payment at:                                  ║
-║  {payment_result.get('payment_url')}                          ║
+║  Please top up at (BNB Chain USDT):                          ║
+║  {charge_result['payment_url']:<56}║
 ║                                                               ║
 ║  After payment, please retry your request.                   ║
 ╚══════════════════════════════════════════════════════════════╝
     """)
-    raise SystemExit("Payment required before diagram generation")
+    raise SystemExit("Insufficient balance for diagram generation")
 
-print(f"✅ Payment verified (TX: {payment_result.get('transaction_id', 'N/A')})")
+print(f"✅ Charged 0.001 USDT. Remaining balance: {charge_result['balance']} USDT")
 
 # ========================================
 # STEP 1: DIAGRAM GENERATION
@@ -593,38 +569,28 @@ import requests
 import os
 
 # ========================================
-# PAYMENT VERIFICATION
+# SKILLPAY BILLING
 # ========================================
-def verify_payment(user_id: str) -> dict:
-    SKILLPAY_API = "https://api.skillpay.me/v1/charge"
-    API_KEY = "sk_d6d26f291dafc43acc8c2b6215b87cbc9b19c7d093aebdb2deeba42a3a0fea4b"
-    
-    try:
-        response = requests.post(
-            SKILLPAY_API,
-            headers={
-                "Authorization": f"Bearer {API_KEY}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "user_id": user_id,
-                "amount": 0.001,
-                "currency": "USDT",
-                "skill": "diagrams-generator"
-            },
-            timeout=30
-        )
-        result = response.json()
-        if response.status_code == 200 and result.get("success"):
-            return {"success": True, "transaction_id": result.get("transaction_id")}
-        return {"success": False, "payment_url": result.get("payment_url", "https://skillpay.me/pay/diagrams-generator")}
-    except:
-        return {"success": True}  # Fail-open for demo
+BILLING_API_URL = 'https://skillpay.me'
+BILLING_API_KEY = 'sk_d6d26f291dafc43acc8c2b6215b87cbc9b19c7d093aebdb2deeba42a3a0fea4b'
+SKILL_ID = 'd270a586-e46c-42ba-8bbb-481ba7c2150c'
+HEADERS = {'X-API-Key': BILLING_API_KEY, 'Content-Type': 'application/json'}
+
+def charge_user(user_id: str) -> dict:
+    resp = requests.post(
+        f'{BILLING_API_URL}/api/v1/billing/charge',
+        headers=HEADERS,
+        json={'user_id': user_id, 'skill_id': SKILL_ID, 'amount': 0.001}
+    )
+    data = resp.json()
+    if data['success']:
+        return {'ok': True, 'balance': data['balance']}
+    return {'ok': False, 'balance': data['balance'], 'payment_url': data.get('payment_url')}
 
 USER_ID = os.environ.get("SKILLPAY_USER_ID", "anonymous_user")
-payment = verify_payment(USER_ID)
-if not payment.get("success"):
-    raise SystemExit(f"💳 Payment required: {payment.get('payment_url')}")
+charge_result = charge_user(USER_ID)
+if not charge_result['ok']:
+    raise SystemExit(f"💳 Insufficient balance. Top up at: {charge_result['payment_url']}")
 
 # ========================================
 # DIAGRAM GENERATION
@@ -866,28 +832,27 @@ import subprocess
 import os
 import requests
 
-# Payment verification first
-def verify_payment(user_id: str) -> dict:
-    SKILLPAY_API = "https://api.skillpay.me/v1/charge"
-    API_KEY = "sk_d6d26f291dafc43acc8c2b6215b87cbc9b19c7d093aebdb2deeba42a3a0fea4b"
-    try:
-        response = requests.post(
-            SKILLPAY_API,
-            headers={"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"},
-            json={"user_id": user_id, "amount": 0.001, "currency": "USDT", "skill": "diagrams-generator"},
-            timeout=30
-        )
-        result = response.json()
-        if response.status_code == 200 and result.get("success"):
-            return {"success": True}
-        return {"success": False, "payment_url": result.get("payment_url")}
-    except:
-        return {"success": True}
+# SkillPay Billing
+BILLING_API_URL = 'https://skillpay.me'
+BILLING_API_KEY = 'sk_d6d26f291dafc43acc8c2b6215b87cbc9b19c7d093aebdb2deeba42a3a0fea4b'
+SKILL_ID = 'd270a586-e46c-42ba-8bbb-481ba7c2150c'
+HEADERS = {'X-API-Key': BILLING_API_KEY, 'Content-Type': 'application/json'}
+
+def charge_user(user_id: str) -> dict:
+    resp = requests.post(
+        f'{BILLING_API_URL}/api/v1/billing/charge',
+        headers=HEADERS,
+        json={'user_id': user_id, 'skill_id': SKILL_ID, 'amount': 0.001}
+    )
+    data = resp.json()
+    if data['success']:
+        return {'ok': True, 'balance': data['balance']}
+    return {'ok': False, 'balance': data['balance'], 'payment_url': data.get('payment_url')}
 
 USER_ID = os.environ.get("SKILLPAY_USER_ID", "anonymous_user")
-payment = verify_payment(USER_ID)
-if not payment.get("success"):
-    raise SystemExit(f"💳 Payment required: {payment.get('payment_url')}")
+charge_result = charge_user(USER_ID)
+if not charge_result['ok']:
+    raise SystemExit(f"💳 Insufficient balance. Top up at: {charge_result['payment_url']}")
 
 def compile_tikz(tex_file, output_dir="./pic/tikz"):
     """编译 TikZ 文件生成 PDF"""
@@ -929,28 +894,27 @@ import matplotlib.patches as patches
 import os
 import requests
 
-# Payment verification
-def verify_payment(user_id: str) -> dict:
-    SKILLPAY_API = "https://api.skillpay.me/v1/charge"
-    API_KEY = "sk_d6d26f291dafc43acc8c2b6215b87cbc9b19c7d093aebdb2deeba42a3a0fea4b"
-    try:
-        response = requests.post(
-            SKILLPAY_API,
-            headers={"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"},
-            json={"user_id": user_id, "amount": 0.001, "currency": "USDT", "skill": "diagrams-generator"},
-            timeout=30
-        )
-        result = response.json()
-        if response.status_code == 200 and result.get("success"):
-            return {"success": True}
-        return {"success": False, "payment_url": result.get("payment_url")}
-    except:
-        return {"success": True}
+# SkillPay Billing
+BILLING_API_URL = 'https://skillpay.me'
+BILLING_API_KEY = 'sk_d6d26f291dafc43acc8c2b6215b87cbc9b19c7d093aebdb2deeba42a3a0fea4b'
+SKILL_ID = 'd270a586-e46c-42ba-8bbb-481ba7c2150c'
+HEADERS = {'X-API-Key': BILLING_API_KEY, 'Content-Type': 'application/json'}
+
+def charge_user(user_id: str) -> dict:
+    resp = requests.post(
+        f'{BILLING_API_URL}/api/v1/billing/charge',
+        headers=HEADERS,
+        json={'user_id': user_id, 'skill_id': SKILL_ID, 'amount': 0.001}
+    )
+    data = resp.json()
+    if data['success']:
+        return {'ok': True, 'balance': data['balance']}
+    return {'ok': False, 'balance': data['balance'], 'payment_url': data.get('payment_url')}
 
 USER_ID = os.environ.get("SKILLPAY_USER_ID", "anonymous_user")
-payment = verify_payment(USER_ID)
-if not payment.get("success"):
-    raise SystemExit(f"💳 Payment required: {payment.get('payment_url')}")
+charge_result = charge_user(USER_ID)
+if not charge_result['ok']:
+    raise SystemExit(f"💳 Insufficient balance. Top up at: {charge_result['payment_url']}")
 
 def draw_neural_network_matplotlib(output_dir="./pic/nn-matplotlib"):
     """使用 matplotlib 绘制神经网络架构图"""
