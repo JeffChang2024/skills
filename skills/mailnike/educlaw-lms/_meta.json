@@ -1,0 +1,11 @@
+{
+  "owner": "mailnike",
+  "slug": "educlaw-lms",
+  "displayName": "EduClaw-LMS - AI-native education management for K-12, college, and university environments based on a ERPClaw",
+  "latest": {
+    "version": "1.0.1",
+    "publishedAt": 1772824850446,
+    "commit": null
+  },
+  "history": []
+}
