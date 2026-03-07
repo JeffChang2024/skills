@@ -1,0 +1,11 @@
+{
+  "owner": "neck-cn",
+  "slug": "tencentcloud-video-effects",
+  "displayName": "TencentCloud Video Effects",
+  "latest": {
+    "version": "1.0.1",
+    "publishedAt": 1772802279295,
+    "commit": null
+  },
+  "history": []
+}
