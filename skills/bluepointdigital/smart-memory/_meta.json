@@ -3,11 +3,16 @@
   "slug": "smart-memory",
   "displayName": "Smart Memory",
   "latest": {
-    "version": "2.2.0",
-    "publishedAt": 1772687737223,
-    "commit": "https://github.com/openclaw/skills/commit/cb92eddb881986bc1e45c04decd46ef46cc3cd52"
+    "version": "2.5.0",
+    "publishedAt": 1772774682447,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.2.0",
+      "publishedAt": 1772687737223,
+      "commit": "https://github.com/openclaw/skills/commit/cb92eddb881986bc1e45c04decd46ef46cc3cd52"
+    },
     {
       "version": "2.1.2",
       "publishedAt": 1770399301716,
