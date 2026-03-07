@@ -1,0 +1,11 @@
+{
+  "owner": "divyn",
+  "slug": "bitquery-crypto-price-stream",
+  "displayName": "Reliable Bitcoin Price Feed",
+  "latest": {
+    "version": "1.0.2",
+    "publishedAt": 1772807122307,
+    "commit": null
+  },
+  "history": []
+}
