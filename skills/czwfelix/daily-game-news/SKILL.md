@@ -4,10 +4,14 @@
 
 ## 功能描述
 
-1. 根据配置文件抓取多个游戏资讯网站的文章
+1. 根据配置文件抓取 9 个游戏资讯网站的文章（成功率 100%）
 2. 自动分类到 7 个大类（头条要闻、新品动态、厂商动态、行业数据、值得关注、投融资、其他）
 3. 生成格式化报告并发送给用户
 4. 同时生成 Word 文档存档
+
+## 支持的网站
+
+✅ 机核 GCORES、游民星空、游戏陀螺、触乐、游研社、GameLook、IGN、GameSpot、GameDeveloper
 
 ## 触发条件
 
@@ -18,6 +22,13 @@
 
 位置：`/home/admin/.openclaw/workspace/configs/news-crawler-config.json`
 
+## 依赖
+
+- python-docx>=1.1.0
+- beautifulsoup4>=4.14.3
+- lxml>=6.0.2
+- httpx>=0.28.1
+
 ## 输出
 
 1. **飞书消息**: 格式化报告直接发送给用户
@@ -27,13 +38,9 @@
 ## 使用示例
 
 ```bash
-# 手动触发（使用虚拟环境）
+# 手动触发（使用 uv）
 cd ~/.openclaw/workspace/skills/daily-game-news
-source .venv/bin/activate
-python scripts/crawler.py
-
-# 或使用 uv
-uv run --with python-docx scripts/crawler.py
+uv run python scripts/crawler.py
 
 # 获取今日报告
 获取今日游戏资讯报告

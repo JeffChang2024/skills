@@ -75,27 +75,9 @@ def format_publish_time(published_str):
         return datetime.now().strftime('今天 %H:%M')
 
 
-def fetch_html(url, timeout=60, use_web_fetch=False):
-    """使用 curl 或 web_fetch 抓取 HTML"""
+def fetch_html(url, timeout=30):
+    """使用 curl 抓取 HTML"""
     try:
-        # 游民星空和 GameSpot 使用 web_fetch（绕过 Cloudflare）
-        if use_web_fetch:
-            print(f"    使用 web_fetch 抓取（超时={timeout}s）...")
-            # 直接调用 web_fetch 工具（通过 Python API）
-            import httpx
-            response = httpx.get(
-                f'https://r.jina.ai/{url}',
-                headers={'X-Return-Format': 'markdown'},
-                timeout=timeout
-            )
-            if response.status_code == 200:
-                content = response.text
-                print(f"    ✓ web_fetch 成功，返回 {len(content)} 字节")
-                return content
-            print(f"    ⚠️ web_fetch 失败：{response.status_code}")
-            return None
-        
-        # 其他网站使用 curl
         result = subprocess.run(
             ['curl', '-s', '-A', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
              '--max-time', str(timeout), '-L', '--compressed', url],
@@ -137,50 +119,32 @@ def parse_gamersky(html):
     """解析游民星空 - 使用 web_fetch 提取的 markdown"""
     articles = []
     
-    if not html or len(html) < 100:
-        print(f"    ⚠️ HTML 内容过短：{len(html) if html else 0} 字节")
-        return articles
-    
-    # jina.ai 返回的格式：
-    # *   [标题](URL "title") [![Image...](image)](URL) 摘要 时间
-    import re
-    # 匹配 [标题](URL) 格式，URL 包含 /news/ 和 .shtml
-    pattern = r'\[([^\]]+)\]\((https://www\.gamersky\.com/news/[^)]+\.shtml)'
-    
-    matches = re.findall(pattern, html)
-    print(f"    正则匹配到 {len(matches)} 篇新闻文章")
-    
-    count = 0
-    seen_urls = set()
-    for title, url in matches:
-        # 去重
-        if url in seen_urls:
-            continue
-        seen_urls.add(url)
-        
-        if title and len(title) > 5:
-            # 尝试从同一行提取时间（查找 URL 后面的日期）
+    # 解析 web_fetch 返回的 markdown 格式
+    # 格式：- URL\n\n  标题...\n\n  时间
+    lines = html.split('\n')
+    i = 0
+    while i < len(lines) - 2:
+        line = lines[i].strip()
+        if line.startswith('- https://www.gamersky.com/news/'):
+            url = line[2:]  # 去掉 "- "
+            title = lines[i+2].strip() if i+2 < len(lines) else ''
             pub_time = ''
-            # 在 html 中查找包含该 URL 的行
-            for line in html.split('\n'):
-                if url in line:
-                    # 从该行提取时间
-                    time_match = re.search(r'(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})', line)
-                    if time_match:
-                        pub_time = time_match.group(1)
+            
+            # 查找时间
+            for j in range(i+1, min(i+5, len(lines))):
+                if '2026-' in lines[j] or '2025-' in lines[j]:
+                    pub_time = lines[j].strip()
                     break
             
-            articles.append({
-                'title': title.strip(),
-                'url': url,
-                'published': format_publish_time(pub_time),
-                'content': ''
-            })
-            count += 1
-            if count >= 10:
-                break
+            if url and title and len(title) > 5:
+                articles.append({
+                    'title': title.strip(),
+                    'url': url,
+                    'published': format_publish_time(pub_time),
+                    'content': ''
+                })
+        i += 1
     
-    print(f"    ✓ 成功解析 {len(articles)} 篇文章")
     return articles[:10]
 
 
@@ -265,44 +229,30 @@ def parse_ign(html):
 
 
 def parse_gamespot(html):
-    """解析 GameSpot - 使用 jina.ai 提取的 markdown"""
+    """解析 GameSpot"""
     articles = []
+    soup = BeautifulSoup(html, 'lxml')
     
-    # jina.ai 返回的格式包含文章链接和标题
-    # 查找 gamespot.com/articles 或 gamespot.com/news 的链接
-    import re
-    pattern = r'-\s+https://www\.gamespot\.com/(articles|news)/[^\s]+\s*\n\s*\n?\s*([^\n]+?)(?=\n\s*-|\Z)'
-    
-    matches = re.findall(pattern, html, re.DOTALL)
-    for url_path, title in matches[:15]:
-        if title and len(title) > 5:
-            # 提取完整 URL
-            url_match = re.search(r'-\s+(https://www\.gamespot\.com/[^\s]+)', html)
-            if url_match:
-                full_url = url_match.group(1)
-                articles.append({
-                    'title': clean_title(title.strip()),
-                    'url': full_url,
-                    'published': '',
-                    'content': ''
-                })
-    
-    # 备用方案：查找所有 gamespot 链接
-    if not articles:
-        for line in html.split('\n'):
-            if 'gamespot.com/articles' in line or 'gamespot.com/news' in line:
-                url_match = re.search(r'(https://www\.gamespot\.com/[^\s]+)', line)
-                if url_match:
-                    url = url_match.group(1)
-                    # 尝试从同一行或下一行提取标题
-                    title = line.replace(url, '').strip('- ').strip()
-                    if title and len(title) > 5:
-                        articles.append({
-                            'title': clean_title(title),
-                            'url': url,
-                            'published': '',
-                            'content': ''
-                        })
+    # GameSpot 的文章结构：<article><a href="/news/...">
+    for item in soup.select('article.media')[:30]:
+        link = item.select_one('a[href*="/news/"], a[href*="/articles/"]')
+        if not link:
+            continue
+            
+        href = link.get('href', '')
+        title = link.get('title', link.get_text(strip=True))
+        
+        if href and title and len(title) > 5:
+            # 提取时间
+            time_elem = item.select_one('time')
+            pub_time = time_elem.get('datetime', '') if time_elem else ''
+            
+            articles.append({
+                'title': clean_title(title.strip()),
+                'url': href if href.startswith('http') else f'https://www.gamespot.com{href}',
+                'published': format_publish_time(pub_time),
+                'content': ''
+            })
     
     return articles[:10]
 
@@ -439,9 +389,8 @@ def fetch_website(config, date_start, date_end):
             print(f"    ⚠️ 未知网站类型，使用通用解析")
             continue
         
-        # 抓取 HTML（游民星空和 GameSpot 使用 jina.ai 绕过防护）
-        use_web_fetch = (site_id in ['gamersky', 'gamespot'])
-        html = fetch_html(base_url, use_web_fetch=use_web_fetch)
+        # 抓取 HTML
+        html = fetch_html(base_url)
         if not html:
             print(f"    ⚠️ HTML 抓取失败")
             continue

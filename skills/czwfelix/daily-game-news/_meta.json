@@ -3,9 +3,15 @@
   "slug": "daily-game-news",
   "displayName": "Daily Game News",
   "latest": {
-    "version": "1.1.0",
-    "publishedAt": 1772823072312,
-    "commit": "https://github.com/openclaw/skills/commit/4a8a292d02d152bb729577decd0866f1d9411a6a"
+    "version": "2.0.0",
+    "publishedAt": 1772991958472,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.1.0",
+      "publishedAt": 1772823072312,
+      "commit": "https://github.com/openclaw/skills/commit/4a8a292d02d152bb729577decd0866f1d9411a6a"
+    }
+  ]
 }
