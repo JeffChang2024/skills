@@ -1,6 +1,6 @@
 ---
 name: erpclaw-people
-version: 2.0.2
+version: 2.0.0
 description: >
   HR and Payroll for ERPClaw. Employee management, departments, leave,
   attendance, expense claims, salary structures, US payroll processing,

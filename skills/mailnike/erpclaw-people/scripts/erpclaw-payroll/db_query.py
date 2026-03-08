@@ -1720,7 +1720,7 @@ def _find_payroll_accounts(conn: sqlite3.Connection,
         ).fetchone()
 
     # --- Salary Expense ---
-    row = _acct_query("expense", ["%salary%expense%", "%salary expense%"])
+    row = _acct_query("expense", ["%salary%expense%", "%salary expense%", "%salaries%wages%", "%salaries and wages%", "%salary%wages%"])
     if row:
         accounts["salary_expense"] = row["id"]
     else:
