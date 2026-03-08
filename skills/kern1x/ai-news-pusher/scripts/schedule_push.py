@@ -13,6 +13,10 @@ from datetime import datetime
 GATEWAY_URL = os.environ.get('OPENCLAW_GATEWAY_URL', 'http://localhost:8080')
 GATEWAY_TOKEN = os.environ.get('OPENCLAW_GATEWAY_TOKEN', '')
 
+# 安全提示
+if GATEWAY_TOKEN:
+    print("⚠️ 高度敏感警告: OPENCLAW_GATEWAY_TOKEN已设置！此令牌可能允许调度/外部控制，请确保完全理解此功能并信任运行环境后再使用。", file=sys.stderr)
+
 
 def create_cron_job(schedule_time, limit=8, target_channel=None):
     """

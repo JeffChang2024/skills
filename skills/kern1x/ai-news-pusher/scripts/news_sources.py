@@ -135,27 +135,89 @@ class BraveSource(NewsSource):
 class RSSSource(NewsSource):
     """RSS订阅源 - 无需API Key，始终可用"""
     
-    # 预定义的AI相关RSS源
-    DEFAULT_FEEDS = {
-        'techcrunch_ai': 'https://techcrunch.com/category/artificial-intelligence/feed/',
-        'mit_tech_review': 'https://www.technologyreview.com/topic/artificial-intelligence/feed/',
-        'wired_ai': 'https://www.wired.com/tag/artificial-intelligence/feed/',
+    # 高质量信源及其权重配置
+    HIGH_QUALITY_SOURCES = {
+        'arxiv_ai': {
+            'url': 'http://arxiv.org/rss/cs.AI',
+            'weight': 10,
+            'category': 'academic'
+        },
+        'arxiv_ml': {
+            'url': 'http://arxiv.org/rss/cs.LG',
+            'weight': 10,
+            'category': 'academic'
+        },
+        'openai_blog': {
+            'url': 'https://openai.com/blog/rss.xml',
+            'weight': 10,
+            'category': 'official'
+        },
+        'anthropic_research': {
+            'url': 'https://www.anthropic.com/index.xml',
+            'weight': 10,
+            'category': 'official'
+        },
+        'techcrunch_ai': {
+            'url': 'https://techcrunch.com/category/artificial-intelligence/feed/',
+            'weight': 8,
+            'category': 'tech_media'
+        },
+        'mit_tech_review': {
+            'url': 'https://www.technologyreview.com/topic/artificial-intelligence/feed/',
+            'weight': 8,
+            'category': 'tech_media'
+        },
+        'wired_ai': {
+            'url': 'https://www.wired.com/tag/artificial-intelligence/feed/',
+            'weight': 7,
+            'category': 'tech_media'
+        },
+        'venturebeat_ai': {
+            'url': 'https://venturebeat.com/category/ai/feed/',
+            'weight': 7,
+            'category': 'tech_media'
+        },
+        'huggingface_blog': {
+            'url': 'https://huggingface.co/blog/feed.xml',
+            'weight': 9,
+            'category': 'community'
+        }
     }
     
-    def __init__(self, feeds: Optional[Dict[str, str]] = None):
+    def __init__(self, feeds: Optional[Dict[str, Dict]] = None):
         super().__init__("RSS")
-        self.feeds = feeds or self.DEFAULT_FEEDS.copy()
+        self.sources = feeds or self.HIGH_QUALITY_SOURCES.copy()
     
-    def add_feed(self, name: str, url: str):
+    def get_feed_urls_by_weight(self, min_weight: int = 0):
+        """按权重获取RSS源URL"""
+        return sorted(
+            [(name, src['url'], src['weight']) 
+             for name, src in self.sources.items() 
+             if src['weight'] >= min_weight],
+            key=lambda x: -x[2]
+        )
+    
+    def get_source_metadata(self, source_name: str):
+        """获取信源元数据"""
+        return self.sources.get(source_name, {})
+    
+    def add_feed(self, name: str, url: str, weight: int = 5, category: str = 'custom'):
         """添加RSS源"""
-        self.feeds[name] = url
+        self.sources[name] = {
+            'url': url,
+            'weight': weight,
+            'category': category
+        }
     
     def fetch(self, query: str = "", limit: int = 10, days: int = 3) -> List[Dict]:
-        """获取RSS新闻"""
+        """获取RSS新闻，优先从高权重信源获取"""
         news_list = []
         cutoff_date = datetime.now() - timedelta(days=days)
         
-        for feed_name, feed_url in self.feeds.items():
+        # 按权重排序获取信源
+        sorted_sources = self.get_feed_urls_by_weight()
+        
+        for feed_name, feed_url, weight in sorted_sources:
             try:
                 feed = feedparser.parse(feed_url)
                 
@@ -180,13 +242,18 @@ class RSSSource(NewsSource):
                         if not (title_match or summary_match):
                             continue
                     
+                    # 获取信源元数据
+                    source_meta = self.get_source_metadata(feed_name)
+                    
                     news_item = {
                         'title': entry.title,
                         'url': entry.link,
-                        'content': entry.get('summary', '')[:300],
+                        'content': entry.get('summary', '')[:500],
                         'published_date': published.isoformat() if published else '',
                         'source': feed_name,
-                        'source_type': 'rss'
+                        'source_type': 'rss',
+                        'source_weight': weight,
+                        'source_category': source_meta.get('category', 'unknown')
                     }
                     news_list.append(news_item)
                     

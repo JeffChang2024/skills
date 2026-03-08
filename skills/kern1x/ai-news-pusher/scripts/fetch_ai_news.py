@@ -2,6 +2,7 @@
 """
 AI新闻获取脚本 - 使用Tavily API或Brave API搜索最新AI资讯
 支持仅RSS模式（无需API Key）
+集成新闻价值评分和分类功能
 """
 
 import os
@@ -9,6 +10,13 @@ import sys
 import json
 import argparse
 from datetime import datetime, timedelta
+from pathlib import Path
+
+script_dir = Path(__file__).parent.absolute()
+sys.path.insert(0, str(script_dir))
+
+from news_scorer import NewsScorer
+from data_storage import DataStorage
 
 
 def get_api_key(service="tavily"):
@@ -185,7 +193,7 @@ def format_news_output(news_list, output_format='json'):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='AI新闻获取工具 - 支持Tavily、Brave、RSS多源',
+        description='AI新闻获取工具 - 支持Tavily、Brave、RSS多源，集成价值评分',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
 使用示例:
@@ -200,6 +208,9 @@ def main():
   
   # 多源聚合（Tavily + Brave + RSS）
   python3 fetch_ai_news.py --source all --limit 10
+  
+  # 启用评分和分类（需要OPENAI_API_KEY）
+  python3 fetch_ai_news.py --source rss --limit 10 --enable-scoring
         '''
     )
     
@@ -212,6 +223,10 @@ def main():
     parser.add_argument('--output', type=str, help='输出到文件')
     parser.add_argument('--query', type=str, default='AI artificial intelligence',
                         help='搜索关键词 (默认: AI artificial intelligence)')
+    parser.add_argument('--enable-scoring', action='store_true',
+                        help='启用新闻价值评分和分类 (需要OPENAI_API_KEY)')
+    parser.add_argument('--llm-provider', choices=['openai', 'anthropic'], default='openai',
+                        help='LLM提供商 (默认openai)')
     
     args = parser.parse_args()
     
@@ -286,6 +301,42 @@ def main():
     
     print(f"\n总共获取 {len(unique_news)} 条不重复新闻")
     
+    # 评分和分类
+    categorized = None
+    if args.enable_scoring:
+        print("\n📊 开始新闻价值评分...")
+        scorer = NewsScorer(llm_provider=args.llm_provider)
+        categorized = scorer.score_batch(unique_news)
+        
+        storage = DataStorage()
+        
+        print(f"\n📋 评分结果:")
+        print(f"  自动推送 (≥80分): {len(categorized['auto_push'])} 条")
+        print(f"  待阅池 (60-80分): {len(categorized['gray_zone'])} 条")
+        print(f"  已过滤 (<60分): {len(categorized['filtered'])} 条")
+        
+        # 保存到数据存储
+        if categorized['gray_zone']:
+            storage.batch_save_gray_zone(categorized['gray_zone'])
+            print(f"  待阅池已保存")
+        
+        if categorized['filtered']:
+            storage.save_filtered(categorized['filtered'])
+            print(f"  已过滤新闻已保存")
+        
+        if categorized['auto_push']:
+            storage.save_pushed(categorized['auto_push'])
+            print(f"  自动推送新闻已保存")
+        
+        # 输出高质量新闻
+        if categorized['auto_push']:
+            print(f"\n🌟 高质量新闻 (自动推送):")
+            for i, news in enumerate(categorized['auto_push'][:5], 1):
+                print(f"  [{i}] {news['title'][:60]}... (评分: {news['score']})")
+        
+        # 使用评分后的新闻进行输出
+        unique_news = categorized['auto_push'] + categorized['gray_zone']
+    
     # 输出结果
     if args.output:
         with open(args.output, 'w', encoding='utf-8') as f:
@@ -299,7 +350,7 @@ def main():
                 with redirect_stdout(output_buffer):
                     format_news_output(unique_news, args.format)
                 f.write(output_buffer.getvalue())
-        print(f"结果已保存到: {args.output}")
+        print(f"\n结果已保存到: {args.output}")
     else:
         format_news_output(unique_news, args.format)
 
