@@ -152,9 +152,9 @@ class DiscussionEngine:
                       f"Use 'tag#temp#N' or 'tag#oasis#id' or 'name#ext#id' or 'title#session_id'.")
                 continue
 
-            # Handle #new suffix: strip it and generate a random session part
+            # Handle #new suffix: strip only "new", keep the '#' separator
             force_new = full_name.endswith("#new")
-            working_name = full_name[:-4] if force_new else full_name  # strip "#new"
+            working_name = full_name[:-3] if force_new else full_name  # strip "new" only
 
             first, sid = working_name.split("#", 1)
             expert: ExpertAgent | SessionExpert | ExternalExpert
@@ -175,7 +175,7 @@ class DiscussionEngine:
                     name=expert_name,
                     ext_id=ext_id,
                     api_url=cfg["api_url"],
-                    api_key=cfg.get("api_key", ""),
+                    api_key=cfg.get("api_key", "") or os.getenv("OPENCLAW_API_KEY", ""),
                     model=cfg.get("model", "gpt-3.5-turbo"),
                     persona=persona,
                     timeout=bot_timeout,
@@ -335,7 +335,11 @@ class DiscussionEngine:
             self.forum.conclusion = f"讨论过程中出现错误: {str(e)}"
 
     async def _run_scheduled(self):
-        """Execute the schedule."""
+        """Execute the schedule (linear or DAG)."""
+        if self.schedule.is_dag:
+            await self._run_dag()
+            return
+
         steps = self.schedule.steps
         # In execute mode, early_stop is meaningless (no votes)
         can_early_stop = self._early_stop and self._discussion
@@ -367,6 +371,66 @@ class DiscussionEngine:
                 if can_early_stop and step_idx >= 1 and await self._consensus_reached():
                     print(f"[OASIS] 🤝 Consensus reached at step {step_idx + 1}")
                     break
+
+    async def _run_dag(self):
+        """Execute DAG schedule: run steps as soon as all their dependencies complete.
+
+        Uses asyncio tasks + events so that independent branches run in parallel,
+        and a node starts immediately once all its predecessors finish.
+        """
+        steps = self.schedule.steps
+        # Build lookup: step_id → step
+        step_map: dict[str, ScheduleStep] = {}
+        for s in steps:
+            if s.step_id:
+                step_map[s.step_id] = s
+
+        # Event per step_id — set when that step completes
+        done_events: dict[str, asyncio.Event] = {}
+        for sid in step_map:
+            done_events[sid] = asyncio.Event()
+
+        total = len(step_map)
+        completed_count = 0
+
+        async def _run_step(step: ScheduleStep):
+            nonlocal completed_count
+            # Wait for all dependencies
+            for dep_id in step.depends_on:
+                if dep_id in done_events:
+                    await done_events[dep_id].wait()
+
+            self._check_cancelled()
+
+            completed_count += 1
+            self.forum.current_round = completed_count
+            self.forum.max_rounds = total
+            self.forum.log_event("round", detail=f"DAG step '{step.step_id}' ({completed_count}/{total})")
+            print(f"[OASIS] 📢 DAG step '{step.step_id}' ({completed_count}/{total})")
+
+            await self._execute_step(step)
+
+            # Signal completion
+            if step.step_id in done_events:
+                done_events[step.step_id].set()
+
+        # Launch all steps concurrently — each waits for its own deps
+        tasks = [asyncio.create_task(_run_step(s)) for s in steps if s.step_id]
+
+        # Also run steps without IDs sequentially at the end (backward compat)
+        no_id_steps = [s for s in steps if not s.step_id]
+
+        # Wait for all DAG tasks
+        if tasks:
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for r in results:
+                if isinstance(r, Exception) and not isinstance(r, asyncio.CancelledError):
+                    print(f"[OASIS] ❌ DAG step error: {r}")
+
+        # Run non-DAG steps (if any) sequentially after DAG
+        for step in no_id_steps:
+            self._check_cancelled()
+            await self._execute_step(step)
 
     async def _execute_step(self, step: ScheduleStep):
         """Execute a single schedule step."""

@@ -222,38 +222,38 @@ POST /cancel
 
 ### 2) Synchronous Mode vs Detach Mode
 
-**Synchronous (detach=false, default)**
+**Detach (detach=true, default)**
+- Behavior: Returns `topic_id` immediately, continues running/discussing in the background; later use `check_oasis_discussion(topic_id)` to track progress and results.
+- Use case: Most tasks, especially multi-round/multi-expert/long-running/tool-calling tasks.
+
+**Synchronous (detach=false)**
 - Behavior: After calling `post_to_oasis`, waits for completion and returns the final result directly.
 - Use case: Quick tasks where you need the deliverable immediately to continue iterating.
-
-**Detach (detach=true)**
-- Behavior: Returns `topic_id` immediately, continues running/discussing in the background; later use `check_oasis_discussion(topic_id)` to track progress and results.
-- Use case: Multi-round/multi-expert/long-running/tool-calling tasks where you don't want to block the current session.
 
 ### 3) Auto-selection Rules (Recommended Default Strategy)
 
 When not explicitly specified, the following default strategy is recommended:
 
-1. **Default = Discussion + Synchronous**
+1. **Default = Discussion + Detach**
    - `discussion=true`
-   - `detach=false`
+   - `detach=true`
 
 2. Switch to **Execution Mode** when these signals appear:
    - "Give me the final version / copy-pasteable / executable script / just conclusions no discussion"
    - "Generate SOP / checklist / table step by step and finalize"
 
-3. Switch to **Detach Mode** when these signals appear:
-   - "Run in background / I'll check later / just give me the topic_id"
-   - Multi-expert parallel, multi-round (large `max_rounds`), or expected long duration
+3. Switch to **Synchronous Mode** when these signals appear:
+   - "Wait for the result / I need it now / give me the answer directly"
+   - Quick single-round tasks where the deliverable is needed immediately
 
 ### 4) Four Combinations Quick Reference
 
 | Combination | Parameters | Returns | Use Case |
 |---|---|---|---|
-| Discussion + Sync (default) | discussion=true, detach=false | See discussion & conclusion on the spot | Decision/review/collect opinions |
-| Discussion + Detach | discussion=true, detach=true | topic_id, check later | Long discussion/multi-round |
-| Execution + Sync | discussion=false, detach=false | Direct deliverables | Generate code/plans/checklists |
+| Discussion + Detach **(default)** | discussion=true, detach=true | topic_id, check later | Decision/review/collect opinions |
+| Discussion + Sync | discussion=true, detach=false | See discussion & conclusion on the spot | Quick discussion needing immediate result |
 | Execution + Detach | discussion=false, detach=true | topic_id, check later | Long execution/complex pipelines |
+| Execution + Sync | discussion=false, detach=false | Direct deliverables | Generate code/plans/checklists |
 
 
 ## OASIS Four Agent Types
@@ -305,11 +305,14 @@ plan:
   - expert: "Coder#my-project"
 
   # Type 4: External API (DeepSeek, GPT-4, etc.)
+  # Note: api_key is auto-read from OPENCLAW_API_KEY env var; use "****" mask in YAML (never write plaintext keys)
   - expert: "deepseek#ext#ds1"
 
   # Type 4: OpenClaw External API (local Agent service)
+  # api_key auto-resolved from OPENCLAW_API_KEY env var when set to "****"
   - expert: "coder#ext#oc1"
     api_url: "http://127.0.0.1:23001/v1/chat/completions"
+    api_key: "****"              # Masked — real key read from OPENCLAW_API_KEY env var at runtime
     model: "agent:main:test1"    # agent:<agent_name>:<session>, session auto-created if not exists
 
   # Parallel execution
@@ -326,6 +329,36 @@ plan:
       content: "Please focus on feasibility"
 ```
 
+### DAG Mode — Dependency-Driven Parallel Execution
+
+When the workflow has **fan-in** (a node has multiple predecessors) or **fan-out** (a node has multiple successors), use DAG mode with `id` and `depends_on` fields. The engine maximizes parallelism — each node starts as soon as all its dependencies are satisfied.
+
+**DAG YAML Example:**
+
+```yaml
+version: 1
+repeat: false
+plan:
+  - id: research
+    expert: "creative#temp#1"                # Root — starts immediately
+  - id: analysis
+    expert: "critical#temp#1"                # Root — runs in PARALLEL with research
+  - id: synthesis
+    expert: "synthesis#temp#1"
+    depends_on: [research, analysis]         # Fan-in: waits for BOTH to complete
+  - id: review
+    expert: "data#temp#1"
+    depends_on: [synthesis]                  # Runs after synthesis
+```
+
+**DAG Rules:**
+- Every step **must** have a unique `id` field.
+- `depends_on` is a list of step ids that must complete before this step starts. Omit for root nodes.
+- The graph **must** be acyclic (no circular dependencies).
+- Steps with no dependency relationship run in parallel automatically.
+- The visual Canvas auto-detects fan-in/fan-out and generates DAG format.
+- `manual` steps can also have `id`/`depends_on`.
+
 ### External API (Type 4) Detailed Configuration
 
 Type 4 external agents support additional configuration fields in YAML steps:
@@ -333,20 +366,21 @@ Type 4 external agents support additional configuration fields in YAML steps:
 ```yaml
 version: 1
 plan:
-  - expert: "Analyst#ext#analyst"
+  - expert: "#ext#analyst"
     api_url: "https://api.deepseek.com"          # Required: External API base URL (auto-completes to /v1/chat/completions)
-    api_key: "sk-xxx"                             # Required: API key  Authorization: Bearer <key>
+    api_key: "****"                               # Masked — real key auto-read from OPENCLAW_API_KEY env var at runtime
     model: "deepseek-chat"                        # Optional: Model name, default gpt-3.5-turbo
     headers:                                      # Optional: Custom HTTP headers (key-value dict)
       X-Custom-Header: "value"
 ```
 
+> 🔒 **API Key Security**: You no longer need to write plaintext API keys in YAML. Set `api_key: "****"` (or omit it entirely) and the system will automatically read the real key from the `OPENCLAW_API_KEY` environment variable at runtime. The frontend canvas also displays `****` instead of the real key. If you do write a plaintext key, it will still work (backward compatible).
 **Configuration Field Description:**
 
 | Field | Required | Description |
 |-------|----------|-------------|
 | `api_url` |  | External API address, auto-completes path to `/v1/chat/completions` |
-| `api_key` |  | Placed in `Authorization: Bearer <key>` header |
+| `api_key` |  | Use `****` mask — auto-read from `OPENCLAW_API_KEY` env var. Plaintext keys also supported (backward compatible) |
 | `model` |  | Default `gpt-3.5-turbo` |
 | `headers` |  | Any key-value dict, merged into HTTP request headers |
 
@@ -397,7 +431,7 @@ When calling an OpenClaw agent via External API (Type 4), the `x-openclaw-sessio
 # Example: Connecting to a specific OpenClaw session
 - expert: "coder#ext#oc1"
   api_url: "http://127.0.0.1:18789"
-  api_key: "your-openclaw-key"
+  api_key: "****"                                      # ← Masked; real key from OPENCLAW_API_KEY env var
   model: "agent:main:my-session"
   headers:
     x-openclaw-session-key: "agent:main:my-session"   # ← This header determines the exact OpenClaw session
@@ -789,13 +823,13 @@ POST /cancel
 
 ### 2)  vs detach
 
-**detach=false**
--  `post_to_oasis` 
-- 
-
 **detach=true**
 -  `topic_id`/ `check_oasis_discussion(topic_id)` 
-- ///
+- 
+
+**detach=false**
+-  `post_to_oasis` 
+- /
 
 ### 3) 
 
@@ -803,24 +837,24 @@ POST /cancel
 
 1. ** =  + **
    - `discussion=true`
-   - `detach=false`
+   - `detach=true`
 
 2.  ****
    - " /  /  / "
    - " SOP /  / "
 
 3.  ****
-   - " /  /  topic_id"
-   - `max_rounds` 
+   - " /  /  / "
+   - /
 
 ### 4) 
 
 |  |  |  |  |
 |---|---|---|---|
-|  +  | discussion=true, detach=false |  | // |
-|  +  | discussion=true, detach=true | topic_id | / |
-|  +  | discussion=false, detach=false |  | // |
+|  +  **()** | discussion=true, detach=true | topic_id | // |
+|  +  | discussion=true, detach=false |  | / |
 |  +  | discussion=false, detach=true | topic_id | / |
+|  +  | discussion=false, detach=false |  | // |
 
 
 ## OASIS 
@@ -872,11 +906,14 @@ plan:
   - expert: "Coder#my-project"
 
   # Type 4: External APIDeepSeek, GPT-4
+  # 注意：api_key 自动从 OPENCLAW_API_KEY 环境变量读取；YAML 中使用 "****" 掩码（切勿写入明文密钥）
   - expert: "deepseek#ext#ds1"
 
   # Type 4: OpenClaw External API Agent 
+  # api_key 从 OPENCLAW_API_KEY 环境变量自动读取，YAML 中使用 "****" 掩码
   - expert: "coder#ext#oc1"
     api_url: "http://127.0.0.1:23001/v1/chat/completions"
+    api_key: "****"              # 掩码 — 运行时自动从 OPENCLAW_API_KEY 环境变量读取真实密钥
     model: "agent:main:test1"    # agent:<agent_name>:<session>session 
 
   # 
@@ -893,6 +930,36 @@ plan:
       content: ""
 ```
 
+### DAG 模式 — 依赖驱动的并行执行
+
+当工作流存在 **fan-in**（一个节点有多个前驱）或 **fan-out**（一个节点有多个后继）时，使用带 `id` 和 `depends_on` 字段的 DAG 模式。引擎会最大化并行——每个节点在所有依赖完成后立即启动，无需等待无关节点。
+
+**DAG YAML 示例：**
+
+```yaml
+version: 1
+repeat: false
+plan:
+  - id: research
+    expert: "creative#temp#1"                # 根节点 — 立即启动
+  - id: analysis
+    expert: "critical#temp#1"                # 根节点 — 与 research 并行运行
+  - id: synthesis
+    expert: "synthesis#temp#1"
+    depends_on: [research, analysis]         # Fan-in：等待两者都完成
+  - id: review
+    expert: "data#temp#1"
+    depends_on: [synthesis]                  # synthesis 完成后执行
+```
+
+**DAG 规则：**
+- 每个步骤**必须**有唯一的 `id` 字段。
+- `depends_on` 是该步骤启动前必须完成的步骤 id 列表。根节点不需要此字段。
+- 图**必须**无环（禁止循环依赖）。
+- 没有依赖关系的步骤自动并行执行。
+- 可视化画布自动检测 fan-in/fan-out 并生成 DAG 格式。
+- `manual` 步骤同样支持 `id`/`depends_on`。
+
 ### External API (Type 4) 
 
 Type 4  agent  YAML 
@@ -902,18 +969,20 @@ version: 1
 plan:
   - expert: "#ext#analyst"
     api_url: "https://api.deepseek.com"          #  API  base URL /v1/chat/completions
-    api_key: "sk-xxx"                             # API key  Authorization: Bearer <key>
+    api_key: "****"                               # 掩码 — 运行时自动从 OPENCLAW_API_KEY 环境变量读取真实密钥
     model: "deepseek-chat"                        #  gpt-3.5-turbo
     headers:                                      #  HTTP key-value 
       X-Custom-Header: "value"
 ```
+
+> 🔒 **API Key 安全机制**：YAML 中无需再写入明文 API Key。设置 `api_key: "****"`（或完全省略）即可，系统运行时会自动从 `OPENCLAW_API_KEY` 环境变量读取真实密钥。前端画布也仅显示 `****` 而非真实密钥。如果你仍然写入明文密钥，也能正常工作（向后兼容）。
 
 ****
 
 |  |  |  |
 |------|------|------|
 | `api_url` |  |  API  `/v1/chat/completions` |
-| `api_key` |  |  `Authorization: Bearer <key>` header  |
+| `api_key` |  | 使用 `****` 掩码 — 自动从 `OPENCLAW_API_KEY` 环境变量读取。也支持直接写入明文密钥（向后兼容） |
 | `model` |  |  `gpt-3.5-turbo` |
 | `headers` |  |  key-value  HTTP  |
 
@@ -964,7 +1033,7 @@ agent:<agent_name>:<session_name>
 # 示例：连接到指定的 OpenClaw session
 - expert: "coder#ext#oc1"
   api_url: "http://127.0.0.1:18789"
-  api_key: "your-openclaw-key"
+  api_key: "****"                                      # ← 掩码；真实密钥从 OPENCLAW_API_KEY 环境变量读取
   model: "agent:main:my-session"
   headers:
     x-openclaw-session-key: "agent:main:my-session"   # ← 此 header 决定了目标 OpenClaw session

@@ -47,12 +47,14 @@ Directly calls any OpenAI-compatible API. External service assumed stateful. Sen
 ```yaml
 - expert: "analyst#ext#ds1"
   api_url: "https://api.deepseek.com"
-  api_key: "sk-xxx"
+  api_key: "****"                    # Masked — real key auto-read from OPENCLAW_API_KEY env var
   model: "deepseek-chat"
   headers:
     X-Custom-Header: "value"
   instruction: "Analyze from data perspective"
 ```
+
+> 🔒 **API Key Security**: Set `api_key: "****"` (or omit it) and the system auto-reads the real key from the `OPENCLAW_API_KEY` environment variable at runtime. Plaintext keys still work (backward compatible).
 
 ### Special Suffix: `#new`
 
@@ -76,7 +78,18 @@ discussion: true/false   # true = forum discussion; false = execution mode
 plan: [...]              # Required: list of steps
 ```
 
-### Five Step Types
+### Two Scheduling Modes: Linear vs DAG
+
+OASIS supports two scheduling modes, automatically selected based on the YAML content:
+
+| Mode | Detection | Execution | Use Case |
+|------|-----------|-----------|----------|
+| **Linear** | No `id`/`depends_on` fields in steps | Steps execute sequentially, one after another | Simple chains, debates, round-table discussions |
+| **DAG** | Any step has an `id` field | Steps run in parallel when all their dependencies are satisfied | Fan-in/fan-out pipelines, complex multi-branch workflows |
+
+**Linear mode** is the default. **DAG mode** activates automatically when the engine detects `id` fields in the plan steps.
+
+### Linear Step Types
 
 #### 1. `expert` — Single Expert (Sequential)
 
@@ -84,7 +97,7 @@ plan: [...]              # Required: list of steps
 - expert: "critical#temp#1"
   instruction: "Focus on risks"
   api_url: "https://..."          # only for #ext#
-  api_key: "sk-xxx"               # only for #ext#
+  api_key: "****"               # only for #ext#, masked — auto-read from env
   model: "deepseek-chat"          # only for #ext#
   headers:                        # only for #ext#
     x-openclaw-session-key: "agent:main:test1"
@@ -125,6 +138,106 @@ plan:
   - all_experts: true
 ```
 
+### DAG Mode — Dependency-Driven Parallel Execution
+
+When the workflow has **fan-in** (a node has multiple predecessors) or **fan-out** (a node has multiple successors), use DAG mode with `id` and `depends_on` fields. The engine uses an event-driven dataflow model to maximize parallelism — each node starts as soon as all its dependencies are satisfied, without waiting for unrelated nodes.
+
+#### DAG Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `id` | Yes (DAG) | Unique step identifier (typically the canvas node id) |
+| `depends_on` | No | List of step `id`s that must complete before this step starts. Omit for root nodes. |
+
+#### DAG Example: Fan-in Pipeline
+
+```yaml
+# A and B run in parallel; C waits for both; D waits for C
+version: 1
+repeat: false
+plan:
+  - id: research
+    expert: "creative#temp#1"                # Root — starts immediately
+  - id: analysis
+    expert: "critical#temp#1"                # Root — runs in PARALLEL with research
+  - id: synthesis
+    expert: "synthesis#temp#1"
+    depends_on: [research, analysis]         # Fan-in: waits for BOTH
+  - id: review
+    expert: "data#temp#1"
+    depends_on: [synthesis]                  # Sequential after synthesis
+```
+
+#### DAG Example: Fan-out Pipeline
+
+```yaml
+# Architect designs, then backend and frontend work in parallel, reviewer waits for both
+version: 1
+repeat: false
+plan:
+  - id: design
+    expert: "architect#ext#oc1"
+    api_url: "http://127.0.0.1:18789"
+    api_key: "****"
+    model: "agent:main:architect"
+    headers:
+      x-openclaw-session-key: "agent:main:architect"
+  - id: backend
+    expert: "backend#ext#oc2"
+    api_url: "http://127.0.0.1:18789"
+    api_key: "****"
+    model: "agent:main:backend"
+    headers:
+      x-openclaw-session-key: "agent:main:backend"
+    depends_on: [design]                     # Fan-out from design
+  - id: frontend
+    expert: "frontend#ext#oc3"
+    api_url: "http://127.0.0.1:18789"
+    api_key: "****"
+    model: "agent:main:frontend"
+    headers:
+      x-openclaw-session-key: "agent:main:frontend"
+    depends_on: [design]                     # Fan-out from design
+  - id: review
+    expert: "reviewer#ext#oc4"
+    api_url: "http://127.0.0.1:18789"
+    api_key: "****"
+    model: "agent:main:reviewer"
+    headers:
+      x-openclaw-session-key: "agent:main:reviewer"
+    depends_on: [backend, frontend]          # Fan-in: waits for both
+```
+
+#### DAG with Manual Steps
+
+```yaml
+- id: briefing
+  manual:
+    author: "Commander"
+    content: "Phase 1 complete. Proceed to analysis."
+  depends_on: [scout1, scout2]
+```
+
+#### DAG Rules
+
+1. Every step **must** have a unique `id` field.
+2. `depends_on` is a list of step ids. Omit for root nodes (no predecessors).
+3. The graph **must** be acyclic — circular dependencies will be rejected with an error.
+4. Steps with no dependency relationship run in **parallel** automatically.
+5. The visual Canvas auto-detects fan-in/fan-out and generates DAG format YAML.
+
+#### How DAG Scheduling Works (Algorithm)
+
+The engine uses an **event-driven dataflow model**:
+
+1. For each step, an `asyncio.Event` is created (completion signal).
+2. All steps are launched as concurrent `asyncio.Task`s.
+3. Each task first `await`s all its predecessors' Events (blocks until all done).
+4. After execution, the task `set()`s its own Event (notifies successors).
+5. `asyncio.gather()` waits for all tasks to complete.
+
+This achieves **maximum parallelism** — no unnecessary waiting, no explicit topological sort needed at runtime.
+
 ### Type 4 Configuration Fields
 
 | Field | Required | Description |
@@ -132,7 +245,7 @@ plan:
 | `expert` | Yes | Name (format determines type) |
 | `instruction` | No | Per-step instruction |
 | `api_url` | Yes (ext) | Base URL (auto-completes to `/v1/chat/completions`) |
-| `api_key` | No | API key |
+| `api_key` | No | Use `****` mask — auto-read from `OPENCLAW_API_KEY` env var. Plaintext also supported. |
 | `model` | No | Default `gpt-3.5-turbo` |
 | `headers` | No | Extra HTTP headers (dict) |
 
@@ -179,7 +292,7 @@ Non-existent sessions are auto-created.
 ```yaml
 - expert: "coder#ext#oc1"
   api_url: "http://127.0.0.1:18789"
-  api_key: "your-key"
+  api_key: "****"                                  # Masked — real key from OPENCLAW_API_KEY env var
   model: "agent:main:my-session"
   headers:
     x-openclaw-session-key: "agent:main:my-session"
@@ -190,7 +303,7 @@ Non-existent sessions are auto-created.
 
 ```
 Content-Type: application/json
-Authorization: Bearer <api_key>
+Authorization: Bearer <resolved_api_key>   # The actual key resolved from env var (never visible in YAML)
 x-openclaw-session-key: agent:main:my-session
 ```
 
@@ -203,7 +316,7 @@ discussion: false
 plan:
   - expert: "architect#ext#oc_arch"
     api_url: "http://127.0.0.1:18789"
-    api_key: "key"
+    api_key: "****"                              # Masked — auto-read from env
     model: "agent:main:architect"
     headers:
       x-openclaw-session-key: "agent:main:architect"
@@ -212,14 +325,14 @@ plan:
   - parallel:
     - expert: "backend#ext#oc_be"
       api_url: "http://127.0.0.1:18789"
-      api_key: "key"
+      api_key: "****"
       model: "agent:main:backend"
       headers:
         x-openclaw-session-key: "agent:main:backend"
       instruction: "Implement backend API"
     - expert: "frontend#ext#oc_fe"
       api_url: "http://127.0.0.1:18789"
-      api_key: "key"
+      api_key: "****"
       model: "agent:main:frontend"
       headers:
         x-openclaw-session-key: "agent:main:frontend"
@@ -227,7 +340,7 @@ plan:
 
   - expert: "reviewer#ext#oc_rev"
     api_url: "http://127.0.0.1:18789"
-    api_key: "key"
+    api_key: "****"
     model: "agent:main:reviewer"
     headers:
       x-openclaw-session-key: "agent:main:reviewer"
@@ -342,7 +455,7 @@ plan:
   - all_experts: true
 ```
 
-### Phased Pipeline
+### Phased Pipeline (Linear)
 
 ```yaml
 version: 1
@@ -361,6 +474,28 @@ plan:
     instruction: "Final plan"
 ```
 
+### DAG Pipeline (Fan-in/Fan-out)
+
+```yaml
+version: 1
+repeat: false
+discussion: false
+plan:
+  - id: research
+    expert: "creative#temp#1"
+    instruction: "Research innovative approaches"
+  - id: risk
+    expert: "critical#temp#1"
+    instruction: "Identify risks and blockers"
+  - id: data
+    expert: "data#temp#1"
+    instruction: "Gather supporting data"
+  - id: plan
+    expert: "synthesis#temp#1"
+    instruction: "Create final plan from all inputs"
+    depends_on: [research, risk, data]
+```
+
 ### Mixed Agents
 
 ```yaml
@@ -373,13 +508,13 @@ plan:
     - expert: "critical#temp#2"
   - expert: "coder#ext#oc1"
     api_url: "http://127.0.0.1:18789"
-    api_key: "key"
+    api_key: "****"                                # Masked — from env
     model: "agent:main:research"
     headers:
       x-openclaw-session-key: "agent:main:research"
   - expert: "analyst#ext#ds1"
     api_url: "https://api.deepseek.com"
-    api_key: "sk-xxx"
+    api_key: "****"                                # Masked — from env
     model: "deepseek-chat"
 ```
 
@@ -433,7 +568,8 @@ plan:
 | Existing bot | `Title#session_id` |
 | OpenClaw agents | `tag#ext#id` + `api_url` + `model` + `headers: {x-openclaw-session-key}` |
 | External LLMs | `tag#ext#id` + `api_url` + `api_key` |
-| Pipeline | `repeat: false` |
+| Simple pipeline | `repeat: false` (linear steps) |
+| DAG pipeline | `repeat: false` + steps with `id` + `depends_on` |
 | Iterative | `repeat: true` + `discussion: true` |
 | Background | `callback_url` + `callback_session_id` |
 

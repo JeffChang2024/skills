@@ -413,6 +413,16 @@ async def get_conclusion(topic_id: str, user_id: str = Query(...), timeout: int 
     if forum.status == "error":
         raise HTTPException(500, f"Discussion failed: {forum.conclusion}")
     if forum.status != "concluded":
+        # Execution mode: return 202 (still running) instead of 504 error
+        if not forum.discussion:
+            return {
+                "topic_id": topic_id,
+                "question": forum.question,
+                "status": "running",
+                "current_round": forum.current_round,
+                "total_posts": len(forum.posts),
+                "message": "执行仍在后台运行中，可稍后通过 check_oasis_discussion 查看结果",
+            }
         raise HTTPException(504, "Discussion timed out")
 
     return {
@@ -703,12 +713,17 @@ async def list_openclaw_sessions(filter: str = Query("")):
     raw_url = os.getenv("OPENCLAW_API_URL", "")
     base_url = raw_url.replace("/v1/chat/completions", "").rstrip("/")
 
+    # Mask the API key: if set in env, return "****" so the frontend
+    # knows a key exists but never sees the plaintext.
+    raw_key = os.getenv("OPENCLAW_API_KEY", "")
+    masked_key = "****" if raw_key else ""
+
     return {
         "sessions": result,
         "available": True,
         # Provide OpenClaw-specific endpoint config for auto-fill when dragging into canvas
         "openclaw_api_url": base_url,
-        "openclaw_api_key": os.getenv("OPENCLAW_API_KEY", ""),
+        "openclaw_api_key": masked_key,
     }
 
 
