@@ -1,0 +1,11 @@
+{
+  "owner": "yinanping-cpu",
+  "slug": "price-monitor",
+  "displayName": "Price Monitor",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1772874089668,
+    "commit": null
+  },
+  "history": []
+}
