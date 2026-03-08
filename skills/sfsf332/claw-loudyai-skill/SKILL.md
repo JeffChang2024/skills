@@ -1,5 +1,5 @@
 ---
-name: loudy-ai-auto-task
+name: claw-loudyai-skill
 description: |
   Loudy.ai 任务自动化工具 - 查询奖池、提交任务链接、追踪审核和支付状态。
   重要说明：此工具仅与 loudy.ai API 交互，不包含 Twitter/X 自动发布功能。

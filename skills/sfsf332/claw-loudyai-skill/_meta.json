@@ -3,9 +3,15 @@
   "slug": "claw-loudyai-skill",
   "displayName": "Claw Loudyai Skill",
   "latest": {
-    "version": "0.2.0",
-    "publishedAt": 1772777400046,
-    "commit": "https://github.com/openclaw/skills/commit/fcadbfe584593dca7f0e2226536e1160821cff10"
+    "version": "1.1.0",
+    "publishedAt": 1772878134107,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "0.2.0",
+      "publishedAt": 1772777400046,
+      "commit": "https://github.com/openclaw/skills/commit/fcadbfe584593dca7f0e2226536e1160821cff10"
+    }
+  ]
 }

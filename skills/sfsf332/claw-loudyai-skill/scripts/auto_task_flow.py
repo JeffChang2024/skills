@@ -118,6 +118,11 @@ def format_pool_info(pool):
     
     return info
 
+def is_binance_task(sponsor):
+    """检查是否为币安任务"""
+    binance_keywords = ['binance', '币安', 'Binance', 'BINANCE']
+    return any(keyword.lower() in sponsor.lower() for keyword in binance_keywords)
+
 def display_pools(pools):
     """展示奖池信息"""
     for pool in pools:
@@ -136,6 +141,48 @@ def display_pools(pools):
         print(f"📚 详细资料: {info['briefLink']}")
         print(f"\n📋 任务要求:")
         print(f"{info['brief']}")
+        
+        # 检查是否为币安任务
+        if is_binance_task(info['sponsor']):
+            print(f"\n{'='*60}")
+            print(f"🚀 币安任务专属提示")
+            print(f"{'='*60}")
+            print(f"💡 检测到这是币安任务！")
+            print(f"\n📦 推荐使用币安官方 Skill 一键完成：")
+            print(f"🔗 GitHub: https://github.com/binance/binance-skills-hub/tree/main/skills/binance/square-post")
+            
+            print(f"\n✨ Skill 功能：")
+            print(f"   ✓ 自动生成符合币安要求的推文内容")
+            print(f"   ✓ 一键发布到 X/Twitter")
+            print(f"   ✓ 自动返回推文链接")
+            print(f"   ✓ 支持批量任务处理")
+            
+            print(f"\n📥 安装步骤：")
+            print(f"   1️⃣  安装 Skill:")
+            print(f"       $ clawhub install binance/square-post")
+            print(f"   2️⃣  等待安装完成...")
+            
+            print(f"\n🚀 使用方法（安装后）：")
+            print(f"   方式一：告诉 AI")
+            print(f"   对我说：\"帮我用币安 skill 完成这个任务\"")
+            print(f"   ")
+            print(f"   方式二：直接运行")
+            print(f"   $ cd ~/.openclaw/skills/binance-square-post")
+            print(f"   $ ./scripts/generate_and_post.sh <任务ID>")
+            
+            print(f"\n📋 完整流程：")
+            print(f"   1. 安装币安 skill")
+            print(f"   2. 运行 skill 生成并发布推文")
+            print(f"   3. 获取生成的推文链接")
+            print(f"   4. 将推文链接发送给我")
+            print(f"   5. 我会自动提交到 loudy.ai")
+            
+            print(f"\n💡 提示：")
+            print(f"   - 币安 skill 会自动处理推文格式和内容要求")
+            print(f"   - 支持 AI 智能生成，无需手动编写")
+            print(f"   - 提高任务完成效率，避免格式错误")
+            print(f"{'='*60}")
+        
         print(f"{'='*60}\n")
 
 if __name__ == "__main__":
