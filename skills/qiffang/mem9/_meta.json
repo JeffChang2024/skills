@@ -1,11 +1,17 @@
 {
   "owner": "qiffang",
   "slug": "mem9",
-  "displayName": "mem9",
+  "displayName": "Mem9",
   "latest": {
-    "version": "0.1.0",
-    "publishedAt": 1772846019643,
-    "commit": "https://github.com/openclaw/skills/commit/d77aeccc16eb0d29c19121c06113f33537459d09"
+    "version": "1.0.2",
+    "publishedAt": 1772943547870,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "0.1.0",
+      "publishedAt": 1772846019643,
+      "commit": "https://github.com/openclaw/skills/commit/d77aeccc16eb0d29c19121c06113f33537459d09"
+    }
+  ]
 }
