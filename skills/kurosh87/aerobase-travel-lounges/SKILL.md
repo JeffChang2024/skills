@@ -1,81 +1,76 @@
 ---
-version: 1.0.0
-name: aerobase-travel-lounges
-description: Airport lounge access with recovery scores, Priority Pass, and jetlag-friendly recommendations
-metadata: {"openclaw": {"emoji": "🏧", "primaryEnv": "AEROBASE_API_KEY", "user-invocable": true, "homepage": "https://aerobase.app"}}
+name: aerobase-lounges
+description: Airport lounge access and recovery recommendations
+metadata: {"openclaw": {"emoji": "🏧", "primaryEnv": "AEROBASE_API_KEY", "user-invocable": true}}
 ---
-version: 1.0.0
 
-# Aerobase Airport Lounges 🏧
+# Airport Lounge Access & Recovery
 
-Find the best airport lounges for jetlag recovery. Aerobase.app has lounge data for 1,000+ airports worldwide — scored for recovery impact.
+Help users find airport lounges for jetlag recovery. Frame recommendations in terms of recovery: "The Delta Sky Club has showers and a quiet zone — perfect for a 3-hour rest before your red-eye."
 
-**Why Aerobase?**
-- 😴 **Recovery scoring** — Every lounge scored 1-10
-- 🚿 **Shower tracking** — Find lounges with showers
-- 💺 **Priority Pass** — Know what your card gets you
-- 🌙 **Quiet zones** — Find spaces optimized for rest
+## Search (v1 API - Preferred)
 
-## Individual Skill
+**GET /api/v1/lounges** — Search airport lounges with filters
+Query params: `airport`, `airline`, `network`, `tier`, `search`, `limit`, `offset`
+Returns: lounges with jetlagFeatures, amenities, recovery scores
 
-This is a standalone skill. **For EVERYTHING**, install the complete **Aerobase Travel Concierge** — all skills in one package:
+Example: `GET /api/v1/lounges?airport=JFK&tier=1`
 
-→ https://clawhub.ai/kurosh87/aerobase-travel-concierge
+## Legacy Search
 
-Includes: flights, hotels, lounges, awards, activities, deals, wallet + **PREMIUM recovery plans**
+**GET /api/lounges** — `{ airport?, airline?, network?, tier?, search? }`
+**GET /api/airports/{code}/lounges** — lounges at specific airport
 
-## What This Skill Does
+Data sourced from LR tables with detailed lounge information.
 
-- Search airport lounges worldwide
-- Filter by airline, network, terminal
-- Show recovery scores (1-10)
-- Highlight amenities: showers, spa, sleep pods
-- Note Priority Pass and status access
+## Lounge Data
 
-## Example Conversations
+The database contains lounges with these jetlag-relevant fields:
+- **recoveryScore**: 1-10 scale, higher = better for recovery
+- **hasShowers**: Boolean - important for freshening up between flights
+- **hasSpa**: Boolean - premium recovery option
+- **hasSleepPods**: Boolean - for rest between flights
+- **quietZone**: Boolean - important for circadian alignment
+- **naturalLight**: Boolean - helps with jetlag adjustment
+- **amenities**: Array - food, bar, showers, spa, sleep pods, quiet zone, etc.
 
-```
-User: "What lounges at JFK terminal 4 have showers?"
-→ Shows lounges with shower facilities
-→ Highlights recovery scores
-→ Notes Priority Pass acceptance
+## Always
 
-User: "6-hour layover at LHR - worth leaving for a lounge?"
-→ Shows nearby lounges with scores
-→ Compares to staying in terminal
-→ Factors your jetlag from incoming flight
-```
-
-## API Documentation
-
-Full API docs: https://aerobase.app/developers
-
-OpenAPI spec: https://aerobase.app/api/v1/openapi
-
-**GET /api/v1/lounges**
-
-Query params:
-- `airport` — IATA code (JFK, LAX, etc.)
-- `airline` — airline name
-- `network` — Priority Pass, Centurion, etc.
-- `tier` — 1 (domestic), 2 (international), 3 (first)
-
-Returns lounges with recovery scores, amenities, access info.
+- Show recovery score alongside lounge recommendations
+- Recommend showers for long-haul arrivals
+- Suggest quiet zones for red-eye flights
+- Note Priority Pass acceptance for access options
+- Consider layover duration when recommending lounge vs. hotel
 
 ## Rate Limits
 
-- **Free**: 5 requests/day
-- **Premium**: Unlimited + all skills + recovery plans
+- Lounge search: max 30/hr
+- Airport-specific queries: max 20/hr
 
-Get premium: https://aerobase.app/openclaw-travel-agent/pricing
+## Browser Automation — Lounge Verification
 
-## Get Everything
+Only use browser for:
+- Visual verification of lounge location/quality
+- Real-time hours verification
+- Access requirement confirmation (Priority Pass, airline status, etc.)
 
-**Install the complete package:**
+### Scrapling — Priority Pass Lounge Lookup
 
-```bash
-clawhub install aerobase-travel-concierge
+Priority Pass is in the scrapling tier (no proxy needed). Use for real-time hours verification
+and access requirement confirmation:
+
+Reference: [Scrapling Documentation](https://scrapling.readthedocs.io/en/latest/overview.html)
+
+```
+web_fetch {SCRAPLING_URL}/fetch?url=https://www.prioritypass.com/lounges/united-states/new-york-ny/jfk-john-f-kennedy-intl&json=1&extract=css&selector=.lounge-card
 ```
 
-All 9 skills + premium recovery plans:
-→ https://clawhub.ai/kurosh87/aerobase-travel-concierge
+Replace the country/city/airport path segments for other locations. Returns lounge details
+including opening hours, access methods, and amenities.
+
+For lounge card rendering, see **aerobase-ui** SKILL for LoungeCard component spec.
+
+### When to SKIP browser
+- General lounge search → API has comprehensive data
+- Access verification → API shows Priority Pass, airline, etc.
+- Only use browser for visual confirmation or hours check
