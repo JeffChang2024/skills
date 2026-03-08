@@ -4,11 +4,12 @@ skill_version: "1.0.0"
 display_name: UK Compliance
 icon: flag
 color: "#012169"
+default_entity: regional_settings
 
 entities:
   regional_settings:
     label: Regional Settings
-    label_plural: Regional Settingses
+    label_plural: Regional Settings
     table: regional_settings
     id_col: id
     name_col: id

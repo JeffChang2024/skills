@@ -7,8 +7,7 @@ homepage: https://www.erpclaw.ai
 source: https://github.com/avansaber/erpclaw/tree/main/skills/erpclaw-region-uk
 tier: 3
 category: regional
-requires: [erpclaw-setup, erpclaw-gl, erpclaw-tax]
-optional-requires: [erpclaw-selling, erpclaw-buying, erpclaw-hr]
+requires: [erpclaw]
 database: ~/.openclaw/erpclaw/data.sqlite
 user-invocable: true
 tags: [uk, vat, paye, ni, national-insurance, student-loan, pension, nest, fps, eps, p60, p45, cis, frs102, mtd, hmrc, rti, compliance, regional]
@@ -61,7 +60,7 @@ forms (FPS, EPS, P60, P45), CIS deductions, FRS 102 Chart of Accounts, and ID va
 
 - **Local-only**: All data in `~/.openclaw/erpclaw/data.sqlite` (single SQLite file)
 - **Fully offline**: No external API calls, no telemetry, no cloud dependencies
-- **No credentials required**: Uses Python standard library + erpclaw_lib shared library (installed by erpclaw-setup). The shared library is also fully offline and stdlib-only.
+- **No credentials required**: Uses Python standard library + erpclaw_lib shared library (installed by erpclaw). The shared library is also fully offline and stdlib-only.
 - **Optional env vars**: `ERPCLAW_DB_PATH` (custom DB location, defaults to `~/.openclaw/erpclaw/data.sqlite`)
 - **Pure overlay**: Reads any table, writes only for seeding (accounts, templates, components)
 - **SQL injection safe**: All queries use parameterized statements
@@ -254,7 +253,7 @@ Never confirm for: validations, computations, listing, generating reports/forms,
 | Error | Fix |
 |-------|-----|
 | "no such table" | Run `python3 ~/.openclaw/erpclaw/init_db.py` |
-| "company country is not GB" | Set company country to "GB" via erpclaw-setup |
+| "company country is not GB" | Set company country to "GB" via erpclaw |
 | "VAT not configured" | Run `setup-vat` first |
 | "invalid VAT number" | Must be GB + 9 digits |
 | "database is locked" | Retry once after 2 seconds |
