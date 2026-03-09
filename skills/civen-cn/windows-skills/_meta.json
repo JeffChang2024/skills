@@ -1,0 +1,11 @@
+{
+  "owner": "civen-cn",
+  "slug": "windows-skills",
+  "displayName": "Windows Skills",
+  "latest": {
+    "version": "1.0.1",
+    "publishedAt": 1772982090921,
+    "commit": null
+  },
+  "history": []
+}
