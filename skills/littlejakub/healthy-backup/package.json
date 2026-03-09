@@ -1,0 +1,25 @@
+{
+  "name": "healthy-backup",
+  "version": "1.2.3",
+  "description": "Health-gated backup for OpenClaw rigs. Audits first, backs up only if healthy. Three tiers, 5-backup retention, optional rclone sync.",
+  "bin": {
+    "healthy-backup": "./healthy-backup.sh",
+    "verify-backup": "./verify-backup.sh"
+  },
+  "author": "Jakub",
+  "license": "MIT",
+  "os": ["linux"],
+  "files": [
+    "healthy-backup.sh",
+    "verify-backup.sh",
+    "SKILL.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "systemDependencies": {
+    "required": ["tar", "gpg", "jq", "rsync"],
+    "optional": ["rclone", "ollama"]
+  },
+  "notes": "systemDependencies are OS-level binaries, not npm packages. Install via your system package manager (e.g. apt install tar gpg jq rsync)."
+}
