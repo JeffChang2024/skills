@@ -1,0 +1,11 @@
+{
+  "owner": "ppopen",
+  "slug": "openclaw-skill-keychain-access",
+  "displayName": "Keychain Access",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1772930905186,
+    "commit": null
+  },
+  "history": []
+}
