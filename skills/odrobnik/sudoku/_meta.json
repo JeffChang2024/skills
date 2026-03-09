@@ -3,11 +3,16 @@
   "slug": "sudoku",
   "displayName": "Sudoku",
   "latest": {
-    "version": "2.4.0",
-    "publishedAt": 1771936637103,
-    "commit": "https://github.com/openclaw/skills/commit/3b358395735d129f21e2704d138299084432352a"
+    "version": "2.4.2",
+    "publishedAt": 1772921924236,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.4.0",
+      "publishedAt": 1771936637103,
+      "commit": "https://github.com/openclaw/skills/commit/3b358395735d129f21e2704d138299084432352a"
+    },
     {
       "version": "2.2.0",
       "publishedAt": 1771302895322,

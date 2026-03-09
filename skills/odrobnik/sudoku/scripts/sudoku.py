@@ -58,21 +58,32 @@ from sudoku_print_render import render_sudoku_a4_pdf  # type: ignore
 
 
 # Storage (workspace-local)
-# Walk up from the script's location to find the workspace root (parent of "skills/").
+# Walk up from CWD to find the workspace root (parent of "skills/").
 # Falls back to SUDOKU_WORKSPACE env var, then cwd.
 def _find_workspace_root() -> Path:
-    # Prefer CWD if it looks like a workspace (handles symlinks correctly)
-    cwd = Path.cwd()
-    if (cwd / "skills").is_dir():
-        return cwd
+    # Use $PWD (shell's logical path) which preserves symlinks,
+    # unlike Path.cwd() / os.getcwd() which resolve them.
+    # This handles: `cd ~/clawd/skills/sudoku && python3 scripts/sudoku.py ...`
+    # where ~/clawd/skills/sudoku is a symlink — we want ~/clawd, not the resolved target.
+    pwd_env = os.environ.get("PWD")
+    cwd = Path(pwd_env) if pwd_env else Path.cwd()
 
-    # Script is at <workspace>/skills/sudoku/scripts/sudoku.py
+    d = cwd
+    for _ in range(6):
+        if (d / "skills").is_dir() and d != d.parent:
+            return d
+        parent = d.parent
+        if parent == d:
+            break
+        d = parent
+
+    # Fallback: walk up from script location (resolved, for direct invocations).
     d = Path(__file__).resolve().parent
     for _ in range(6):
         if (d / "skills").is_dir() and d != d.parent:
             return d
         d = d.parent
-    return Path.cwd()
+    return cwd
 
 WORKSPACE_ROOT = _find_workspace_root()
 PUZZLES_DIR = WORKSPACE_ROOT / "sudoku" / "puzzles"
