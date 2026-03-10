@@ -9,8 +9,6 @@ metadata:
     requires:
       bins:
         - node
-      writes:
-        - CONFIG/news-preferences.md
     optionalEnv:
       - TAVILY_API_KEY
     install:

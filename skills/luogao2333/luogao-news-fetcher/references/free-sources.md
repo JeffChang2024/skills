@@ -110,27 +110,88 @@ https://www.bbc.com/zhongwen/simp/rss.xml
 
 ---
 
-## 浏览器书签工具
+## 文本提取工具
 
-### 快速访问
+### r.jina.ai
 
-**创建书签，URL 设为:**
+**URL 格式:** `https://r.jina.ai/http://{原文链接}`
 
-```javascript
-// smry.ai
-javascript:location.href='https://smry.ai/'+encodeURIComponent(location.href);
+**功能:**
+- 将网页转为纯文本
+- 移除广告、图片、脚本
+- 适合打印和阅读
 
-// 12ft.io
-javascript:location.href='https://12ft.io/'+encodeURIComponent(location.href);
-
-// 查看源代码
-javascript:document.body.innerText;
-
-// 禁用 JS 后刷新（需要扩展）
+**命令行:**
+```bash
+curl "https://r.jina.ai/http://example.com/article"
 ```
 
-**使用:** 在付费页面点击书签即可
+### Reader Mode
+
+**浏览器内置:**
+- Safari: 视图 → 显示阅读器
+- Chrome: 侧边栏 → 阅读模式
+- Firefox: 地址栏右侧阅读器图标
+
+**强制开启:**
+某些网站可以设置为始终使用阅读模式打开
 
 ---
 
-_最后更新: 2026-03-05_
+## 公开存档服务
+
+### Wayback Machine
+
+**URL:** `https://web.archive.org/`
+
+**使用:**
+1. 访问网站
+2. 粘贴 URL
+3. 查看历史快照
+
+**API:**
+```
+https://archive.org/wayback/available?url={encoded_url}
+```
+
+**浏览器扩展:** Wayback Machine (official)
+
+### Google Cache
+
+**方法 1:** 搜索 `cache:{原文链接}`
+
+**方法 2:** 
+```
+https://webcache.googleusercontent.com/search?q=cache:{原文链接}
+```
+
+**注意:** 并非所有页面都有缓存
+
+### Archive.today
+
+**别名:** archive.is / archive.ph
+
+**使用:** `https://archive.today/{原文链接}`
+
+---
+
+## 免费 API 资源
+
+### 新闻 API
+
+| API | 免费额度 | 特点 |
+|-----|---------|------|
+| NewsAPI.org | 100 请求/天 | 全球新闻源 |
+| Guardian Open Platform | 免费 | 卫报内容 |
+| Newsdata.io | 200 请求/天 | 多语言 |
+| GNews | 100 请求/天 | 实时新闻 |
+
+### 学术资源
+
+**Unpaywall:** 自动查找学术论文免费版本
+
+**Google Scholar:** 搜索 `[PDF]` 标签
+
+---
+
+_最后更新: 2026-03-10_

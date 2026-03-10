@@ -1,14 +1,13 @@
 #!/usr/bin/env node
 
 /**
- * News Fetcher - 新闻获取工具 v2
+ * News Fetcher - 新闻获取工具 v3
  * 
  * 用法:
  *   node fetch_news.mjs <url>
- *   node fetch_news.mjs <url> --method smry
+ *   node fetch_news.mjs <url> --method archive
  *   node fetch_news.mjs <url> --method jina
  *   node fetch_news.mjs <url> --search "关键词"
- *   node fetch_news.mjs <url> --all
  */
 
 import fetch from 'node-fetch';
@@ -21,76 +20,30 @@ const methodIndex = args.indexOf('--method');
 const method = methodIndex > -1 ? args[methodIndex + 1] : 'auto';
 const searchIndex = args.indexOf('--search');
 const searchQuery = searchIndex > -1 ? args[searchIndex + 1] : null;
-const useAll = args.includes('--all');
 
 if (!url && !searchQuery) {
-  console.log('News Fetcher v2 - 新闻获取工具\n');
+  console.log('News Fetcher v3 - 新闻获取工具\n');
   console.log('用法:');
   console.log('  node fetch_news.mjs <url>');
-  console.log('  node fetch_news.mjs <url> --method smry|jina|12ft|direct');
+  console.log('  node fetch_news.mjs <url> --method archive|jina|direct');
   console.log('  node fetch_news.mjs <url> --search "关键词"');
-  console.log('  node fetch_news.mjs <url> --all  # 尝试所有方法');
   console.log('\n方法说明:');
-  console.log('  smry  - smry.ai（推荐）');
-  console.log('  jina   - r.jina.ai（文本提取）');
-  console.log('  12ft   - 12ft.io');
-  console.log('  direct - 直接访问');
+  console.log('  archive - archive.today 公开存档');
+  console.log('  jina    - r.jina.ai 文本提取');
+  console.log('  direct  - 直接访问');
+  console.log('  auto    - 自动尝试（默认）');
   process.exit(1);
 }
 
-// 工具 URL 构建器
-const tools = {
-  smry: (url) => `https://smry.ai/${url}`,
+// 公开存档服务
+const archiveServices = {
+  archive: (url) => `https://archive.today/${url}`,
+  wayback: (url) => `https://web.archive.org/web/${url}`,
   jina: (url) => `https://r.jina.ai/http://${url}`,
-  '12ft': (url) => `https://12ft.io/${url}`,
-  removepaywalls: (url) => `https://removepaywalls.com/${url}`,
   direct: (url) => url
 };
 
-// 使用 Tavily extract
-async function extractWithTavily(targetUrl) {
-  if (!TAVILY_API_KEY) {
-    throw new Error('需要设置 TAVILY_API_KEY 环境变量');
-  }
-
-  const response = await fetch('https://api.tavily.com/extract', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${TAVILY_API_KEY}`
-    },
-    body: JSON.stringify({
-      urls: [targetUrl],
-      extract_depth: 'advanced'
-    })
-  });
-
-  const data = await response.json();
-  
-  if (data.results && data.results.length > 0) {
-    return data.results[0];
-  }
-  
-  throw new Error(data.error || '提取失败');
-}
-
-// 直接获取
-async function fetchDirect(targetUrl) {
-  const response = await fetch(targetUrl, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
-    }
-  });
-  
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-  
-  const text = await response.text();
-  return { raw_content: text };
-}
-
-// 搜索替代文章
+// 使用 Tavily 搜索
 async function searchAlternatives(query) {
   if (!TAVILY_API_KEY) {
     throw new Error('需要设置 TAVILY_API_KEY 环境变量');
@@ -112,9 +65,25 @@ async function searchAlternatives(query) {
   return data.results || [];
 }
 
-// 尝试单个方法
-async function tryMethod(originalUrl, methodName) {
-  const targetUrl = tools[methodName](originalUrl);
+// 直接获取
+async function fetchDirect(targetUrl) {
+  const response = await fetch(targetUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible; NewsFetcher/3.0)'
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  const text = await response.text();
+  return { raw_content: text };
+}
+
+// 尝试获取内容
+async function tryFetch(originalUrl, methodName) {
+  const targetUrl = archiveServices[methodName](originalUrl);
   
   console.log(`  尝试 ${methodName}: ${targetUrl.substring(0, 60)}...`);
   
@@ -129,7 +98,8 @@ async function tryMethod(originalUrl, methodName) {
       const text = await response.text();
       result = { raw_content: text };
     } else {
-      result = await extractWithTavily(targetUrl);
+      // archive.today 等存档服务
+      result = await fetchDirect(targetUrl);
     }
     
     if (result.raw_content && result.raw_content.length > 300) {
@@ -150,16 +120,16 @@ async function tryMethod(originalUrl, methodName) {
 // 主函数
 async function main() {
   console.log('━'.repeat(50));
-  console.log('📰 News Fetcher v2');
+  console.log('📰 News Fetcher v3 - 公开存档访问');
   console.log('━'.repeat(50) + '\n');
 
   // 搜索模式
   if (searchQuery) {
-    console.log(`🔍 搜索替代文章: "${searchQuery}"\n`);
+    console.log(`🔍 搜索相关文章: "${searchQuery}"\n`);
     const results = await searchAlternatives(searchQuery);
     
     if (results.length === 0) {
-      console.log('❌ 未找到替代文章');
+      console.log('❌ 未找到相关文章');
       return;
     }
     
@@ -180,13 +150,13 @@ async function main() {
   console.log(`🎯 方法: ${method}\n`);
 
   // 确定要尝试的方法
-  const methodsToTry = useAll 
-    ? ['smry', 'jina', '12ft', 'direct'] 
-    : (method === 'auto' ? ['smry', 'jina', '12ft'] : [method]);
+  const methodsToTry = method === 'auto' 
+    ? ['archive', 'wayback', 'jina', 'direct'] 
+    : [method];
 
   // 尝试每个方法
   for (const m of methodsToTry) {
-    const result = await tryMethod(url, m);
+    const result = await tryFetch(url, m);
     
     if (result.success) {
       console.log(`\n✅ 成功获取 (${result.method})`);
@@ -205,9 +175,8 @@ async function main() {
   console.log('❌ 所有方法都失败了\n');
   console.log('💡 建议:');
   console.log('   1. 搜索替代信源（BBC/Reuters/AP）');
-  console.log('   2. 使用浏览器扩展 Bypass Paywalls Clean');
-  console.log('   3. 尝试禁用 JavaScript');
-  console.log('   4. 换用 r.jina.ai/http://链接');
+  console.log('   2. 手动访问 archive.today');
+  console.log('   3. 查看其他媒体报道同一事件');
 }
 
 main().catch(err => {
