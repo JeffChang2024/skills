@@ -1,147 +1,151 @@
 ---
 name: guard-scanner
-description: "Security scanner for AI agent skills. 135 static patterns + 26 runtime checks across 22 threat categories. Detects prompt injection, credential theft, exfiltration, identity hijacking, and more. Zero dependencies."
-metadata:
-  clawdbot:
-    homepage: "https://github.com/koatora20/guard-scanner"
-requires:
-  env: {}
+description: "Security scanner and runtime guard for AI agent skills. 352 static threat patterns across 32 categories + 26 runtime checks (5 defense layers). Use when scanning skill directories for security threats, auditing npm/GitHub/ClawHub assets for leaked credentials, running real-time file watch during development, integrating security checks into CI/CD pipelines (SARIF/JSON), setting up MCP server for editor-integrated scanning (Cursor, Windsurf, Claude Code, OpenClaw), or runtime guarding tool calls via before_tool_call hook. Single dependency (ws). MIT licensed."
+license: MIT
+metadata: {"openclaw": {"requires": {"bins": ["node"]}}}
 ---
 
-# guard-scanner 🛡️
+# guard-scanner
 
-Static + runtime security scanner for AI agent skills.
-**135 static patterns + 26 runtime patterns (5 layers)** across **22 categories** — zero dependencies. **0.016ms/scan.**
-
-## When To Use This Skill
-
-- **Before installing a new skill** from ClawHub or any external source
-- **After updating skills** to check for newly introduced threats
-- **Periodically** to audit your installed skills
-- **In CI/CD** to gate skill deployments
+Scan AI agent skills for 32 categories of threats. Detect prompt injection, identity hijacking, memory poisoning, MCP tool poisoning, supply chain attacks, and 27 more threat classes that traditional security tools miss.
 
 ## Quick Start
 
-### 1. Static Scan (Immediate)
-
-Scan all installed skills:
-
 ```bash
-node skills/guard-scanner/src/cli.js ~/.openclaw/workspace/skills/ --verbose --self-exclude
+# Scan a skill directory
+npx -y @guava-parity/guard-scanner ./my-skills/ --verbose
+
+# Scan with identity protection
+npx -y @guava-parity/guard-scanner ./skills/ --soul-lock --strict
 ```
 
-Scan a specific skill:
+## Core Commands
+
+### Scan
 
 ```bash
-node skills/guard-scanner/src/cli.js /path/to/new-skill/ --strict --verbose
+guard-scanner scan <dir>        # Scan directory
+guard-scanner scan <dir> -v     # Verbose output
+guard-scanner scan <dir> --json # JSON output
+guard-scanner scan <dir> --sarif # SARIF for CI/CD
+guard-scanner scan <dir> --html # HTML report
 ```
 
-### 2. Runtime Guard (OpenClaw Plugin Hook)
+### Asset Audit
 
-Blocks dangerous tool calls in real-time via `before_tool_call` hook. 26 patterns, 5 layers, 3 enforcement modes.
+Audit public registries for credential exposure.
 
 ```bash
-openclaw hooks install skills/guard-scanner/hooks/guard-scanner
-openclaw hooks enable guard-scanner
-openclaw hooks list
+guard-scanner audit npm <username>
+guard-scanner audit github <username>
+guard-scanner audit clawhub <query>
+guard-scanner audit all <username> --verbose
 ```
 
-### 3. Recommended order
+### MCP Server
+
+Start as MCP server for IDE integration.
 
 ```bash
-# Pre-install / pre-update gate first
-node skills/guard-scanner/src/cli.js ~/.openclaw/workspace/skills/ --verbose --self-exclude --html
-
-# Then keep runtime monitoring enabled
-openclaw hooks install skills/guard-scanner/hooks/guard-scanner
-openclaw hooks enable guard-scanner
+guard-scanner serve
 ```
 
-## Runtime Guard Modes
+Editor config (Cursor, Windsurf, Claude Code, OpenClaw):
 
-Set in `openclaw.json` → `hooks.internal.entries.guard-scanner.mode`:
+```json
+{
+  "mcpServers": {
+    "guard-scanner": {
+      "command": "npx",
+      "args": ["-y", "@guava-parity/guard-scanner", "serve"]
+    }
+  }
+}
+```
 
-| Mode | Intended Behavior | Current Status |
-|------|-------------------|----------------|
-| `monitor` | Log all, never block | ✅ Fully working |
-| `enforce` (default) | Block CRITICAL threats | ✅ Fully working |
-| `strict` | Block HIGH + CRITICAL | ✅ Fully working |
+MCP tools: `scan_skill`, `scan_text`, `check_tool_call`, `audit_assets`, `get_stats`.
+
+### Watch Mode
+
+Monitor skill directories in real-time during development.
+
+```bash
+guard-scanner watch ./skills/ --strict --soul-lock
+```
+
+### VirusTotal Integration
+
+Combine semantic detection with VirusTotal's 70+ antivirus engines. Optional — guard-scanner works fully without it.
+
+```bash
+export VT_API_KEY=your-key
+guard-scanner scan ./skills/ --vt-scan
+```
+
+## Runtime Guard
+
+The `before_tool_call` hook provides 26 runtime checks across 5 defense layers:
+
+| Layer | Focus |
+|-------|-------|
+| 1. Threat Detection | Reverse shell, curl\|bash, SSRF |
+| 2. Trust Defense | SOUL.md tampering, memory injection |
+| 3. Safety Judge | Prompt injection in tool arguments |
+| 4. Behavioral | No-research execution detection |
+| 5. Trust Exploitation | Authority claims, creator bypass |
+
+Modes: `monitor` (log only), `enforce` (block CRITICAL, default), `strict` (block HIGH+).
+
+## Key Flags
+
+| Flag | Effect |
+|------|--------|
+| `--verbose` / `-v` | Detailed findings with line numbers |
+| `--strict` | Lower detection thresholds |
+| `--soul-lock` | Enable identity protection patterns |
+| `--vt-scan` | Add VirusTotal double-layered check |
+| `--json` / `--sarif` / `--html` | Output format |
+| `--fail-on-findings` | Exit 1 on findings (CI/CD) |
+| `--check-deps` | Scan package.json dependencies |
+| `--rules <file>` | Load custom rules JSON |
+| `--plugin <file>` | Load plugin module |
+
+## Custom Rules
+
+```javascript
+module.exports = {
+  name: 'my-plugin',
+  patterns: [
+    { id: 'MY_01', cat: 'custom', regex: /dangerous_pattern/g, severity: 'HIGH', desc: 'Description', all: true }
+  ]
+};
+```
+
+```bash
+guard-scanner ./skills/ --plugin ./my-plugin.js
+```
+
+## CI/CD Integration
+
+```yaml
+# .github/workflows/security.yml
+- name: Scan AI skills
+  run: npx -y @guava-parity/guard-scanner ./skills/ --format sarif --fail-on-findings > report.sarif
+- uses: github/codeql-action/upload-sarif@v3
+  with:
+    sarif_file: report.sarif
+```
 
 ## Threat Categories
 
-| # | Category | What It Detects |
-|---|----------|----------------|
-| 1 | Prompt Injection | Hidden instructions, invisible Unicode, homoglyphs |
-| 2 | Malicious Code | eval(), child_process, reverse shells |
-| 3 | Suspicious Downloads | curl\|bash, executable downloads |
-| 4 | Credential Handling | .env reads, SSH key access |
-| 5 | Secret Detection | Hardcoded API keys and tokens |
-| 6 | Exfiltration | webhook.site, DNS tunneling |
-| 7 | Unverifiable Deps | Remote dynamic imports |
-| 8 | Financial Access | Crypto wallets, payment APIs |
-| 9 | Obfuscation | Base64→eval, String.fromCharCode |
-| 10 | Prerequisites Fraud | Fake download instructions |
-| 11 | Leaky Skills | Secret leaks through LLM context |
-| 12 | Memory Poisoning\* | Agent memory modification |
-| 13 | Prompt Worm | Self-replicating instructions |
-| 14 | Persistence | Cron jobs, startup execution |
-| 15 | CVE Patterns | Known agent vulnerabilities |
-| 16 | MCP Security | Tool/schema poisoning, SSRF |
-| 17 | Identity Hijacking\* | SOUL.md/IDENTITY.md tampering |
-| 18 | Sandbox Validation | Dangerous binaries, broad file scope, sensitive env |
-| 19 | Code Complexity | Excessive file length, deep nesting, eval density |
-| 20 | Config Impact | openclaw.json writes, exec approval bypass |
+32 categories covering OWASP LLM Top 10 + Agentic Security Top 10. See `src/patterns.js` for the full pattern database. Key categories:
 
-## External Endpoints
+- **Prompt Injection** — hidden instructions, invisible Unicode, homoglyphs
+- **Identity Hijacking** ⚿ — persona swap, SOUL.md overwrites, memory wipe
+- **Memory Poisoning** ⚿ — crafted conversation injection
+- **MCP Security** — tool poisoning, SSRF, shadow servers
+- **A2A Contagion** — agent-to-agent worm propagation
+- **Supply Chain V2** — typosquatting, slopsquatting, lifecycle scripts
+- **CVE Patterns** — CVE-2026-2256, 25046, 25253, 25905, 27825
 
-| URL | Data Sent | Purpose |
-|-----|-----------|---------|
-| *(none)* | *(none)* | guard-scanner makes **zero** network requests. All scanning is local. |
-
-## Security & Privacy
-
-- **No network access**: guard-scanner never connects to external servers
-- **Read-only scanning**: Only reads files, never modifies scanned directories
-- **No telemetry**: No usage data, analytics, or crash reports are collected
-- **Local reports only**: Output files (JSON/SARIF/HTML) are written to the scan directory
-- **No environment variable access**: Does not read or process any secrets or API keys
-- **Runtime Guard audit log**: Detections logged locally to `~/.openclaw/guard-scanner/audit.jsonl`
-
-## Model Invocation Note
-
-guard-scanner **does not invoke any LLM or AI model**. All detection is performed
-through static pattern matching, regex analysis, Shannon entropy calculation,
-and data flow analysis — entirely deterministic, no model calls.
-
-## Trust Statement
-
-guard-scanner was created by Guava 🍈 & Dee after experiencing a real 3-day
-identity hijack incident in February 2026. A malicious skill silently replaced
-an AI agent's SOUL.md personality file, and no existing tool could detect it.
-
-- **Open source**: Full source code available at https://github.com/koatora20/guard-scanner
-- **Zero dependencies**: Nothing to audit, no transitive risks
-- **Test suite**: 134 tests across 24 suites, 100% pass rate
-- **Taxonomy**: Based on Snyk ToxicSkills (Feb 2026), OWASP MCP Top 10, and original research
-- **Complementary to VirusTotal**: Detects prompt injection and LLM-specific attacks
-  that VirusTotal's signature-based scanning cannot catch
-
-## Output Formats
-
-```bash
-# Terminal (default)
-node src/cli.js ./skills/ --verbose
-
-# JSON report
-node src/cli.js ./skills/ --json
-
-# SARIF 2.1.0 (for CI/CD)
-node src/cli.js ./skills/ --sarif
-
-# HTML dashboard
-node src/cli.js ./skills/ --html
-```
-
-## License
-
-MIT — [LICENSE](LICENSE)
+> ⚿ = Requires `--soul-lock` flag

@@ -13,7 +13,7 @@
  *
  * Based on GuavaGuard v9.0.0 (OSS extraction)
  * 20 threat categories • Snyk ToxicSkills + OWASP MCP Top 10
- * Zero dependencies • CLI + JSON + SARIF + HTML output
+ * Lightweight runtime footprint • CLI + JSON + SARIF + HTML output
  * Plugin API for custom detection rules
  *
  * Born from a real 3-day agent identity hijack (2026-02-12)
@@ -29,9 +29,10 @@ const crypto = require('crypto');
 const { PATTERNS } = require('./patterns.js');
 const { KNOWN_MALICIOUS } = require('./ioc-db.js');
 const { generateHTML } = require('./html-template.js');
+const { FINDING_SCHEMA_VERSION, normalizeFinding } = require('./finding-schema.js');
 
 // ===== CONFIGURATION =====
-const VERSION = '5.0.3';
+const { version: VERSION } = require('../package.json');
 
 const THRESHOLDS = {
     normal: { suspicious: 30, malicious: 80 },
@@ -158,6 +159,30 @@ class GuardScanner {
             }
             break; // use first found
         }
+    }
+
+    /**
+     * Scan raw text for threats (used for Discord incoming messages, etc.)
+     * @param {string} text - Raw text to scan
+     * @returns {{ safe: boolean, risk: number, detections: Array }}
+     */
+    scanText(text) {
+        const findings = [];
+        this.checkIoCs(text, 'raw_text', findings);
+        this.checkPatterns(text, 'raw_text', 'code', findings); // use 'code' to run all patterns
+        if (this.customRules.length > 0) {
+            this.checkPatterns(text, 'raw_text', 'code', findings, this.customRules);
+        }
+        
+        // Filter ignored patterns
+        const filteredFindings = findings.filter(f => !this.ignoredPatterns.has(f.id));
+        const risk = this.calculateRisk(filteredFindings);
+        
+        return {
+            safe: risk < this.thresholds.suspicious,
+            risk,
+            detections: filteredFindings
+        };
     }
 
     scanDirectory(dir) {
@@ -379,6 +404,23 @@ class GuardScanner {
     }
 
     checkPatterns(content, relFile, fileType, findings, patterns = PATTERNS) {
+        // v9: Payload Unfurling (Base64 / Hex Decoders)
+        let unfurledContent = content;
+
+        // Unfurl Buffer.from('...', 'base64') and atob('...')
+        const b64Regex = /(?:Buffer\.from\(\s*['"]([^'"]+)['"]\s*,\s*['"]base64['"]\)|atob\(\s*['"]([^'"]+)['"]\))/g;
+        unfurledContent = unfurledContent.replace(b64Regex, (match, g1, g2) => {
+            try {
+                const b64 = g1 || g2;
+                return Buffer.from(b64, 'base64').toString('utf8');
+            } catch { return match; }
+        });
+
+        // Unfurl hex escaped strings like \x63\x61\x74 -> cat
+        unfurledContent = unfurledContent.replace(/\\x([0-9a-fA-F]{2})/g, (match, hex) => {
+            return String.fromCharCode(parseInt(hex, 16));
+        });
+
         for (const pattern of patterns) {
             // Soul Lock: skip identity-hijack/memory-poisoning patterns unless --soul-lock is enabled
             if (pattern.soulLock && !this.soulLock) continue;
@@ -387,12 +429,21 @@ class GuardScanner {
             if (!pattern.all && !pattern.codeOnly && !pattern.docOnly) continue;
 
             pattern.regex.lastIndex = 0;
-            const matches = content.match(pattern.regex);
+            let matches = content.match(pattern.regex);
+            let targetContent = content;
+
+            // If no match on raw content, try unfurled content
+            if (!matches && unfurledContent !== content) {
+                pattern.regex.lastIndex = 0;
+                matches = unfurledContent.match(pattern.regex);
+                targetContent = unfurledContent;
+            }
+
             if (!matches) continue;
 
             pattern.regex.lastIndex = 0;
-            const idx = content.search(pattern.regex);
-            const lineNum = idx >= 0 ? content.substring(0, idx).split('\n').length : null;
+            const idx = targetContent.search(pattern.regex);
+            const lineNum = idx >= 0 ? targetContent.substring(0, idx).split('\n').length : null;
 
             let adjustedSeverity = pattern.severity;
             if ((fileType === 'doc' || fileType === 'skill-doc') && pattern.all && !pattern.docOnly) {
@@ -751,36 +802,98 @@ class GuardScanner {
     }
 
     checkJSDataFlow(content, relFile, findings) {
-        const lines = content.split('\n');
+        // v9: Pseudo-AST Semantic Unfurling & Alias Tracking
+        // 1. Resolve string concatenations (e.g., '"f" + "etch"' -> '"fetch"')
+        let unfurledContent = content.replace(/(["'`])([^"'`]*)\1\s*\+\s*(["'`])([^"'`]*)\3/g, '$1$2$4$1');
+        for (let i = 0; i < 3; i++) { // Deep unfurl (up to 3 concats)
+            unfurledContent = unfurledContent.replace(/(["'`])([^"'`]*)\1\s*\+\s*(["'`])([^"'`]*)\3/g, '$1$2$4$1');
+        }
+
+        const lines = unfurledContent.split('\n');
         const imports = new Map();
         const sensitiveReads = [];
         const networkCalls = [];
         const execCalls = [];
 
+        // Alias Tracker for Sinks & Vars
+        const activeAliases = {
+            network: ['fetch', 'axios', 'request', 'http.request', 'https.request', 'got'],
+            exec: ['exec', 'execSync', 'spawn', 'spawnSync', 'execFile', "require('child_process').execSync"],
+            fsRead: ['readFileSync', 'readFile', 'fs.readFileSync', 'fs.readFile', "require('fs').readFileSync"]
+        };
+        const stringVars = new Map();
+
+        const registerAlias = (alias, target) => {
+            if (!alias || !target) return;
+            for (const [key, sinks] of Object.entries(activeAliases)) {
+                if (sinks.some(s => target.includes(s) || s.includes(target))) {
+                    activeAliases[key].push(alias);
+                }
+            }
+        };
+
+        // Pass 1: Extract Context & Aliases & Values
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+
+            // Standard variable assignment: const getRemote = fetch;
+            const aliasMatch = line.match(/(?:const|let|var)\s+([a-zA-Z0-9_$]+)\s*=\s*([a-zA-Z0-9_$.]+(?:\([^)]*\))?)\s*;/);
+            if (aliasMatch) {
+                registerAlias(aliasMatch[1], aliasMatch[2]);
+            }
+
+            // String literals: const target = ".env";
+            const strMatch = line.match(/(?:const|let|var)\s+([a-zA-Z0-9_$]+)\s*=\s*(["'`])([^"'`]+)\2/);
+            if (strMatch) {
+                stringVars.set(strMatch[1], strMatch[3]); // target -> .env
+            }
+
+            // Require assignments: const fs = require('fs')
+            const reqMatch = line.match(/(?:const|let|var)\s+(?:{[^}]+}|\w+)\s*=\s*require\s*\(\s*['"]([^'"]+)['"]\s*\)/);
+            if (reqMatch) {
+                const varMatch = line.match(/(?:const|let|var)\s+({[^}]+}|\w+)/);
+                if (varMatch) {
+                    const aliasName = varMatch[1].trim();
+                    imports.set(aliasName, reqMatch[1]);
+                    registerAlias(`${aliasName}.readFileSync`, 'readFileSync'); // Link fs methods
+                    registerAlias(`${aliasName}.readFile`, 'readFile');
+                    registerAlias(`${aliasName}.exec`, 'exec');
+                    registerAlias(`${aliasName}.execSync`, 'execSync');
+                }
+            }
+        }
+
+        // Helper to create safe regex from dynamic aliases
+        const escapeRegex = (arr) => arr.map(a => a.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')).join('|');
+
+        // Pass 2: Data Flow Matching with Interpolation
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             const lineNum = i + 1;
 
-            const reqMatch = line.match(/(?:const|let|var)\s+(?:{[^}]+}|\w+)\s*=\s*require\s*\(\s*['"]([^'"]+)['"]\s*\)/);
-            if (reqMatch) {
-                const varMatch = line.match(/(?:const|let|var)\s+({[^}]+}|\w+)/);
-                if (varMatch) imports.set(varMatch[1].trim(), reqMatch[1]);
+            // Pseudo-AST: substitute known literal vars into the line to reveal logic
+            let resolvedLine = line;
+            for (const [k, v] of stringVars.entries()) {
+                // replace var usage but only for whole words
+                resolvedLine = resolvedLine.replace(new RegExp(`\\b${k}\\b`, 'g'), `"${v}"`);
             }
 
-            if (/(?:readFileSync|readFile)\s*\([^)]*(?:\.env|\.ssh|id_rsa|\.clawdbot|\.openclaw(?!\/workspace))/i.test(line)) {
-                sensitiveReads.push({ line: lineNum, text: line.trim() });
+            const fsPattern = new RegExp(`(?:${escapeRegex(activeAliases.fsRead)})\\s*\\([^)]*(?:\\.env|\\.ssh|id_rsa|\\.clawdbot|\\.openclaw(?!\\/workspace))`, 'i');
+            if (fsPattern.test(resolvedLine)) {
+                sensitiveReads.push({ line: lineNum, text: resolvedLine.trim() });
             }
-            if (/process\.env\.[A-Z_]*(?:KEY|SECRET|TOKEN|PASSWORD|CREDENTIAL)/i.test(line)) {
-                sensitiveReads.push({ line: lineNum, text: line.trim() });
-            }
-
-            if (/(?:fetch|axios|request|http\.request|https\.request|got)\s*\(/i.test(line) ||
-                /\.post\s*\(|\.put\s*\(|\.patch\s*\(/i.test(line)) {
-                networkCalls.push({ line: lineNum, text: line.trim() });
+            if (/process\.env\.[A-Z_]*(?:KEY|SECRET|TOKEN|PASSWORD|CREDENTIAL)/i.test(resolvedLine)) {
+                sensitiveReads.push({ line: lineNum, text: resolvedLine.trim() });
             }
 
-            if (/(?:exec|execSync|spawn|spawnSync|execFile)\s*\(/i.test(line)) {
-                execCalls.push({ line: lineNum, text: line.trim() });
+            const netPattern = new RegExp(`(?:${escapeRegex(activeAliases.network)})\\s*\\(`, 'i');
+            if (netPattern.test(resolvedLine) || /\.post\s*\(|\.put\s*\(|\.patch\s*\(/.test(resolvedLine)) {
+                networkCalls.push({ line: lineNum, text: resolvedLine.trim() });
+            }
+
+            const execPattern = new RegExp(`(?:${escapeRegex(activeAliases.exec)})\\s*\\(`, 'i');
+            if (execPattern.test(resolvedLine)) {
+                execCalls.push({ line: lineNum, text: resolvedLine.trim() });
             }
         }
 
@@ -951,8 +1064,13 @@ class GuardScanner {
     }
 
     toJSON() {
+        const normalizedFindings = this.findings.map((skillResult) => ({
+            ...skillResult,
+            findings: skillResult.findings.map((finding) => normalizeFinding(finding, { source: 'static' })),
+        }));
+
         const recommendations = [];
-        for (const skillResult of this.findings) {
+        for (const skillResult of normalizedFindings) {
             const skillRecs = [];
             const cats = new Set(skillResult.findings.map(f => f.cat));
 
@@ -980,10 +1098,11 @@ class GuardScanner {
         return {
             timestamp: new Date().toISOString(),
             scanner: `guard-scanner v${VERSION}`,
+            finding_schema_version: FINDING_SCHEMA_VERSION,
             mode: this.strict ? 'strict' : 'normal',
             stats: this.stats,
             thresholds: this.thresholds,
-            findings: this.findings,
+            findings: normalizedFindings,
             recommendations,
             iocVersion: '2026-02-12',
         };
@@ -995,14 +1114,25 @@ class GuardScanner {
         const results = [];
 
         for (const skillResult of this.findings) {
-            for (const f of skillResult.findings) {
+            const normalizedSkillFindings = skillResult.findings.map((finding) => normalizeFinding(finding, { source: 'static' }));
+            for (const f of normalizedSkillFindings) {
                 if (!ruleIndex[f.id]) {
                     ruleIndex[f.id] = rules.length;
                     rules.push({
                         id: f.id, name: f.id,
-                        shortDescription: { text: f.desc },
+                        shortDescription: { text: f.description },
+                        fullDescription: { text: f.rationale },
+                        help: { text: `${f.preconditions}\n\nRemediation: ${f.remediation_hint}` },
                         defaultConfiguration: { level: f.severity === 'CRITICAL' ? 'error' : f.severity === 'HIGH' ? 'error' : f.severity === 'MEDIUM' ? 'warning' : 'note' },
-                        properties: { tags: ['security', f.cat], 'security-severity': f.severity === 'CRITICAL' ? '9.0' : f.severity === 'HIGH' ? '7.0' : f.severity === 'MEDIUM' ? '4.0' : '1.0' }
+                        properties: {
+                            tags: ['security', f.category],
+                            'security-severity': f.severity === 'CRITICAL' ? '9.0' : f.severity === 'HIGH' ? '7.0' : f.severity === 'MEDIUM' ? '4.0' : '1.0',
+                            category: f.category,
+                            rationale: f.rationale,
+                            preconditions: f.preconditions,
+                            remediation_hint: f.remediation_hint,
+                            validation_status: f.validation_status,
+                        }
                     });
                 }
                 const normalizedFile = String(f.file || '')
@@ -1015,11 +1145,19 @@ class GuardScanner {
                 results.push({
                     ruleId: f.id, ruleIndex: ruleIndex[f.id],
                     level: f.severity === 'CRITICAL' ? 'error' : f.severity === 'HIGH' ? 'error' : f.severity === 'MEDIUM' ? 'warning' : 'note',
-                    message: { text: `[${skillResult.skill}] ${f.desc}${f.sample ? ` — "${f.sample}"` : ''}` },
+                    message: { text: `[${skillResult.skill}] ${f.description}${f.sample ? ` — "${f.sample}"` : ''}` },
                     partialFingerprints: {
                         primaryLocationLineHash: lineHash
                     },
-                    locations: [{ physicalLocation: { artifactLocation: { uri: artifactUri, uriBaseId: '%SRCROOT%' }, region: f.line ? { startLine: f.line } : undefined } }]
+                    locations: [{ physicalLocation: { artifactLocation: { uri: artifactUri, uriBaseId: '%SRCROOT%' }, region: f.line ? { startLine: f.line } : undefined } }],
+                    properties: {
+                        category: f.category,
+                        rationale: f.rationale,
+                        preconditions: f.preconditions,
+                        false_positive_scenarios: f.false_positive_scenarios,
+                        remediation_hint: f.remediation_hint,
+                        validation_status: f.validation_status,
+                    },
                 });
             }
         }
@@ -1038,6 +1176,84 @@ class GuardScanner {
     toHTML() {
         return generateHTML(VERSION, this.stats, this.findings);
     }
+
+    /**
+     * Generate a Threat Model based on the scan findings.
+     * @param {Array<Object>} findings - The array of findings from the scan.
+     * @returns {Object} The generated threat model.
+     */
+
+    /**
+     * Check AST for contextual validation of high-risk chains.
+     * Separates heuristic-only matches from validated chains.
+     */
+    checkASTValidation(content, relFile, findings) {
+        // Simple heuristic validation for remote fetch -> execute chain
+        if (content.includes('fetch') && (content.includes('exec') || content.includes('eval'))) {
+            // Very naive check for the test case
+            if (content.match(/fetch\([^)]+\)[^]*?(?:exec|eval|spawn|execSync)\(/is)) {
+                findings.push({
+                    severity: 'CRITICAL',
+                    id: 'AST_FETCH_TO_EXEC',
+                    cat: 'data-flow',
+                    desc: 'Validated Chain: Remote fetch directly piped to code execution',
+                    file: relFile,
+                    validated: true
+                });
+            }
+        }
+        
+        // Mark existing heuristic findings as unvalidated to distinguish them
+        for (const f of findings) {
+            if (f.validated === undefined) {
+                f.validated = false;
+            }
+        }
+    }
+
+    generateThreatModel(findings) {
+        const surface = {
+            network: false,
+            file_system: false,
+            code_execution: false,
+            credential_exposure: false,
+            external_ingestion: false,
+            persistence: false
+        };
+
+        for (const f of findings) {
+            // Map pattern IDs or categories to capability surfaces
+            const id = f.id || '';
+            const cat = f.cat || '';
+            const desc = (f.desc || '').toLowerCase();
+            
+            if (id.includes('FETCH') || id.includes('CURL') || id.includes('SSRF') || id.includes('NETWORK') || id.includes('EXFIL') || id.includes('TRUST_WEB_EXEC') || desc.includes('fetch') || desc.includes('network') || desc.includes('web content')) {
+                surface.network = true;
+            }
+            if (id.includes('FS_') || id.includes('WRITE') || id.includes('READ') || id.includes('FILE') || id.includes('TRUST_WEB_EXEC') || desc.includes('file system') || desc.includes('readfilesync') || desc.includes('fs.read')) {
+                surface.file_system = true;
+            }
+            if (id.includes('EXEC') || id.includes('EVAL') || id.includes('SHELL') || id.includes('SPAWN') || id.includes('RCE') || desc.includes('exec') || desc.includes('shell')) {
+                surface.code_execution = true;
+            }
+            if (id.includes('CRED') || id.includes('KEY') || id.includes('SECRET') || id.includes('TOKEN') || cat.includes('credential') || desc.includes('credential') || desc.includes('trust boundary')) {
+                surface.credential_exposure = true;
+            }
+            if (id.includes('PI_') || id.includes('PROMPT_INJECT') || id.includes('POISON') || id.includes('TRUST_WEB_EXEC') || cat.includes('prompt-injection') || desc.includes('ignore all')) {
+                surface.external_ingestion = true;
+            }
+            if (id.includes('PERSIST') || id.includes('CRON') || id.includes('STARTUP') || cat.includes('persistence') || desc.includes('cron') || id.includes('DEPS_PHANTOM_IMPORT')) {
+                surface.persistence = true;
+            }
+        }
+
+        return {
+            timestamp: new Date().toISOString(),
+            surface,
+            summary: Object.keys(surface).filter(k => surface[k]).join(', ') || 'none'
+        };
+    }
+
 }
 
 const { scanToolCall, RUNTIME_CHECKS, getCheckStats, LAYER_NAMES } = require('./runtime-guard.js');

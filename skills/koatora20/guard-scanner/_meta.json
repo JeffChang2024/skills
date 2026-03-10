@@ -3,11 +3,16 @@
   "slug": "guard-scanner",
   "displayName": "Guard Scanner",
   "latest": {
-    "version": "5.0.4",
-    "publishedAt": 1772567352805,
-    "commit": "https://github.com/openclaw/skills/commit/a9710071792d17e67b9c46fd5bc5f7268ce47733"
+    "version": "13.0.1",
+    "publishedAt": 1772985473789,
+    "commit": null
   },
   "history": [
+    {
+      "version": "5.0.4",
+      "publishedAt": 1772567352805,
+      "commit": "https://github.com/openclaw/skills/commit/a9710071792d17e67b9c46fd5bc5f7268ce47733"
+    },
     {
       "version": "4.0.2",
       "publishedAt": 1772209944461,
