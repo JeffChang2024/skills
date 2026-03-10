@@ -3,11 +3,16 @@
   "slug": "temporal-cortex-datetime",
   "displayName": "temporal-cortex-datetime",
   "latest": {
-    "version": "0.8.1",
-    "publishedAt": 1772859833043,
-    "commit": "https://github.com/openclaw/skills/commit/1a310dd0c7b92165e6513c7eb10c70eba3205150"
+    "version": "0.9.1",
+    "publishedAt": 1773139586497,
+    "commit": null
   },
   "history": [
+    {
+      "version": "0.8.1",
+      "publishedAt": 1772859833043,
+      "commit": "https://github.com/openclaw/skills/commit/1a310dd0c7b92165e6513c7eb10c70eba3205150"
+    },
     {
       "version": "0.7.8",
       "publishedAt": 1772788612190,
