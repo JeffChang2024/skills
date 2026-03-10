@@ -1,116 +1,97 @@
-# PolyClawster
-
-Trade on [Polymarket](https://polymarket.com) prediction markets from the command line. Search any market, place bets (YES/NO), and manage your wallet — all through simple Node.js scripts.
-
-## Features
-
-- **Search markets** — Find any active Polymarket market by keyword
-- **Trade any market** — Place YES/NO bets on any active market via CLOB API
-- **Auto-setup wallet** — Create a Polygon wallet automatically, no manual steps
-- **Check balance** — View wallet balance, positions, and P&L
-- **Signal scanner** — Automated edge detection for high-probability trades
-
-## Quick Start
-
-### 1. Setup (auto-create wallet)
-
-```bash
-node scripts/setup.js --auto
-```
-
-This creates a Polygon wallet via the PolyClawster API and saves credentials to `~/.polyclawster/config.json`. After setup, deposit USDC (Polygon network) to your wallet address to start trading.
-
-### 2. Search markets
-
-```bash
-# Find markets about a topic
-node scripts/search.js "bitcoin"
-
-# Show top markets by volume
-node scripts/search.js
-
-# Limit results
-node scripts/search.js --limit 5 "election"
-```
-
-### 3. Place a trade
-
-```bash
-# Bet $5 on YES for a market (use slug from search results)
-node scripts/trade.js --market "will-bitcoin-reach-100k" --side YES --amount 5
-
-# Bet $10 on NO using conditionId
-node scripts/trade.js --market "0xabc123..." --side NO --amount 10
-```
-
-### 4. Check balance
-
-```bash
-node scripts/balance.js
-```
-
-## Manual Setup
-
-If you already have a Polygon wallet with a Polymarket CLOB API key:
-
-```bash
-node scripts/setup.js --wallet 0xYOUR_PRIVATE_KEY
-```
-
-This derives your CLOB API credentials and saves everything to `~/.polyclawster/config.json`.
-
-## Scripts Reference
-
-| Script | Description |
-|--------|-------------|
-| `scripts/setup.js --auto` | Auto-create wallet and save config |
-| `scripts/setup.js --wallet 0x...` | Manual setup with existing wallet |
-| `scripts/search.js [query]` | Search Polymarket markets |
-| `scripts/trade.js --market X --side YES --amount N` | Place a trade |
-| `scripts/balance.js` | Check wallet balance and positions |
-| `scripts/edge.js` | Run signal scanner for automated trading |
-
-## Configuration
-
-Config is stored at `~/.polyclawster/config.json`:
-
-```json
-{
-  "wallet": {
-    "address": "0x...",
-    "privateKey": "0x..."
-  },
-  "api": {
-    "key": "...",
-    "secret": "...",
-    "passphrase": "..."
+---
+name: polyclawster-agent
+description: Trade on Polymarket prediction markets. Non-custodial — your agent generates a Polygon wallet, signs orders locally, and submits via polyclawster.com relay (geo-bypass). Private key never leaves your machine. Fund with POL — agent auto-swaps to USDC.e.
+metadata:
+  {
+    "openclaw": {
+      "requires": { "bins": ["node"] },
+      "install": [
+        {
+          "id": "deps",
+          "kind": "shell",
+          "command": "cd {{skillDir}} && npm install --production",
+          "label": "Install npm dependencies (ethers, @polymarket/clob-client)"
+        }
+      ],
+      "permissions": {
+        "network": [
+          "polyclawster.com",
+          "polygon-bor-rpc.publicnode.com",
+          "clob.polymarket.com",
+          "gamma-api.polymarket.com"
+        ],
+        "fs": {
+          "write": ["~/.polyclawster/config.json"],
+          "read":  ["~/.polyclawster/config.json"]
+        }
+      }
+    }
   }
-}
-```
+---
 
-## Requirements
+# polyclawster-agent
 
-- Node.js 18+
-- Dependencies: `@polymarket/clob-client`, `ethers`, `https-proxy-agent`
+Trade on [Polymarket](https://polymarket.com) prediction markets with your OpenClaw agent.
 
-Install dependencies:
-```bash
-cd /path/to/polyclawster && npm install
-```
+## User experience
 
-## Dashboard
+This skill is designed for conversational use. When a user asks to trade, the agent runs the appropriate script and reports results naturally.
 
-View your portfolio at: `https://polyclawster.com/dashboard?address=YOUR_ADDRESS`
+For example, if a user says "Bet $5 on Bitcoin above 100k", the agent runs the trade script and responds with the outcome — the trade details, price, and confirmation. Users can always ask for more technical details if they want them.
 
-Agent leaderboard: `https://polyclawster.com/leaderboard`
+The agent should share the wallet address when the user needs to fund it, and explain any errors in clear terms.
 
-## How It Works
+## Setup flow
 
-1. Markets are fetched from Polymarket's Gamma API
-2. Orders are built and signed locally using your wallet
-3. Signed orders are submitted to Polymarket's CLOB (Central Limit Order Book)
-4. A residential proxy is used for order submission from restricted regions
+When a user wants to start trading Polymarket:
 
-## Author
+1. Run `setup.js --auto` — creates a local Polygon wallet and registers the agent on polyclawster.com
+2. Share the wallet address — the user sends POL (Polygon native token) to fund it
+3. Once funded, the agent can place trades
 
-[Virix Labs](https://virixlabs.com)
+Config is stored in `~/.polyclawster/config.json` (private key, CLOB API credentials).
+
+## Scripts reference
+
+All scripts are in the `scripts/` directory. Run with `node scripts/<name>.js`.
+
+| Script | Purpose | Key flags |
+|--------|---------|-----------|
+| `setup.js` | Create wallet + register agent | `--auto`, `--info`, `--derive-clob` |
+| `balance.js` | Check POL, USDC.e, and CLOB balances | — |
+| `swap.js` | Convert POL or native USDC → USDC.e | `--pol N`, `--usdc N`, `--check` |
+| `approve.js` | One-time Polymarket contract approvals | `--check` (read-only) |
+| `browse.js` | Search markets by topic | Pass search term as argument |
+| `trade.js` | Place a bet (live or demo) | `--market`, `--side YES/NO`, `--amount N`, `--demo` |
+| `sell.js` | Close a position | `--bet-id N`, `--list` |
+| `auto.js` | Autonomous trading on AI signals | `--demo`, `--min-score N`, `--max-bet N`, `--dry-run` |
+| `link.js` | Link agent to Telegram Mini App | Pass claim code as argument |
+
+## Live trading
+
+`trade.js` handles the full flow automatically before placing a live bet:
+
+1. Checks USDC.e balance
+2. Swaps POL → USDC.e if needed (keeps 1 POL for gas)
+3. Runs one-time contract approvals if missing
+4. Refreshes CLOB balance
+5. Places the order (signed locally, submitted via relay)
+
+### About approvals
+
+`approve.js` grants ERC-20 allowance and CTF `setApprovalForAll` to Polymarket exchange contracts. These are standard Polymarket approvals — the same ones the official Polymarket UI requests. You can check approval status with `approve.js --check` before granting, and revoke them on-chain at any time.
+
+## Architecture
+
+- **Wallet**: Polygon EOA generated locally — private key stays on this machine in `~/.polyclawster/config.json`
+- **Trading token**: USDC.e (bridged USDC on Polygon, `0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174`)
+- **Funding**: user sends POL → agent swaps to USDC.e via Uniswap SwapRouter02
+- **Relay**: signed orders go through polyclawster.com (Tokyo) for geo-bypass — the relay never sees the private key
+- **Dashboard**: polyclawster.com/a/{agent_id}
+
+## Important notes
+
+- **USDC.e ≠ native USDC** — Polymarket uses bridged USDC.e. If user sends native USDC (`0x3c499...`), use `swap.js` to convert.
+- **Demo mode** (`--demo`) uses a free $10 paper balance — recommended for first-time testing.
+- All orders are signed locally with EIP-712 + HMAC. The relay forwards signed payloads without access to keys.
+- **Start small** — fund with a small amount of POL first to verify everything works.
