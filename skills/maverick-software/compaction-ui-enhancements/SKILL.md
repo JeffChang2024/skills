@@ -1,6 +1,6 @@
 ---
 name: compaction-ui
-version: 2.1.0
+version: 2.3.0
 description: "Background memory compaction with auto-trigger, chat summary paragraph, configurable threshold, model selector, settings tab, and result storage for OpenClaw Control UI."
 ---
 
@@ -22,7 +22,7 @@ Memory compaction system for the OpenClaw Control UI — background execution wi
 | Settings Persistence & Reload | ✅ Working |
 | Auth Hierarchy (OAuth > API > Fallback) | ✅ Working |
 | Chat History Filters | ✅ Working |
-| Compaction Divider Lines | ✅ Working |
+| Full Background Isolation (no chat interference) | ✅ Working |
 
 ## Features
 
@@ -209,6 +209,8 @@ The compaction tab is registered as a builtin plugin view in `plugins-ui.ts`:
 - **Settings not persisting across tab visits:** Fixed in v2.1.0. The module-level `_state.loaded` flag was preventing reloads. Now reloads every 2 seconds when re-entering the tab.
 - **Model selector requires API keys:** If you select a custom model, make sure the provider's API key is configured. The UI shows a warning callout.
 - **Compaction model format:** Must be `"provider/model"` format (e.g. `"anthropic/claude-sonnet-4-6"`). Invalid formats are silently ignored and fall back to session default.
+- **parentId skip-set propagation must be message-only:** When filtering memory flush messages from `readSessionMessages`, the skip set must ONLY propagate through entries with a `message` field. Non-message protocol entries (`type:"custom"`) bridge between logical turns — if their IDs enter the skip set, the entire remaining conversation gets hidden. The fix: only check `parsed?.message` entries against the skip set, and only add their IDs to it.
+- **No blocking modal — ever:** The gauge button in `app-render.helpers.ts` must NEVER render a full-screen overlay modal. Compaction is a background process; all status is communicated via the bottom-right toast system. Remove any `position:fixed; inset:0` overlay conditioned on `compactState.phase`. The button may show a spinner icon while running, but must not block the UI.
 
 ## Changelog
 
