@@ -1,0 +1,22 @@
+{
+  "name": "Async Queue",
+  "slug": "async-queue",
+  "description": "File-backed async task queue for OpenClaw agents. Schedule delayed tasks between agents with hash-based tracking.",
+  "author": "ktech99",
+  "license": "MIT",
+  "requirements": {
+    "platform": "macOS",
+    "bins": ["node", "launchctl", "openclaw"],
+    "node": ">=18"
+  },
+  "security": {
+    "disclosures": [
+      "install.sh (must be run manually) registers a background daemon via launchd for persistent task polling",
+      "daemon.js uses Node's http module to POST to the local queue-wake plugin endpoint (127.0.0.1:18789 only) — no execSync",
+      "Files are written to ~/.openclaw/queue/ (queue state) and ~/.openclaw/extensions/queue-wake/ (plugin)",
+      "Agent targets are configured by the user in ~/.openclaw/queue/targets.json — no hard-coded agent names",
+      "The /api/queue-wake endpoint uses OpenClaw plugin auth and binds to localhost only"
+    ],
+    "install_requires_confirmation": true
+  }
+}

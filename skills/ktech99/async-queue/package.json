@@ -1,0 +1,10 @@
+{
+  "name": "@clawhub/async-queue",
+  "version": "1.0.3",
+  "description": "Schedule delayed or async tasks between OpenClaw agents via a file-backed queue daemon.",
+  "main": "scripts/install.sh",
+  "keywords": ["openclaw", "queue", "async", "agents", "delay", "reminder"],
+  "author": "Kartik Arora",
+  "license": "MIT",
+  "engines": { "node": ">=18" }
+}
