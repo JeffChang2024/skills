@@ -1,0 +1,11 @@
+{
+  "owner": "membranedev",
+  "slug": "deepl",
+  "displayName": "Deepl",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773172959638,
+    "commit": null
+  },
+  "history": []
+}
