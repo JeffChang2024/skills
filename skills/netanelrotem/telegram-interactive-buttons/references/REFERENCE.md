@@ -88,9 +88,16 @@ Each row is an array of button objects. Buttons in the same row appear side-by-s
   ]
   ```
 
+**Layout Limits & Guidelines:**
+
+- **Max buttons per row:** 8 (Official Telegram API limit)
+- **Max total buttons:** 100
+- **1-3 buttons per row**: Optimal for standard menus/mobile readability.
+- **4-8 buttons per row**: Recommended for grids (numeric pads, calendars, compact galleries).
+
 **Avoid:**
-- More than 2 buttons per row (cramped on mobile)
-- More than 10 total buttons (overwhelming)
+- More than 8 buttons per row (Telegram will reject the request)
+- More than 100 total buttons (Telegram will reject the request)
 - Very long button text (truncates on mobile)
 
 ## Style Reference

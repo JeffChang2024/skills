@@ -3,9 +3,15 @@
   "slug": "telegram-interactive-buttons",
   "displayName": "Telegram Interactive Buttons",
   "latest": {
-    "version": "1.1.0",
-    "publishedAt": 1772919075595,
-    "commit": "https://github.com/openclaw/skills/commit/f32d4b33156825421ffb759e8228fea870425f57"
+    "version": "1.1.2",
+    "publishedAt": 1773075246960,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.1.0",
+      "publishedAt": 1772919075595,
+      "commit": "https://github.com/openclaw/skills/commit/f32d4b33156825421ffb759e8228fea870425f57"
+    }
+  ]
 }

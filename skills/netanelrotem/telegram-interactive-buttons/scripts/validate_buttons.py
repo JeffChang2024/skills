@@ -46,14 +46,23 @@ def validate_buttons(buttons_json):
                 print(f"⚠️  Button at row {row_idx}, position {btn_idx} has invalid style '{btn['style']}'")
                 print("   Valid styles: primary, success, danger")
     
-    # UX recommendations
+    # Official Telegram Limits
     total_buttons = sum(len(row) for row in buttons)
-    if total_buttons > 10:
-        print(f"⚠️  {total_buttons} buttons might overwhelm users (consider < 10)")
+    if total_buttons > 100:
+        print(f"❌ Too many buttons ({total_buttons}). Max allowed is 100.")
+        return False
     
     for row_idx, row in enumerate(buttons):
-        if len(row) > 2:
-            print(f"⚠️  Row {row_idx} has {len(row)} buttons (consider 1-2 per row for mobile)")
+        if len(row) > 8:
+            print(f"❌ Row {row_idx} has {len(row)} buttons. Max allowed per row is 8.")
+            return False
+        
+        # UX recommendations
+        if len(row) > 3:
+            print(f"💡 Row {row_idx} has {len(row)} buttons. For best mobile UX, use grids (4-8) only for calculators/keypads.")
+    
+    if total_buttons > 20:
+        print(f"💡 {total_buttons} buttons is a lot. Consider pagination or menus.")
     
     print(f"✅ Valid button structure: {len(buttons)} rows, {total_buttons} total buttons")
     return True

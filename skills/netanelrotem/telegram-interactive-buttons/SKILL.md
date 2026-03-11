@@ -101,18 +101,19 @@ openclaw message send \
 
 ### Button Structure
 
-The `--buttons` parameter accepts a JSON array of arrays:
+The `--buttons` parameter accepts a JSON array of arrays (rows):
 
 ```json
 [
-  [{"text": "Button 1", "callback_data": "cb1"}, {"text": "Button 2", "callback_data": "cb2"}],
-  [{"text": "Button 3", "callback_data": "cb3"}]
+  [{"text": "B1", "callback_data": "c1"}, {"text": "B2", "callback_data": "c2"}],
+  [{"text": "B3", "callback_data": "c3"}]
 ]
 ```
 
-This creates:
-- Row 1: Button 1 | Button 2
-- Row 2: Button 3
+**Layout Limits:**
+- **Max buttons per row:** 8 (use this for grids/keypads)
+- **Max buttons total:** 100
+- **Mobile UX Recommendation:** While 8 are supported, keep 1-3 buttons per row for standard menus to ensure readability on mobile. Use the full 8-button width only for grids (e.g., calculators, calendars, or numeric selectors).
 
 ### Button Properties
 
