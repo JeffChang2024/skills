@@ -1,0 +1,11 @@
+{
+  "owner": "dogeow",
+  "slug": "acme-ssl-automation-for-alibaba-cloud-esa-dns",
+  "displayName": "ACME SSL automation for Alibaba Cloud ESA DNS",
+  "latest": {
+    "version": "0.1.2",
+    "publishedAt": 1773231219328,
+    "commit": null
+  },
+  "history": []
+}
