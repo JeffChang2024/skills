@@ -1,0 +1,11 @@
+{
+  "owner": "civen-cn",
+  "slug": "model-verifier",
+  "displayName": "Model Verifier",
+  "latest": {
+    "version": "1.0.1",
+    "publishedAt": 1772980411190,
+    "commit": null
+  },
+  "history": []
+}
