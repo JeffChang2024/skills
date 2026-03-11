@@ -1,0 +1,11 @@
+{
+  "owner": "asio-o",
+  "slug": "minimax-plan-checker",
+  "displayName": "MiniMax套餐查询",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773159781609,
+    "commit": null
+  },
+  "history": []
+}
