@@ -465,6 +465,19 @@ function appSlugToName(slug: string): string {
   return names[slug] || slug.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 }
 
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = 8000): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const pipedreamCatalogCache = new Map<number, { at: number; payload: unknown }>();
+const PIPEDREAM_CATALOG_CACHE_MS = 5 * 60 * 1000;
+
 // ── Per-Agent config ──────────────────────────────────────────────────────────
 
 interface AgentPipedreamConfig {
@@ -527,6 +540,31 @@ async function ensureMcporterServer(params: {
 // ── Per-Agent handlers ────────────────────────────────────────────────────────
 
 export const pipedreamAgentHandlers: GatewayRequestHandlers = {
+  "pipedream.apps.catalog": async ({ respond, params }) => {
+    try {
+      const rawPage = Number((params as { page?: number }).page ?? 1);
+      const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.floor(rawPage) : 1;
+
+      const cached = pipedreamCatalogCache.get(page);
+      if (cached && Date.now() - cached.at < PIPEDREAM_CATALOG_CACHE_MS) {
+        respond(true, cached.payload);
+        return;
+      }
+
+      const res = await fetchWithTimeout(`https://mcp.pipedream.com/api/apps?page=${page}`, {}, 10000);
+      if (!res.ok) {
+        respond(false, { error: `Failed to load app catalog (HTTP ${res.status})` });
+        return;
+      }
+
+      const payload = await res.json();
+      pipedreamCatalogCache.set(page, { at: Date.now(), payload });
+      respond(true, payload);
+    } catch (err) {
+      respond(false, { error: String(err) });
+    }
+  },
+
   "pipedream.agent.status": async ({ respond, params }) => {
     try {
       const agentId = (params as { agentId?: string }).agentId;
@@ -540,9 +578,10 @@ export const pipedreamAgentHandlers: GatewayRequestHandlers = {
       if (globalCreds) {
         try {
           const accessToken = await getPipedreamAccessToken(globalCreds.clientId, globalCreds.clientSecret);
-          const accountsRes = await fetch(
+          const accountsRes = await fetchWithTimeout(
             `https://api.pipedream.com/v1/connect/${globalCreds.projectId}/accounts?external_user_id=${encodeURIComponent(externalUserId)}&include_credentials=false`,
             { headers: { Authorization: `Bearer ${accessToken}`, "x-pd-environment": globalCreds.environment } },
+            8000,
           );
           if (accountsRes.ok) {
             const data = await accountsRes.json();

@@ -17,12 +17,15 @@ export interface AgentPipedreamState {
   // App browser
   showAppBrowser: boolean;
   appBrowserSearch: string;
+  appBrowserLetter: string;
   connectingApp: string | null;
   testingApp: string | null;
   disconnectingApp: string | null;
   activatingApp: string | null;
   manualSlug: string;
   expandedApps: Set<string>;
+  allApps: PipedreamApp[];
+  loadingApps: boolean;
 }
 
 export interface AgentConnectedAppTool {
@@ -56,12 +59,15 @@ export function initialAgentPipedreamState(): AgentPipedreamState {
     draftUserId: "",
     showAppBrowser: false,
     appBrowserSearch: "",
+    appBrowserLetter: "",
     connectingApp: null,
     testingApp: null,
     disconnectingApp: null,
     activatingApp: null,
     manualSlug: "",
     expandedApps: new Set(),
+    allApps: [...ALL_APPS],
+    loadingApps: false,
   };
 }
 
@@ -80,6 +86,7 @@ export interface AgentPipedreamProps extends AgentPipedreamState {
   onOpenAppBrowser: () => void;
   onCloseAppBrowser: () => void;
   onAppBrowserSearchChange: (value: string) => void;
+  onAppBrowserLetterChange: (value: string) => void;
   onManualSlugChange: (value: string) => void;
   onConnectManualSlug: () => void;
 }
@@ -111,8 +118,11 @@ export function renderAgentPipedream(props: AgentPipedreamProps) {
   }
 
   const userId = props.editingUserId ? props.draftUserId : (props.externalUserId || props.agentId);
-  const connectedSlugs = new Set(props.connectedApps.map((a) => a.slug));
-  const featured = ALL_APPS.filter((a) => FEATURED_SLUGS.includes(a.slug) && !connectedSlugs.has(a.slug));
+  const connectedApps = Array.isArray(props.connectedApps) ? props.connectedApps : [];
+  const allApps = Array.isArray(props.allApps) ? props.allApps : [];
+  const connectedSlugs = new Set(connectedApps.map((a) => a.slug));
+  const appCatalog = allApps.length > 0 ? allApps : ALL_APPS;
+  const featured = appCatalog.filter((a) => FEATURED_SLUGS.includes(a.slug) && !connectedSlugs.has(a.slug));
 
   return html`
     <!-- Header -->
@@ -164,7 +174,7 @@ export function renderAgentPipedream(props: AgentPipedreamProps) {
       <div class="card-title">✅ Connected Apps</div>
       <div class="card-sub">Apps this agent can use. Tokens refresh automatically.</div>
 
-      ${props.connectedApps.length === 0
+      ${connectedApps.length === 0
         ? html`
           <div style="padding: 20px; text-align: center; border: 1px dashed var(--border); border-radius: 8px; margin-top: 12px;">
             <div style="font-size: 32px; margin-bottom: 8px;">🔌</div>
@@ -172,7 +182,7 @@ export function renderAgentPipedream(props: AgentPipedreamProps) {
           </div>`
         : html`
           <div class="list" style="margin-top: 12px;">
-            ${props.connectedApps.map((app) => {
+            ${connectedApps.map((app) => {
               const isTesting = props.testingApp === app.slug;
               const isDisconnecting = props.disconnectingApp === app.slug;
               const isExpanded = props.expandedApps.has(app.slug);
@@ -286,9 +296,9 @@ function renderAvailableApp(app: PipedreamApp, props: AgentPipedreamProps) {
   const isConnecting = props.connectingApp === app.slug;
   return html`
     <div style="padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-      <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
-        <span style="font-size: 18px; flex-shrink: 0;">${app.icon}</span>
-        <span style="font-weight: 500; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${app.name}">${app.name}</span>
+      <div style="display: flex; align-items: flex-start; gap: 8px; min-width: 0; flex: 1;">
+        <span style="font-size: 18px; flex-shrink: 0; margin-top: 1px;">${app.icon}</span>
+        <span style="font-weight: 500; font-size: 13px; white-space: normal; overflow-wrap: anywhere; line-height: 1.25;">${app.name}</span>
       </div>
       <button class="btn small primary" style="flex-shrink: 0;" ?disabled=${isConnecting} @click=${() => props.onConnectApp(app.slug)}>
         ${isConnecting ? "..." : "Connect"}
@@ -297,13 +307,25 @@ function renderAvailableApp(app: PipedreamApp, props: AgentPipedreamProps) {
 }
 
 function renderAppBrowserModal(props: AgentPipedreamProps) {
-  const connectedSlugs = new Set(props.connectedApps.map((a) => a.slug));
+  const connectedApps = Array.isArray(props.connectedApps) ? props.connectedApps : [];
+  const allApps = Array.isArray(props.allApps) ? props.allApps : [];
+  const connectedSlugs = new Set(connectedApps.map((a) => a.slug));
+  const catalog = allApps.length > 0 ? allApps : ALL_APPS;
   const search = props.appBrowserSearch.toLowerCase().trim();
-  const filtered = ALL_APPS.filter((app) => {
+  const letter = (props.appBrowserLetter || "").toUpperCase();
+  const filtered = catalog.filter((app) => {
     if (connectedSlugs.has(app.slug)) return false;
+    const appName = app.name ?? "";
+    const appSlug = app.slug ?? "";
+    if (letter) {
+      const nameFirst = (appName.match(/[A-Za-z]/)?.[0] ?? "").toUpperCase();
+      const slugFirst = (appSlug.match(/[A-Za-z]/)?.[0] ?? "").toUpperCase();
+      if (nameFirst !== letter && slugFirst !== letter) return false;
+    }
     if (!search) return true;
-    return app.name.toLowerCase().includes(search) || app.slug.toLowerCase().includes(search);
+    return appName.toLowerCase().includes(search) || appSlug.toLowerCase().includes(search);
   });
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
   return html`
     <div class="modal-backdrop" @click=${props.onCloseAppBrowser}>
@@ -319,14 +341,24 @@ function renderAppBrowserModal(props: AgentPipedreamProps) {
             @input=${(e: Event) => props.onAppBrowserSearchChange((e.target as HTMLInputElement).value)}
             placeholder="Search apps by name or slug..."
             style="width: 100%; font-size: 16px;" autofocus />
-          <div class="muted" style="margin-top: 8px; font-size: 13px;">${filtered.length} apps available</div>
+          <div class="muted" style="margin-top: 8px; font-size: 13px;">
+            ${props.loadingApps
+              ? "Loading full catalog…"
+              : `${filtered.length} apps available${props.appBrowserLetter ? ` · Letter: ${props.appBrowserLetter}` : ""}`}
+          </div>
+          <div style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px;">
+            <button class="btn small ${!props.appBrowserLetter ? "primary" : ""}" @click=${() => props.onAppBrowserLetterChange("")}>All</button>
+            ${letters.map((l) => html`
+              <button class="btn small ${props.appBrowserLetter === l ? "primary" : ""}" @click=${() => props.onAppBrowserLetterChange(l)}>${l}</button>
+            `)}
+          </div>
         </div>
 
         <div style="flex: 1; overflow-y: auto; padding: 16px;">
           ${filtered.length === 0
             ? html`<div style="text-align: center; padding: 40px; color: var(--muted);">No apps found matching "${props.appBrowserSearch}"</div>`
             : html`
-              <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px;">
+              <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px;">
                 ${filtered.map((app) => renderAvailableApp(app, props))}
               </div>`}
         </div>

@@ -2,6 +2,39 @@
 
 All notable changes to the Pipedream Connect skill will be documented in this file.
 
+## [1.5.2] - 2026-03-10
+
+### Added
+- A–Z alphabet filter in the per-agent "Browse Apps" modal to quickly narrow app list by starting letter
+- Active letter indicator in app count text (e.g. `Letter: Q`) for clearer filter state
+
+### Fixed
+- Improved letter filter matching to use first alphabetic character from app name/slug
+- Improved app card readability in modal by removing hard truncation and allowing wrapped names
+- Included latest CSP/reference updates for direct catalog fallback (`https://mcp.pipedream.com`) in reference snapshots
+
+## [1.5.1] - 2026-03-10
+
+### Fixed
+- Added explicit metadata declarations for sensitive config paths touched by the skill (`secrets.json`, `pipedream-credentials.json`, per-agent config files, `mcporter.json`, log paths)
+- Added capability declarations for file read/write, outbound network domains, and optional cron persistence
+- Clarified persistence and credential handling in metadata and docs to match real behavior
+- Corrected INSTALL.md paths to current `~/.openclaw/...` layout and vault-backed credential model
+
+## [1.5.0] - 2026-03-10
+
+### Added
+- Live Pipedream app catalog loading in the per-agent app browser (`https://mcp.pipedream.com/api/apps`) with pagination, dedupe, and in-memory caching
+- Catalog loading state in the app browser modal
+
+### Changed
+- Agent Pipedream app browsing now prefers the live catalog over the old hardcoded app list
+- Featured app section now sources from the loaded catalog when available
+
+### Fixed
+- Prevented indefinite "Loading…" hangs in agent Pipedream status by adding a timeout to the backend accounts fetch
+- Improved fallback behavior when Pipedream API is slow/unreachable so UI still renders
+
 ## [1.4.0] - 2026-03-01
 
 ### Removed

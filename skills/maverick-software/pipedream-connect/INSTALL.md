@@ -8,11 +8,11 @@ Before installing, inform the user:
 
 | What | Storage | Risk |
 |------|---------|------|
-| Client ID/Secret | `~/openclaw/config/pipedream-credentials.json` | Plaintext JSON (0600 perms) |
-| Access tokens | `~/openclaw/config/mcporter.json` headers | Plaintext JSON |
-| Cron job | User's crontab | Runs every 45 min, persists |
+| Client ID/Secret | `~/.openclaw/secrets.json` | Vault JSON (0600 perms) |
+| Access tokens | `~/.openclaw/workspace/config/mcporter.json` headers | Plaintext bearer tokens |
+| Cron job (optional) | User's crontab | Runs every 45 min, persists |
 
-**Credentials are stored in the OpenClaw vault** (`~/.openclaw/secrets.json`, mode 0600).
+**Credentials are stored in the OpenClaw vault** (`~/.openclaw/secrets.json`, mode 0600). Non-secret config is stored under `~/.openclaw/workspace/config/`.
 
 ## Prerequisites Check
 
@@ -34,19 +34,19 @@ openclaw gateway status
 ### Step 1: Copy Token Refresh Script
 
 ```bash
-mkdir -p ~/openclaw/scripts ~/openclaw/logs
-cp ~/openclaw/skills/pipedream-connect/scripts/pipedream-token-refresh.py ~/openclaw/scripts/
-chmod +x ~/openclaw/scripts/pipedream-token-refresh.py
+mkdir -p ~/.openclaw/scripts ~/.openclaw/logs
+cp ~/.openclaw/skills/pipedream-connect/scripts/pipedream-token-refresh.py ~/.openclaw/scripts/
+chmod +x ~/.openclaw/scripts/pipedream-token-refresh.py
 ```
 
 ### Step 2: Set Up Cron Job
 
 ```bash
 # Option A: Use setup script
-bash ~/openclaw/skills/pipedream-connect/scripts/setup-cron.sh
+bash ~/.openclaw/skills/pipedream-connect/scripts/setup-cron.sh
 
 # Option B: Manual setup
-(crontab -l 2>/dev/null; echo "*/45 * * * * /usr/bin/python3 $HOME/clawd/scripts/pipedream-token-refresh.py --quiet >> $HOME/clawd/logs/pipedream-cron.log 2>&1") | crontab -
+(crontab -l 2>/dev/null; echo "*/45 * * * * /usr/bin/python3 $HOME/.openclaw/scripts/pipedream-token-refresh.py --quiet >> $HOME/.openclaw/logs/pipedream-cron.log 2>&1") | crontab -
 ```
 
 ### Step 3: Verify Backend Integration
@@ -87,10 +87,10 @@ After setup, verify the integration works:
 
 ```bash
 # List configured servers
-cat ~/openclaw/config/mcporter.json | grep -A2 '"pipedream'
+cat ~/.openclaw/workspace/config/mcporter.json | grep -A2 '"pipedream'
 
 # Test token refresh
-python3 ~/openclaw/scripts/pipedream-token-refresh.py
+python3 ~/.openclaw/scripts/pipedream-token-refresh.py
 
 # If an app is connected, test it
 mcporter call pipedream-openclaw-gmail.gmail-list-labels instruction="List labels"
@@ -124,24 +124,25 @@ Check credentials and logs:
 
 ```bash
 # View logs
-tail -20 ~/openclaw/logs/pipedream-token-refresh.log
+tail -20 ~/.openclaw/logs/pipedream-token-refresh.log
 
-# Verify credentials exist
-cat ~/openclaw/config/pipedream-credentials.json
+# Verify non-secret config exists
+cat ~/.openclaw/workspace/config/pipedream-credentials.json
 
 # Manual test
-python3 ~/openclaw/scripts/pipedream-token-refresh.py
+python3 ~/.openclaw/scripts/pipedream-token-refresh.py
 ```
 
 ## File Locations Reference
 
 | File | Purpose |
 |------|---------|
-| `~/openclaw/config/pipedream-credentials.json` | OAuth credentials (created by UI) |
-| `~/openclaw/config/mcporter.json` | MCP server configs (apps added here) |
-| `~/openclaw/scripts/pipedream-token-refresh.py` | Token refresh script |
-| `~/openclaw/logs/pipedream-token-refresh.log` | Refresh script logs |
-| `~/openclaw/logs/pipedream-cron.log` | Cron job output |
+| `~/.openclaw/secrets.json` | Vault secrets (clientId/clientSecret) |
+| `~/.openclaw/workspace/config/pipedream-credentials.json` | Non-secret Pipedream config |
+| `~/.openclaw/workspace/config/mcporter.json` | MCP server configs (apps added here) |
+| `~/.openclaw/scripts/pipedream-token-refresh.py` | Token refresh script |
+| `~/.openclaw/logs/pipedream-token-refresh.log` | Refresh script logs |
+| `~/.openclaw/logs/pipedream-cron.log` | Cron job output |
 
 ## Success Criteria
 

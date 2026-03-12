@@ -3,11 +3,16 @@
   "slug": "pipedream-connect",
   "displayName": "Pipedream Connect",
   "latest": {
-    "version": "1.4.0",
-    "publishedAt": 1772405576490,
-    "commit": "https://github.com/openclaw/skills/commit/9705dc88c6a7b4f587736f128559cc569812898d"
+    "version": "1.5.2",
+    "publishedAt": 1773127518939,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.4.0",
+      "publishedAt": 1772405576490,
+      "commit": "https://github.com/openclaw/skills/commit/9705dc88c6a7b4f587736f128559cc569812898d"
+    },
     {
       "version": "1.0.0",
       "publishedAt": 1770799577807,

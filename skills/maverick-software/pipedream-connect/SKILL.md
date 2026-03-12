@@ -1,12 +1,25 @@
 ---
 name: pipedream-connect
 description: Connect 2,000+ APIs with managed OAuth via Pipedream. Includes full UI integration for OpenClaw Gateway dashboard with per-agent app isolation.
-metadata: {"openclaw":{"emoji":"🔌","requires":{"bins":["mcporter"],"openclaw":">=2026.1.0"},"category":"integrations"}}
+metadata: {"openclaw":{"emoji":"🔌","category":"integrations","requires":{"bins":["mcporter"],"openclaw":">=2026.1.0"},"configPaths":["~/.openclaw/secrets.json","~/.openclaw/workspace/config/pipedream-credentials.json","~/.openclaw/workspace/config/integrations/pipedream/*.json","~/.openclaw/workspace/config/mcporter.json","~/.openclaw/logs/pipedream-*.log"],"capabilities":[{"id":"file.read","paths":["~/.openclaw/secrets.json","~/.openclaw/workspace/config/**"]},{"id":"file.write","paths":["~/.openclaw/secrets.json","~/.openclaw/workspace/config/**","~/.openclaw/logs/**"]},{"id":"network.http","domains":["api.pipedream.com","remote.mcp.pipedream.net","mcp.pipedream.com"]},{"id":"cron.manage","scope":"user-crontab","optional":true}],"installWarnings":["Optional cron setup creates persistent token-refresh behavior.","Skill reads/writes vault and mcporter config files containing sensitive tokens."],"securityNotes":"Client secrets are stored in OpenClaw vault (~/.openclaw/secrets.json). Access tokens may be written to mcporter Authorization headers and refreshed periodically."}}
 ---
 
 # Pipedream Connect
 
 Connect your AI agents to 2,000+ APIs with managed OAuth via Pipedream. Each agent gets its own isolated app connections and OAuth tokens.
+
+## What's New (2026-03-10 v1.5.2)
+
+- Added **A–Z alphabet filter** in the per-agent Browse Apps modal for fast app lookup by starting letter
+- Added active letter indicator in results summary (e.g., `Letter: Q`)
+- Improved app card readability in Browse Apps (wrapped names, reduced truncation)
+- Updated reference snapshots for latest app catalog fallback + CSP compatibility path
+
+## What's New (2026-03-10 v1.5.1)
+
+- Added explicit metadata declarations for config paths, capabilities, persistence, and security notes
+- Clarified persistent behavior (optional cron token refresh) and sensitive file access in docs
+- Aligned docs with actual paths under `~/.openclaw/`
 
 ## What's New (2026-03-01 v1.3.0)
 
@@ -181,5 +194,6 @@ Server names follow the pattern: `pipedream-{externalUserId}-{appSlug}`
 | `reference/pipedream-controller.ts` | Global tab state management |
 | `reference/agent-pipedream-views.ts` | Per-agent Pipedream panel UI (Agents → Tools → Pipedream) |
 | `reference/agent-pipedream-controller.ts` | Per-agent state management |
+| `reference/control-ui-csp.ts` | Control UI CSP policy (connect-src allowlist) |
 | `reference/README.md` | Reference file notes |
 | `scripts/` | Token refresh and utility scripts |
