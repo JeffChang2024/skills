@@ -1,11 +1,17 @@
 {
   "owner": "dionren",
   "slug": "adb-claw",
-  "displayName": "ADB Claw",
+  "displayName": "Adb Claw",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1773145618499,
-    "commit": "https://github.com/openclaw/skills/commit/2665d830533c8d50f0c23521e95ed1a1e52700c1"
+    "version": "1.2.0",
+    "publishedAt": 1773306067434,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1773145618499,
+      "commit": "https://github.com/openclaw/skills/commit/2665d830533c8d50f0c23521e95ed1a1e52700c1"
+    }
+  ]
 }
