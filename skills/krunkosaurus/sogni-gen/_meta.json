@@ -3,11 +3,16 @@
   "slug": "sogni-gen",
   "displayName": "Sogni Gen",
   "latest": {
-    "version": "1.5.15",
-    "publishedAt": 1773224875362,
-    "commit": "https://github.com/openclaw/skills/commit/fecbbee88638a0719fb896568626737c7c7d7bca"
+    "version": "1.5.16",
+    "publishedAt": 1773225869172,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.5.15",
+      "publishedAt": 1773224875362,
+      "commit": "https://github.com/openclaw/skills/commit/fecbbee88638a0719fb896568626737c7c7d7bca"
+    },
     {
       "version": "1.5.11",
       "publishedAt": 1771644169721,
