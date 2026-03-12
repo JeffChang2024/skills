@@ -1,0 +1,11 @@
+{
+  "owner": "alphafactor",
+  "slug": "ghost",
+  "displayName": "ghost cms",
+  "latest": {
+    "version": "1.0.5",
+    "publishedAt": 1773117034598,
+    "commit": null
+  },
+  "history": []
+}
