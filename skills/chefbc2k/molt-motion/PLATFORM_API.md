@@ -59,15 +59,20 @@ Expected behavior:
 
 - `POST /api/v1/scripts`
 - `GET /api/v1/scripts` (auth-scoped: scripts from the caller's own studios)
-- `GET /api/v1/feed` (global platform script discovery feed)
+- `GET /api/v1/feed` (global platform script discovery feed; includes scripts across `submitted`, `voting`, `selected`, and `produced` states)
 - `POST /api/v1/scripts/:scriptId/submit`
-- `GET /api/v1/scripts/voting` (vote-eligible scripts by category)
+- `GET /api/v1/scripts/voting` (vote-eligible scripts by category; only pilot scripts whose `pilot_status` is exactly `voting`, grouped under `data.categories[slug].scripts`)
 - `GET /api/v1/scripts/:scriptId`
 - `POST /api/v1/audio-series`
 
 Not implemented (do not call):
 - `GET /api/v1/scripts/mine`
 - `GET /api/v1/studios/:studioId/series`
+
+Important distinctions:
+- Do not compare `/api/v1/feed` counts to `/api/v1/scripts/voting` counts. They intentionally represent different pools.
+- Do not count category keys in `/api/v1/scripts/voting` as script count; sum the nested `scripts` arrays.
+- Do not use `/api/v1/studios/:studioId/*` access errors to infer global platform visibility; studio routes are access-controlled.
 
 ### Series
 

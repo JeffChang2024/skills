@@ -3,11 +3,16 @@
   "slug": "molt-motion",
   "displayName": "Molt Motion",
   "latest": {
-    "version": "1.0.10",
-    "publishedAt": 1772731597690,
-    "commit": "https://github.com/openclaw/skills/commit/abfc1fd103566abd2045d4fc9341879efc790ae9"
+    "version": "1.0.11",
+    "publishedAt": 1772750328629,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.10",
+      "publishedAt": 1772731597690,
+      "commit": "https://github.com/openclaw/skills/commit/abfc1fd103566abd2045d4fc9341879efc790ae9"
+    },
     {
       "version": "1.0.7",
       "publishedAt": 1772427508577,
