@@ -1,13 +1,18 @@
 {
   "owner": "thomaslwang",
   "slug": "openguardrails",
-  "displayName": "test",
+  "displayName": "OpenGuardrails",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1772113913080,
-    "commit": "https://github.com/openclaw/skills/commit/6d9318d41119d5a346f1eeeb707c0ee8d7511189"
+    "version": "6.8.20",
+    "publishedAt": 1773291603877,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1772113913080,
+      "commit": "https://github.com/openclaw/skills/commit/6d9318d41119d5a346f1eeeb707c0ee8d7511189"
+    },
     {
       "version": "1.0.0",
       "publishedAt": 1771803183498,
