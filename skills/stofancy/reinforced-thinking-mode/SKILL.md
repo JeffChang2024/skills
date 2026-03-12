@@ -31,17 +31,6 @@ Each round must be: *"If this were the last round, I am completely satisfied."*
 
 ---
 
-## Why File I/O Matters
-
-Without writing files, AI "hallucinates" N rounds internally—generating summaries instead of truly thinking.
-
-**File I/O enforces:**
-- Fresh thinking each round (can't rely on memory)
-- True independence (must read files)
-- Verifiability (users see each round)
-
----
-
 ## Hard Constraints
 
 ### File Access
@@ -58,205 +47,76 @@ Never use in solution files: `TODO`, `to be improved`, `next round`, `later`, `r
 
 ---
 
-## Execution Flow (Detailed Steps)
+## Execution Flow
 
-### Phase 1: Initialize (Must Execute)
+### Phase 1: Initialize
 
-1. **Assess problem complexity**
-   - Read user problem
-   - Determine rounds: simple 2-3, medium 4-5, complex 5-7, wicked 7-10
-
-2. **Create working directory**
-   ```bash
-   mkdir -p reinforced-thinking
-   ```
-
-3. **Write problem definition file**
-   Create `reinforced-thinking/problem.md`, containing:
-   - Problem background
-   - Current system/environment state
-   - Core problem
-   - Constraints
-   - Success criteria
-   - Complexity assessment rationale
+1. **Assess complexity** → Determine rounds (simple 2-3, medium 4-5, complex 5-7, wicked 7-10)
+2. **Create directory** `reinforced-thinking/`
+3. **Write problem definition** `problem.md`: background, current state, core problem, constraints, success criteria
 
 ---
 
-### Phase 2: Iterate (Must Execute for Each Round)
+### Phase 2: Iterate (Each Round)
 
-For round X, execute these steps in order:
+For round X:
 
-#### Step 2.1: Read Files
-```bash
-# Read problem definition
-read reinforced-thinking/problem.md
-
-# Read previous round (skip for round 1)
-read reinforced-thinking/round_{X-1}.md
-```
-
-#### Step 2.2: Reset Mindset
-Before writing, explicitly tell yourself:
-- "I will think about this problem from a **fresh angle**"
-- "I cannot copy the previous round's approach"
-- "If this is the **last round**, I must provide a complete solution"
-
-#### Step 2.3: Choose Angle Freely
-- Critically review the previous round's solution
-- If needed, choose an angle **significantly different** from the previous round
-- If needed, **completely overturn** the previous round
-
-#### Step 2.4: Think All-Out and Write
-Create `reinforced-thinking/round_X.md`, **must include this structure**:
-
-```markdown
-# Round X
-
-## Independence Declaration
-This is round X. If this were the last round, I would be completely satisfied with this solution.
+1. **Read files**: `problem.md` + `round_{X-1}.md` (Round 1: only problem.md)
+2. **Reset mindset**: Think from a fresh angle, don't copy previous approach
+3. **Choose angle freely**: Overturn previous round if necessary
+4. **Write solution** `round_X.md`, including:
+   - Independence declaration
+   - Core insight
+   - Solution design
+   - Expected results
+   - Risks and mitigations
+   - Why solution is complete
+5. **Self-review**: Check for forbidden words, completeness, executability
+6. **If failed → Redo step 4
+7. **Early termination check** (round 2+):
+   - Compare core approach and solution with previous round
+   - If similarity > 70%, lack of innovation → **Recommend early termination**
+   - Write termination recommendation in current round for user decision
 
 ---
 
-## Core Insight
-(What essential problem did you discover? 1-2 sentences)
+### Phase 3: Synthesize
 
-## Solution Design
-(Describe the complete solution in detail, including steps, code examples, configs, etc.)
+1. Read all rounds + problem.md
+2. Analyze unique value, conflicts, complements of each solution
+3. **Red team review**: Critical examination of each solution
+   - Assumption flaws: What assumptions does the solution rely on? What if they fail?
+   - Vulnerability risks: Potential loopholes or bypasses?
+   - Failure modes: In what scenarios will it fail?
+   - Adversarial testing: If someone deliberately sabotages, where is the weakest point?
+4. Generate final report `final_report.md` (including red team review conclusions)
 
-## Expected Results
-(Effects after implementing the solution)
+### Phase 4: Cleanup
 
-## Risks and Mitigations
-(Potential risks + countermeasures)
+Automatically delete intermediate files (problem.md, round_*.md), only keep final_report.md.
 
-## Why This Solution is Complete?
-(Explain why this solution can be implemented directly without "future improvements")
-```
-
-#### Step 2.5: Self-Review (Quality Check)
-**Before saving, must check:**
-
-- [ ] **Final Quality Test**: If this were the last round, would I be satisfied?
-- [ ] **Zero TODO Check**: Any `TODO`, `to be improved`, `next round` in the text?
-- [ ] **Information Completeness Check**: Are all needed details written?
-- [ ] **Executability Check**: Can the solution be implemented directly?
-- [ ] **Independent Thinking Check**: Is it based on problem.md + only previous round?
-
-**If any check fails → Redo Step 2.4**
-
-#### Step 2.6: Save File
-```bash
-write reinforced-thinking/round_X.md
-```
+If retention needed, specify in), only keep final prompt.
 
 ---
 
-### Phase 3: Synthesize (Must Execute)
-
-1. **Read all rounds**
-   ```bash
-   read reinforced-thinking/problem.md
-   read reinforced-thinking/round_1.md
-   read reinforced-thinking/round_2.md
-   # ... read all rounds
-   ```
-
-2. **Analyze all solutions**
-   - Identify unique value of each solution
-   - Identify conflicts and complements between solutions
-   - Select best solution or combined solution
-
-3. **Generate final report**
-   Create `reinforced-thinking/final_report.md`:
-
-   ```markdown
-   # Final Report
-
-   ## Problem Restatement
-   (One sentence summarizing the problem)
-
-   ## Round Summaries
-   - R1: Angle - Core Solution - Advantage
-   - R2: Angle - Core Solution - Advantage
-   - ...
-
-   ## Solution Comparison
-   | Solution | Advantages | Disadvantages | Applicable Scenarios |
-
-   ## Recommended Solution
-   (Select best or combined solution with reasoning)
-
-   ## Implementation Plan
-   (Specific implementation steps)
-
-   ## Risks and Notes
-   ```
-
----
-
-### Phase 4: Cleanup (Must Execute)
-
-**After generating the final report, you MUST ask the user whether to clean up intermediate files.**
-
-1. **List generated files**
-   ```bash
-   ls -la reinforced-thinking/
-   ```
-
-2. **Ask user explicitly**
-   
-   Present this to the user:
-   ```
-   强化思考完成！生成了以下文件：
-   
-   📄 final_report.md    (最终报告 - 保留)
-   📄 problem.md          (问题定义)
-   📄 round_1.md          (第1轮方案)
-   📄 round_2.md          (第2轮方案)
-   ...
-   
-   是否清理中间文件（round_*.md, review_*.md, problem.md）？
-   只保留 final_report.md
-   ```
-
-3. **Wait for user confirmation**
-   
-   - If user says **YES/是/清理**: Delete intermediate files
-     ```bash
-     rm reinforced-thinking/problem.md
-     rm reinforced-thinking/round_*.md
-     rm reinforced-thinking/review_*.md
-     ```
-   - If user says **NO/否/保留**: Keep all files
-
-4. **Never auto-cleanup without asking** - Always wait for user decision
-
----
-
-## Quality Assurance Mechanism
+## Quality Assurance
 
 ### Mandatory Redo Rules
 
-If ANY of these conditions trigger, **MUST redo current round**:
+If ANY of these conditions trigger, MUST redo current round:
+1. Contains forbidden words (TODO, to be improved, next round, later, refine further)
+2. Not final quality, needs "future supplements"
+3. Read files other than problem.md and round_{X-1}.md
+4. Solution incomplete
 
-1. **Contains forbidden words**: `TODO`, `to be improved`, `next round`, `later`, `refine further`
-2. **Not final quality**: Not satisfied, needs "future supplements"
-3. **Depends on unauthorized files**: Read files other than problem.md and round_{X-1}.md
-4. **Incomplete solution**: Missing core parts (problem analysis, solution, expected results, risks)
+### Checklist (Each Round)
 
-### Checklist (Must Do Each Round)
-
-After completing each round, verify:
-
-```
-□ I chose a different angle from the previous round
-□ I did not copy the previous round's solution
-□ No TODO, "to be improved" in the solution
-□ If this were the last round, I would be satisfied
-□ All needed details are included
-□ Solution can be implemented directly, no "future development" needed
-□ Only read problem.md and previous round
-```
+- [ ] Chose different angle from previous round
+- [ ] Did not copy previous solution
+- [ ] No forbidden words
+- [ ] If last round, I would be satisfied
+- [ ] All details included, can implement directly
+- [ ] Only read problem.md and previous round
 
 ---
 
@@ -279,4 +139,4 @@ After completing each round, verify:
 - **True independence**: Only read problem.md + previous round, not all history
 - **All-out each round**: Don't hold back for "next iteration"
 - **Transparency**: Show chosen angle and reasoning in each round
-- **Convergence**: If 2 consecutive rounds lack true innovation, suggest ending early
+- **Early termination**: If 2 consecutive rounds lack innovation or similarity > 70% with previous round, recommend early termination
