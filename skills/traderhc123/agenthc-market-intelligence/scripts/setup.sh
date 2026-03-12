@@ -24,14 +24,14 @@ if [ -n "${AGENTHC_API_KEY:-}" ]; then
     echo "$AGENTHC_API_KEY"
   else
     echo "Already configured! AGENTHC_API_KEY is set."
-    echo "Test it: bash scripts/agenthc.sh market_intelligence"
+    echo "Test it: bash scripts/agenthc.sh overview"
   fi
   exit 0
 fi
 
 # Get agent name
 if [ "$AUTO" = true ]; then
-  AGENT_NAME="OpenClawAgent"
+  AGENT_NAME="Agent"
 else
   echo "=== Stock Market Intelligence Setup ==="
   echo ""
@@ -51,9 +51,9 @@ if [ "$AUTO" = false ]; then
 fi
 
 # Register
-RESPONSE=$(curl -s -X POST "$BASE_URL/api/v1/agents/register" \
+RESPONSE=$(curl -s -X POST "$BASE_URL/api/v1/register" \
   -H "Content-Type: application/json" \
-  -d "{\"name\": \"$AGENT_NAME\", \"description\": \"OpenClaw agent via ClawHub\"}")
+  -d "{\"name\": \"$AGENT_NAME\"}")
 
 # Extract API key
 API_KEY=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('api_key',''))" 2>/dev/null || echo "")
@@ -76,10 +76,9 @@ echo "Registered! Your API key: $API_KEY"
 echo ""
 echo "To use it, run:"
 echo "  export AGENTHC_API_KEY=\"$API_KEY\""
-echo "  bash scripts/agenthc.sh market_intelligence"
+echo "  bash scripts/agenthc.sh overview"
 echo ""
 echo "To make it permanent, add this line to your shell config (~/.zshrc or ~/.bashrc):"
 echo "  export AGENTHC_API_KEY=\"$API_KEY\""
 echo ""
-echo "Free modules: market_intelligence, educational_content, polymarket_intelligence"
 echo "Full docs: https://api.traderhc.com/docs"
