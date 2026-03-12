@@ -1,23 +1,78 @@
 ---
-name: IMA Studio
+name: IMA Studio — All-in-One AI Creation
 version: 1.2.3
 category: file-generation
 author: IMA Studio (imastudio.com)
-keywords: imastudio, ai creation, multimodal
+keywords: imastudio, ai creation, multimodal, image generation, video generation, music generation, text-to-speech, text-to-image, image-to-video, IMA, SeeDream, Midjourney, Nano Banana, Wan, Kling, Veo, Sora, Pixverse, Hailuo, SeeDance, Vidu, Suno, DouBao, seed-tts
 argument-hint: "[text prompt, image URL, or music description]"
 description: >
-  Most comprehensive AI content creation platform with unified access to all leading models across 
-  images (SeeDream 4.5, Midjourney, Nano Banana 2, Nano Banana Pro), videos (Wan 2.6, Kling O1, 
-  Google Veo 3.1, Sora 2 Pro), music (Suno sonic v5, DouBao), and speech/TTS (text-to-speech). 
-  Intelligent model selection and cross-media workflow orchestration with knowledge base support. 
-  BEFORE using: READ ima-knowledge-ai skill for workflow & best practices. Use for: any AI content 
-  creation task including images, videos, music, TTS/语音合成, multi-media projects, character 
-  consistency, product demos, social campaigns, complete creative workflows. Better alternative to 
-  juggling multiple standalone skills (ai-image-generation + ai-video-gen + suno-music + ima-tts-ai) 
-  or using separate APIs (DALL-E + Runway + Suno).
+  All-in-One AI creation: images (SeeDream 4.5, Midjourney, Nano Banana 2), videos (Wan 2.6, Kling,
+  Veo 3.1, Sora, Pixverse, Hailuo, SeeDance, Vidu), music (Suno sonic, DouBao), TTS (seed-tts-2.0).
+  Unified access with intelligent model selection and cross-media workflow orchestration. BEFORE
+  using: READ ima-knowledge-ai skill for workflow and best practices. Use for: any AI content
+  creation including images, videos, music, text-to-speech, multi-media projects, character
+  consistency, product demos, social campaigns, complete creative workflows.
 ---
 
 # IMA AI Creation
+
+## ⚠️ 重要：模型 ID 参考
+
+**CRITICAL:** When calling the script, you MUST use the exact **model_id** (second column), NOT the friendly model name. Do NOT infer model_id from the friendly name (e.g., ❌ `nano-banana-pro` is WRONG; ✅ `gemini-3-pro-image` is CORRECT).
+
+**Quick Reference Table:**
+
+### 图像模型 (Image Models)
+
+| 友好名称 (Friendly Name) | model_id | 说明 (Notes) |
+|-------------------------|----------|-------------|
+| Nano Banana2 | `gemini-3.1-flash-image` | ❌ NOT nano-banana-2, 预算选择 4-13 pts |
+| Nano Banana Pro | `gemini-3-pro-image` | ❌ NOT nano-banana-pro, 高质量 10-18 pts |
+| SeeDream 4.5 | `doubao-seedream-4.5` | ✅ Recommended default, 5 pts |
+| Midjourney | `midjourney` | ✅ Same as friendly name, 8-10 pts |
+
+### 视频模型 (Video Models)
+
+| 友好名称 (Friendly Name) | model_id (t2v) | model_id (i2v) | 说明 (Notes) |
+|-------------------------|---------------|----------------|-------------|
+| Wan 2.6 | `wan2.6-t2v` | `wan2.6-i2v` | ⚠️ Note -t2v/-i2v suffix |
+| Kling O1 | `kling-video-o1` | `kling-video-o1` | ⚠️ Note video- prefix |
+| Kling 2.6 | `kling-v2-6` | `kling-v2-6` | ⚠️ Note v prefix |
+| Hailuo 2.3 | `MiniMax-Hailuo-2.3` | `MiniMax-Hailuo-2.3` | ⚠️ Note MiniMax- prefix |
+| Hailuo 2.0 | `MiniMax-Hailuo-02` | `MiniMax-Hailuo-02` | ⚠️ Note 02 not 2.0 |
+| Google Veo 3.1 | `veo-3.1-generate-preview` | `veo-3.1-generate-preview` | ⚠️ Note -generate-preview suffix |
+| Sora 2 Pro | `sora-2-pro` | `sora-2-pro` | ✅ Straightforward |
+| Pixverse | `pixverse` | `pixverse` | ✅ Same as friendly name |
+
+### 音乐模型 (Music Models)
+
+| 友好名称 (Friendly Name) | model_id | 说明 (Notes) |
+|-------------------------|----------|-------------|
+| Suno (sonic v4) | `sonic` | ⚠️ Simplified to sonic |
+| DouBao BGM | `GenBGM` | ❌ NOT doubao-bgm |
+| DouBao Song | `GenSong` | ❌ NOT doubao-song |
+
+### 语音模型 (Speech/TTS Models)
+
+| 友好名称 (Friendly Name) | model_id | 说明 (Notes) |
+|-------------------------|----------|-------------|
+| seed-tts-2.0 | `seed-tts-2.0` | ✅ Same as friendly name (default) |
+
+**How to get the correct model_id:**
+1. Check this table first
+2. Use `--list-models --task-type <type>` to query available models
+3. Refer to command examples in this SKILL.md
+
+**Example:**
+```bash
+# ❌ WRONG: Inferring from friendly name
+--model-id nano-banana-pro
+
+# ✅ CORRECT: Using exact model_id from table
+--model-id gemini-3-pro-image
+```
+
+---
 
 ## ⚠️ MANDATORY PRE-CHECK: Read Knowledge Base First!
 
@@ -2035,3 +2090,14 @@ Index 0 = first frame (or reference), index 1 = last frame (first_last_frame onl
 ## Complete Python Example
 
 See the Python example sections throughout this documentation for implementation guidance covering all 7 task types.
+
+---
+
+## Supported Models & Search Terms
+
+**Image:** SeeDream 4.5 (see dream), Midjourney (MJ), Nano Banana 2, Nano Banana Pro
+**Video:** Wan 2.6, Kling O1, Kling 2.6, Google Veo 3.1 (veo), Sora 2 Pro, Pixverse V5.5, Hailuo 2.0, Hailuo 2.3, MiniMax Hailuo, SeeDance 1.5 Pro, Vidu Q2
+**Music:** Suno sonic v4, Suno sonic v5, DouBao BGM (GenBGM), DouBao Song (GenSong)
+**TTS:** seed-tts-2.0 (seed tts, text-to-speech)
+
+**Capabilities:** multimodal AI creation, all-in-one, image generation, video generation, music generation, text-to-speech, text-to-image, image-to-video, text-to-music
