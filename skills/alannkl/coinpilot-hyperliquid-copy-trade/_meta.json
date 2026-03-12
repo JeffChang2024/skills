@@ -3,11 +3,16 @@
   "slug": "coinpilot-hyperliquid-copy-trade",
   "displayName": "Coinpilot Hyperliquid Copy Trade",
   "latest": {
-    "version": "1.0.5",
-    "publishedAt": 1773058862068,
-    "commit": "https://github.com/openclaw/skills/commit/4b3994f23469d460191218c8b189106690d9ffa0"
+    "version": "1.0.7",
+    "publishedAt": 1773250038474,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.5",
+      "publishedAt": 1773058862068,
+      "commit": "https://github.com/openclaw/skills/commit/4b3994f23469d460191218c8b189106690d9ffa0"
+    },
     {
       "version": "1.0.3",
       "publishedAt": 1771243436824,
