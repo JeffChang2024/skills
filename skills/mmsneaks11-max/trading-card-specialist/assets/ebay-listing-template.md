@@ -1,241 +1,204 @@
-# eBay Listing Template - Trading Cards
+# eBay Listing Template Generator
 
-*Optimized for maximum visibility and conversion*
-
-## Title Template (80 characters max)
-
-```
-{YEAR} {BRAND} {PLAYER} {CARD_TYPE} {GRADE} {VARIATION} {SPORT} {ROOKIE}
-```
-
-### Examples:
-- `2023 Topps Chrome Ja Morant PSA 10 Refractor Basketball Rookie`
-- `1986 Fleer Michael Jordan #57 BGS 9.5 Basketball HOF GOAT`
-- `2000 Pokemon Base Set Charizard PSA 9 Holo 4/102 WOTC`
-
-### Title Optimization Keywords:
-- **Grade**: PSA 10, BGS 9.5, SGC 98, Raw Mint
-- **Rarity**: Refractor, Parallel, #/X, 1/1, Auto, Patch
-- **Status**: Rookie, RC, HOF, GOAT, Vintage, Modern
-- **Condition**: Mint, NM, Gem, Perfect, Centering
-
-## Description Template
+## Sports Card Listing Template
 
 ```markdown
-🔥 **{PLAYER} {YEAR} {BRAND} {CARD_TYPE} - {GRADE}** 🔥
+🔥 **INVESTMENT GRADE** {YEAR} {BRAND} {PLAYER} {CARD_TYPE} {GRADE}
 
-📋 **CARD DETAILS:**
-• Player: {PLAYER_NAME}
-• Year: {YEAR}
-• Set: {BRAND} {SET_NAME}
-• Card #: {CARD_NUMBER}
-• Variation: {PARALLEL/REFRACTOR/BASE}
-• Grade: {GRADING_COMPANY} {GRADE}
-• Sport: {BASKETBALL/FOOTBALL/BASEBALL/etc}
+## Key Details
+• **Condition**: {GRADE} ({POPULATION_INFO})
+• **Player**: {PLAYER} - {TEAM} {ACHIEVEMENTS}
+• **Card**: {YEAR} {BRAND} {SET} #{CARD_NUMBER}
+• **Authenticity**: {GRADING_SERVICE} Certified & Encapsulated
 
-🏆 **HIGHLIGHTS:**
-• {KEY_SELLING_POINT_1}
-• {KEY_SELLING_POINT_2}  
-• {KEY_SELLING_POINT_3}
+## Investment Highlights
+✅ **{INVESTMENT_REASON}**: {INVESTMENT_DETAILS}
+✅ **{RARITY_FACTOR}**: {RARITY_DETAILS}
+✅ **{CONDITION_HIGHLIGHT}**: {CONDITION_DETAILS}
+✅ **{MARKET_TIMING}**: {TIMING_DETAILS}
 
-📊 **MARKET DATA:**
-• Recent Sales: ${RECENT_AVERAGE} average
-• Population: {PSA_POP_COUNT} {GRADE}s exist
-• Trend: {RISING/STABLE/HOT} market
+## Technical Specifications
+- **Year**: {YEAR}
+- **Brand**: {BRAND}
+- **Set**: {SET}
+- **Card Number**: #{CARD_NUMBER}
+- **Parallel**: {PARALLEL_TYPE}
+- **Grading Service**: {GRADING_SERVICE}
+- **Grade**: {GRADE}
+- **Cert Number**: {CERT_NUMBER}
 
-🛡️ **CONDITION & AUTHENTICITY:**
-• Grade: {DETAILED_CONDITION}
-• Corners: {CONDITION}
-• Centering: {CENTERING_DETAILS}
-• Surface: {SURFACE_CONDITION}
-• Authentication: {GRADING_COMPANY} certified
+## Why This Card Matters
+{PLAYER_NARRATIVE}
 
-📦 **SHIPPING & HANDLING:**
-• Fast & Free shipping via USPS Priority
-• Secure packaging with bubble mailers + toploaders
-• Insurance included on orders $100+
-• Same-day shipping on orders before 2 PM EST
+## Shipping & Handling
+🚚 **Same-Day Shipping** (orders by 2 PM EST)
+📦 **Premium Packaging**: Team bags, toploaders, bubble mailers
+🔒 **Insurance Included** on all orders $100+
+📍 **Tracking Provided** for all shipments
 
-🔒 **BUYER PROTECTION:**
-• 100% authentic guarantee
-• 30-day return policy
-• 99.8% positive feedback
-• Trusted seller since {YEAR}
+## Seller Credentials
+⭐ **99.8% Positive Feedback** ({FEEDBACK_COUNT}+ transactions)
+🏆 **Top Rated Seller** with eBay Premium Service
+🎯 **Card Specialist** - {YEARS_EXPERIENCE}+ years in the industry
+🔍 **Authentication Guarantee** - 30-day return policy
 
-💎 **ABOUT US:**
-Professional trading card dealer with {X}+ years experience. Specializing in {NICHE} with thousands of satisfied customers worldwide. All cards stored in climate-controlled environment.
-
-🏷️ **TAGS:** {PLAYER} {SPORT} {YEAR} {BRAND} {GRADE} {ROOKIE} {HOF}
-
----
-📧 Questions? Message us anytime!
-⭐ Check our other auctions for more {PLAYER} cards!
-🔔 Add us to your favorite sellers list for new inventory alerts!
+{PAYMENT_TERMS}
+{RETURN_POLICY}
+{INTERNATIONAL_SHIPPING}
 ```
 
-## Category Selection Guide
+## Pokemon Card Listing Template
 
-### Basketball Cards
-- **Main**: Sports Mem, Cards & Fan Shop > Sports Trading Cards > Basketball Cards
-- **Subcategory**: 
-  - Modern (1970-Now) for 1970+
-  - Vintage (Pre-1970) for older cards
-  - Sets for complete sets
-  - Autographed for signed cards
+```markdown
+✨ **MINT CONDITION** {YEAR} Pokemon {SET} {POKEMON_NAME} #{CARD_NUMBER} {GRADE}
 
-### Football Cards  
-- **Main**: Sports Mem, Cards & Fan Shop > Sports Trading Cards > Football Cards
-- **Subcategory**:
-  - Modern (1970-Now) 
-  - Vintage (Pre-1970)
-  - Sets
-  - Autographed
+## Card Overview
+• **Pokemon**: {POKEMON_NAME} ({POKEMON_TYPE})
+• **Set**: {YEAR} {SET}
+• **Card Number**: #{CARD_NUMBER}/{TOTAL_IN_SET}
+• **Rarity**: {RARITY_SYMBOL} {RARITY_NAME}
+• **Condition**: {GRADE} - {GRADING_SERVICE}
 
-### Pokemon Cards
-- **Main**: Toys & Hobbies > Collectible Card Games > Pokémon Trading Card Game > Pokémon Individual Cards
-- **Subcategory**:
-  - Base Set for original 1998 cards
-  - Japanese for Japanese cards
-  - Promo Cards for promotional cards
+## Special Features
+🌟 **{SPECIAL_FEATURE_1}**: {FEATURE_DESCRIPTION_1}
+🌟 **{SPECIAL_FEATURE_2}**: {FEATURE_DESCRIPTION_2}
+🌟 **{SPECIAL_FEATURE_3}**: {FEATURE_DESCRIPTION_3}
 
-## Pricing Strategy Templates
+## Card Details
+- **HP**: {HP_VALUE}
+- **Attacks**: {ATTACK_NAMES}
+- **Weakness**: {WEAKNESS}
+- **Resistance**: {RESISTANCE}
+- **Retreat Cost**: {RETREAT_COST}
 
-### Auction Style (7-day)
-```
-Starting Bid: {RECENT_LOW_SALE * 0.7}
-Buy It Now: {RECENT_HIGH_SALE * 1.1}  
-Reserve: {TARGET_MINIMUM}
+## Collector Information
+📊 **Population**: {POPULATION_COUNT} graded at this level
+💎 **Market Trend**: {PRICE_TREND} over last 90 days
+🎯 **Estimated Value**: ${LOW_ESTIMATE} - ${HIGH_ESTIMATE}
+
+{STANDARD_SHIPPING_TERMS}
 ```
 
-### Fixed Price (Good Till Cancelled)
-```
-List Price: {RECENT_AVERAGE * 1.15}
-Auto-Accept Offers: {RECENT_AVERAGE * 0.95}
-Auto-Decline Offers: {RECENT_AVERAGE * 0.75}
-```
+## Vintage Card Listing Template
 
-### Best Offer Strategy
-```
-List Price: {TARGET_PRICE * 1.2}
-Auto-Accept: {TARGET_PRICE}
-Auto-Decline: {TARGET_PRICE * 0.8}
-```
+```markdown
+🏛️ **VINTAGE TREASURE** {YEAR} {BRAND} {PLAYER} #{CARD_NUMBER} {CONDITION}
 
-## Photo Guidelines
+## Historical Significance
+This {YEAR} {BRAND} {PLAYER} represents {HISTORICAL_CONTEXT}
 
-### Required Shots (Free Tier)
-1. **Front view** - Card centered, good lighting
-2. **Back view** - Show reverse side clearly  
-3. **Grade label** - Close-up of PSA/BGS slab
-4. **Corners** - Detail shots if raw card
+## Condition Assessment
+📋 **Overall Grade**: {CONDITION_ASSESSMENT}
+🔍 **Corners**: {CORNER_CONDITION}
+🔍 **Edges**: {EDGE_CONDITION}  
+🔍 **Surface**: {SURFACE_CONDITION}
+🔍 **Centering**: {CENTERING_ASSESSMENT}
 
-### Premium Photo Package (Subscription)
-5. **Centering shot** - Ruler or grid overlay
-6. **Surface detail** - Macro lens for texture
-7. **Comparative shot** - Next to similar grade
-8. **Packaging** - Show protective storage
-9. **Certificate** - Any authenticity docs
-10. **Action shot** - Player in uniform (stock photo)
+## Vintage Card Details
+- **Era**: {ERA_CLASSIFICATION}
+- **Manufacturer**: {MANUFACTURER}
+- **Set**: {SET_NAME}
+- **Card Number**: #{CARD_NUMBER}
+- **Print Run**: {PRINT_RUN_INFO}
+- **Variations**: {KNOWN_VARIATIONS}
 
-### Photography Tips
-- **Lighting**: Natural daylight or softbox lighting
-- **Background**: Plain white or neutral gray
-- **Resolution**: Minimum 1200x1200 pixels
-- **Focus**: Sharp, no blur or glare
-- **Angle**: Straight-on, avoid perspective distortion
+## Market Context
+📈 **Recent Sales**: ${RECENT_SALE_RANGE}
+📊 **Available Supply**: {SUPPLY_ASSESSMENT}
+🎯 **Collector Demand**: {DEMAND_LEVEL}
 
-## SEO Optimization
+## Authenticity Guarantee
+✅ Examined by vintage card specialist
+✅ Period-appropriate printing and materials verified
+✅ 30-day authenticity guarantee
+✅ Detailed condition photos provided
 
-### High-Traffic Keywords
-- Player name variations (full name, nickname, team)
-- Card number and set name
-- Grade and grading company
-- Rookie, RC, first-year terms
-- Hall of Fame, HOF for legends
-- Team names and cities
-- Parallel types (Refractor, Prizm, etc.)
-
-### Long-Tail Phrases
-- "{Player} rookie card PSA 10"
-- "{Year} {Brand} {Player} refractor"
-- "Basketball card investment grade"
-- "{Player} {Team} jersey number card"
-
-### Trending Hashtags (In Description)
-- #TradingCards #SportsCards #Basketball
-- #Investment #PSA10 #BGS95 #GemMint
-- #Rookie #HallOfFame #Vintage #Modern
-- #Collector #CardCollector #SportsMemorabilia
-
-## Shipping Templates
-
-### Standard Shipping (Free)
-```
-📦 FREE SHIPPING via USPS Priority Mail (2-3 business days)
-• Bubble mailer + rigid toploader protection
-• Tracking number provided within 24 hours
-• Insurance included on orders $50+
+{VINTAGE_SHIPPING_TERMS}
 ```
 
-### Express Shipping (Premium)
-```
-🚀 EXPRESS SHIPPING OPTIONS:
-• Priority Express: $25 (1-2 business days)
-• UPS Next Day: $35 (guaranteed next day)
-• Hand delivery available in {CITY} area
+## Template Variables Reference
+
+### Player Information
+- `{PLAYER}` - Full player name
+- `{TEAM}` - Current or primary team
+- `{ACHIEVEMENTS}` - Notable achievements (All-Star, MVP, etc.)
+- `{PLAYER_NARRATIVE}` - Story about player's significance
+
+### Card Specifications  
+- `{YEAR}` - Card year
+- `{BRAND}` - Card manufacturer
+- `{SET}` - Set name
+- `{CARD_NUMBER}` - Card number
+- `{PARALLEL_TYPE}` - Parallel designation if applicable
+- `{CARD_TYPE}` - Base, rookie, insert, etc.
+
+### Condition & Grading
+- `{GRADE}` - PSA/BGS grade
+- `{GRADING_SERVICE}` - PSA, BGS, SGC
+- `{CERT_NUMBER}` - Certification number
+- `{CONDITION}` - Raw condition if ungraded
+- `{POPULATION_INFO}` - Population count details
+
+### Market Data
+- `{POPULATION_COUNT}` - Cards graded at this level
+- `{PRICE_TREND}` - Recent price movement
+- `{LOW_ESTIMATE}` - Conservative value estimate
+- `{HIGH_ESTIMATE}` - Optimistic value estimate
+- `{RECENT_SALE_RANGE}` - Recent comparable sales
+
+### Investment Context
+- `{INVESTMENT_REASON}` - Why it's a good investment
+- `{INVESTMENT_DETAILS}` - Supporting details
+- `{RARITY_FACTOR}` - What makes it rare
+- `{RARITY_DETAILS}` - Specific rarity information
+- `{MARKET_TIMING}` - Current market conditions
+
+### Seller Information
+- `{FEEDBACK_COUNT}` - Number of positive feedbacks
+- `{YEARS_EXPERIENCE}` - Years selling cards
+- `{SPECIALIZATION}` - Areas of expertise
+
+### Standard Terms
+- `{PAYMENT_TERMS}` - Accepted payment methods
+- `{RETURN_POLICY}` - Return and refund policy
+- `{INTERNATIONAL_SHIPPING}` - International shipping options
+- `{STANDARD_SHIPPING_TERMS}` - Shipping and handling details
+
+## Usage Examples
+
+### Generate Sports Card Listing
+```python
+template_vars = {
+    'YEAR': 2023,
+    'BRAND': 'Topps Chrome',
+    'PLAYER': 'Ja Morant',
+    'TEAM': 'Memphis Grizzlies',
+    'CARD_NUMBER': '15',
+    'GRADE': 'PSA 9',
+    'GRADING_SERVICE': 'PSA',
+    'POPULATION_INFO': 'Population: 1,247',
+    'ACHIEVEMENTS': '2x All-Star, MIP Winner',
+    'INVESTMENT_REASON': 'Rising Star',
+    'INVESTMENT_DETAILS': '2x All-Star, MIP Winner, Playoff Performer'
+}
+
+listing = generate_listing_from_template('sports', template_vars)
 ```
 
-### International Shipping
-```
-🌍 INTERNATIONAL SHIPPING:
-• USPS International: $15-35 (7-21 days)
-• FedEx International: $45+ (3-5 days)  
-• Buyer responsible for customs/duties
-• Items over $100 require signature confirmation
-```
+### Generate Pokemon Card Listing
+```python
+template_vars = {
+    'YEAR': 1998,
+    'SET': 'Base Set',
+    'POKEMON_NAME': 'Charizard',
+    'CARD_NUMBER': '4',
+    'TOTAL_IN_SET': '102',
+    'GRADE': 'PSA 10',
+    'GRADING_SERVICE': 'PSA',
+    'HP_VALUE': '120',
+    'RARITY_SYMBOL': '★',
+    'RARITY_NAME': 'Rare Holo'
+}
 
-## Return Policy Templates
-
-### Standard Policy (Free Tier)
+listing = generate_listing_from_template('pokemon', template_vars)
 ```
-🔄 30-DAY RETURN POLICY:
-• Item must be in exact condition received
-• Buyer pays return shipping
-• Original packaging required
-• No returns on graded cards (authentication disputes only)
-```
-
-### Premium Policy (Subscription)
-```
-🔄 PREMIUM RETURN POLICY:
-• 60-day return window
-• Free return shipping via prepaid label
-• Grade guarantee - full refund if grade disputed
-• White-glove return process with personal service
-```
-
-## Automation Triggers (Premium)
-
-### Price Adjustment Rules
-```
-IF no_watchers_48_hours THEN reduce_price_5_percent
-IF views_low_7_days THEN refresh_listing  
-IF similar_card_sells_higher THEN increase_price
-IF market_trend_down THEN add_best_offer
-```
-
-### Inventory Management
-```
-IF card_sells THEN update_inventory_count
-IF similar_cards_available THEN cross_promote
-IF price_drops_market THEN alert_for_purchase
-IF new_pop_report THEN update_description
-```
-
----
-
-**Template Status**: Battle-tested with 300%+ conversion improvements
-**Usage**: Customize variables in {BRACKETS} for each listing
-**Updates**: Template evolves based on eBay algorithm changes
-
-*This template incorporates proven eBay SEO strategies and psychological selling techniques developed specifically for trading card markets.*
