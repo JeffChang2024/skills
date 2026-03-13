@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
-import argparse, json
+import argparse
+import json
+import sys
 
 RISK_KEYWORDS = [
     "转账", "红包", "付款", "验证码", "密码", "token", "cookie",
     "忽略", "立刻", "马上", "客服", "官方通知"
 ]
+
+
+def fail(msg: str, code: int = 1):
+    print(f"Error: {msg}", file=sys.stderr)
+    raise SystemExit(code)
 
 
 def score(text: str):
@@ -21,6 +28,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--text", required=True)
     args = ap.parse_args()
+    if not args.text.strip():
+        fail("--text cannot be empty")
     print(json.dumps(score(args.text), ensure_ascii=False))
 
 
