@@ -1,11 +1,17 @@
 {
   "owner": "alirezarezvani",
   "slug": "saas-scaffolder",
-  "displayName": "Saas Scaffolder",
+  "displayName": "saas-scaffolder",
   "latest": {
-    "version": "2.1.1",
-    "publishedAt": 1773166603786,
-    "commit": "https://github.com/openclaw/skills/commit/5b4834274433e0b1027be072c8fc2e81bc2c0991"
+    "version": "1.0.0",
+    "publishedAt": 1773243950909,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "2.1.1",
+      "publishedAt": 1773166603786,
+      "commit": "https://github.com/openclaw/skills/commit/5b4834274433e0b1027be072c8fc2e81bc2c0991"
+    }
+  ]
 }
