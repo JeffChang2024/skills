@@ -3,9 +3,15 @@
   "slug": "nstbrowser-ai-agent",
   "displayName": "Nstbrowser AI Agent",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1773141005527,
-    "commit": "https://github.com/openclaw/skills/commit/94a8c3ff2f9ace025ebbc9414c555c4a84e76291"
+    "version": "1.0.5",
+    "publishedAt": 1773306128271,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1773141005527,
+      "commit": "https://github.com/openclaw/skills/commit/94a8c3ff2f9ace025ebbc9414c555c4a84e76291"
+    }
+  ]
 }
