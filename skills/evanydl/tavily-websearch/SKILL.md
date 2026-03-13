@@ -1,55 +1,49 @@
 ---
 name: search
-description: "Search the web using Tavily's LLM-optimized search API. Returns relevant results with content snippets, scores, and metadata. Use when you need to find web content on any topic without writing code."
+description: "Search the web using Tavily's Search API. Returns relevant, accurate results with content snippets, scores, and metadata. Use when the user asks to search the web, look up sources, find links, or research a topic."
 ---
 
 # Search Skill
 
 Search the web and get relevant results optimized for LLM consumption.
 
-## Authentication
+## Requirements
 
-The script uses OAuth via the Tavily MCP server. **No manual setup required** - on first run, it will:
-1. Check for existing tokens in `~/.mcp-auth/`
-2. If none found, automatically open your browser for OAuth authentication
+Set your API key as an environment variable:
 
-> **Note:** You must have an existing Tavily account. The OAuth flow only supports login — account creation is not available through this flow. [Sign up at tavily.com](https://tavily.com) first if you don't have an account.
-
-### Alternative: API Key
-
-If you prefer using an API key, get one at https://tavily.com and add to `~/.claude/settings.json`:
-```json
-{
-  "env": {
-    "TAVILY_API_KEY": "tvly-your-api-key-here"
-  }
-}
+```bash
+export TAVILY_API_KEY=tvly-...
 ```
+
+Get an API key at [tavily.com](https://tavily.com).
 
 ## Quick Start
 
-### Using the Script
+The script accepts a single `--json` argument — the raw Tavily API request body. The JSON maps 1:1 to the [Tavily Search API](https://docs.tavily.com/documentation/api-reference/endpoint/search).
 
 ```bash
-./scripts/search.sh '<json>'
+./scripts/search.sh --json '{"query": "python async patterns"}'
 ```
 
 **Examples:**
+
 ```bash
-# Basic search
-./scripts/search.sh '{"query": "python async patterns"}'
+# Quick lookup
+./scripts/search.sh --json '{"query": "OpenAI latest funding round"}'
 
-# With options
-./scripts/search.sh '{"query": "React hooks tutorial", "max_results": 10}'
+# More results
+./scripts/search.sh --json '{"query": "Stripe documentation", "max_results": 10}'
 
-# Advanced search with filters
-./scripts/search.sh '{"query": "AI news", "time_range": "week", "max_results": 10}'
+# Recent news only
+./scripts/search.sh --json '{"query": "Landscape of electric vehicles 2026", "time_range": "week", "max_results": 10}'
 
-# Domain-filtered search
-./scripts/search.sh '{"query": "machine learning", "include_domains": ["arxiv.org", "github.com"], "search_depth": "advanced"}'
+# Scoped to specific sources
+./scripts/search.sh --json '{"query": "NVIDIA stock analysis", "search_depth": "advanced"}'
 ```
 
-### Basic Search
+### Equivalent curl
+
+The script is a thin wrapper around this call:
 
 ```bash
 curl --request POST \
@@ -59,21 +53,6 @@ curl --request POST \
   --data '{
     "query": "latest developments in quantum computing",
     "max_results": 5
-  }'
-```
-
-### Advanced Search
-
-```bash
-curl --request POST \
-  --url https://api.tavily.com/search \
-  --header "Authorization: Bearer $TAVILY_API_KEY" \
-  --header 'Content-Type: application/json' \
-  --data '{
-    "query": "machine learning best practices",
-    "max_results": 10,
-    "search_depth": "advanced",
-    "include_domains": ["arxiv.org", "github.com"]
   }'
 ```
 
@@ -98,13 +77,12 @@ POST https://api.tavily.com/search
 |-------|------|---------|-------------|
 | `query` | string | Required | Search query (keep under 400 chars) |
 | `max_results` | integer | 10 | Maximum results (0-20) |
-| `search_depth` | string | `"basic"` | `ultra-fast`, `fast`, `basic`, `advanced` |
-| `topic` | string | `"general"` | Search topic (general only) |
+| `search_depth` | string | `"basic"` | `basic`, `advanced` |
 | `time_range` | string | null | `day`, `week`, `month`, `year` |
 | `start_date` | string | null | Return results after this date (`YYYY-MM-DD`) |
 | `end_date` | string | null | Return results before this date (`YYYY-MM-DD`) |
-| `include_domains` | array | [] | Domains to include (max 300) |
-| `exclude_domains` | array | [] | Domains to exclude (max 150) |
+| `include_domains` | array | [] | Domains to include |
+| `exclude_domains` | array | [] | Domains to exclude |
 | `country` | string | null | Boost results from a specific country (general topic only) |
 | `include_raw_content` | boolean | false | Include full page content |
 | `include_images` | boolean | false | Include image results |
@@ -132,46 +110,12 @@ POST https://api.tavily.com/search
 
 | Depth | Latency | Relevance | Content Type |
 |-------|---------|-----------|--------------|
-| `ultra-fast` | Lowest | Lower | NLP summary |
-| `fast` | Low | Good | Chunks |
 | `basic` | Medium | High | NLP summary |
 | `advanced` | Higher | Highest | Chunks |
 
 **When to use each:**
-- `ultra-fast`: Real-time chat, autocomplete
-- `fast`: Need chunks but latency matters
 - `basic`: General-purpose, balanced
 - `advanced`: Precision matters (default recommendation)
-
-## Examples
-
-### Domain-Filtered Search
-
-```bash
-curl --request POST \
-  --url https://api.tavily.com/search \
-  --header "Authorization: Bearer $TAVILY_API_KEY" \
-  --header 'Content-Type: application/json' \
-  --data '{
-    "query": "Python async best practices",
-    "include_domains": ["docs.python.org", "realpython.com", "github.com"],
-    "search_depth": "advanced"
-  }'
-```
-
-### Search with Full Content
-
-```bash
-curl --request POST \
-  --url https://api.tavily.com/search \
-  --header "Authorization: Bearer $TAVILY_API_KEY" \
-  --header 'Content-Type: application/json' \
-  --data '{
-    "query": "React hooks tutorial",
-    "max_results": 3,
-    "include_raw_content": true
-  }'
-```
 
 ## Tips
 
@@ -179,4 +123,3 @@ curl --request POST \
 - **Break complex queries into sub-queries** - Better results than one massive query
 - **Use `include_domains`** to focus on trusted sources
 - **Use `time_range`** for recent information
-- **Filter by `score`** (0-1) to get highest relevance results
