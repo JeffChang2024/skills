@@ -3,11 +3,16 @@
   "slug": "paddleocr-text-recognition",
   "displayName": "PaddleOCR Text Recognition",
   "latest": {
-    "version": "1.0.3",
-    "publishedAt": 1773237726036,
-    "commit": "https://github.com/openclaw/skills/commit/f4cc1ad657873a2c39e29c2c3941c5e7c5d160a4"
+    "version": "1.0.8",
+    "publishedAt": 1773418297700,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.3",
+      "publishedAt": 1773237726036,
+      "commit": "https://github.com/openclaw/skills/commit/f4cc1ad657873a2c39e29c2c3941c5e7c5d160a4"
+    },
     {
       "version": "1.0.1",
       "publishedAt": 1773137101345,

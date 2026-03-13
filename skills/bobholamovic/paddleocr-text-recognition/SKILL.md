@@ -1,15 +1,13 @@
 ---
 name: paddleocr-text-recognition
-description: >
-  Use this skill when users need to extract text from images, PDFs, or documents. Supports URLs and local files.
-  Returns structured JSON containing recognized text.
+description: Extracts text (with locations) from images and PDF documents using PaddleOCR.
 metadata:
   openclaw:
     requires:
       env:
         - PADDLEOCR_OCR_API_URL
         - PADDLEOCR_ACCESS_TOKEN
-        - PADDLEOCR_TIMEOUT
+        - PADDLEOCR_OCR_TIMEOUT
       bins:
         - python
     primaryEnv: PADDLEOCR_ACCESS_TOKEN
@@ -156,6 +154,8 @@ The output JSON structure is as follows:
 
 ### First-Time Configuration
 
+You can generally assume that the required environment variables have already been configured. Only when an OCR task fails should you analyze the error message to determine whether it is caused by a configuration issue. If it is indeed a configuration problem, you should notify the user to fix it.
+
 **When API is not configured**:
 
 The error will show:
@@ -167,31 +167,30 @@ CONFIG_ERROR: PADDLEOCR_OCR_API_URL not configured. Get your API at: https://pad
 
 1. **Show the exact error message** to the user (including the URL).
 
-2. **Explain which environment variables are required**:
-   ```
-   Configure these values in the host application, runtime environment, or another appropriate config file:
-   - PADDLEOCR_OCR_API_URL
-   - PADDLEOCR_ACCESS_TOKEN
-   - Optional: PADDLEOCR_OCR_TIMEOUT
-   ```
+2. **Guide the user to configure securely**:
+   - Recommend configuring through the host application's standard method (e.g., settings file, environment variable UI) rather than pasting credentials in chat.
+   - List the required environment variables:
+     ```
+     - PADDLEOCR_OCR_API_URL
+     - PADDLEOCR_ACCESS_TOKEN
+     - Optional: PADDLEOCR_OCR_TIMEOUT
+     ```
 
-3. **If the user provides credentials in chat** (accept any reasonable format):
+3. **If the user provides credentials in chat anyway** (accept any reasonable format), for example:
    - `PADDLEOCR_OCR_API_URL=https://xxx.paddleocr.com/ocr, PADDLEOCR_ACCESS_TOKEN=abc123...`
    - `Here's my API: https://xxx and token: abc123`
    - Copy-pasted code format
    - Any other reasonable format
+   - **Security note**: Warn the user that credentials shared in chat may be stored in conversation history. Recommend setting them through the host application's configuration instead when possible.
 
-4. **Parse and validate the values**:
+   Then parse and validate the values:
    - Extract `PADDLEOCR_OCR_API_URL` (look for URLs with `paddleocr.com` or similar)
    - Confirm `PADDLEOCR_OCR_API_URL` is a full endpoint ending with `/ocr`
    - Extract `PADDLEOCR_ACCESS_TOKEN` (long alphanumeric string, usually 40+ chars)
-   - Tell the user exactly which environment variables to set
 
-5. **Ask the user to confirm the environment is configured**:
-   - Wait for the user to confirm these values have been set in their host application, runtime environment, or appropriate config file
-   - For security reasons, do not run `configure.py` or create a local `.env` file by default if the skill is installed under a host application directory (for example, `~/.claude/skills`)
+4. **Ask the user to confirm the environment is configured**.
 
-6. **Retry only after confirmation**:
+5. **Retry only after confirmation**:
    - Once the user confirms the environment variables are available, retry the original OCR task
 
 ### Error Handling
