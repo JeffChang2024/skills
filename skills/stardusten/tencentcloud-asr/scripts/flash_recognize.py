@@ -206,7 +206,7 @@ def main():
             "message": (
                 f"Audio file is {len(audio_data)} bytes, exceeds the 100MB Flash ASR limit. "
                 "Normalize and split the file, then recognize each segment with flash_recognize.py. "
-                "Use file_recognize.py only when async URL mode is explicitly required."
+                "Use file_recognize.py rec only when async URL mode is explicitly required."
             ),
         }, ensure_ascii=False, indent=2))
         sys.exit(1)
@@ -229,7 +229,9 @@ def main():
 
         # Build output
         result = {
-            "audio_duration": response.get("audio_duration", 0),
+            # Flash ASR returns audio_duration in milliseconds; normalize to seconds
+            # so all local ASR scripts expose a consistent audio_duration unit.
+            "audio_duration": response.get("audio_duration", 0) / 1000.0,
             "request_id": response.get("request_id", ""),
         }
 

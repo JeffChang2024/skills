@@ -15,6 +15,7 @@ SHORT_MAX_SECONDS = 60
 SENTENCE_MAX_BYTES = 3 * 1024 * 1024
 FLASH_MAX_SECONDS = 2 * 60 * 60
 FLASH_MAX_BYTES = 100 * 1024 * 1024
+FILE_ASYNC_MAX_SECONDS = 5 * 60 * 60
 FILE_BODY_MAX_BYTES = 5 * 1024 * 1024
 SEGMENT_SECONDS = 30 * 60
 URL_ASYNC_FALLBACK_ERRORS = {
@@ -207,6 +208,12 @@ def is_http_url(value):
     return value.startswith("http://") or value.startswith("https://")
 
 
+def validate_public_url(value, flag_name):
+    if value and not is_http_url(value):
+        fail(f"{flag_name} must be an http:// or https:// public URL.")
+    return value
+
+
 def should_fallback_to_async_url(input_value, payload):
     return (
         is_http_url(input_value)
@@ -262,7 +269,7 @@ def run_asr_script(script_name, args):
 
 def transcribe_short(input_value, engine):
     require_credentials()
-    return run_asr_script("main.py", [input_value, "--engine", engine])
+    return run_asr_script("sentence_recognize.py", [input_value, "--engine", engine])
 
 
 def transcribe_flash(input_value, engine):
@@ -275,6 +282,7 @@ def transcribe_async(input_value, engine, poll_interval, max_poll_time):
     return run_asr_script(
         "file_recognize.py",
         [
+            "rec",
             input_value,
             "--engine",
             engine,
@@ -286,7 +294,14 @@ def transcribe_async(input_value, engine, poll_interval, max_poll_time):
     )
 
 
-def transcribe_local_file(input_path, short_engine, long_engine, poll_interval, max_poll_time):
+def transcribe_local_file(
+    input_path,
+    short_engine,
+    long_engine,
+    poll_interval,
+    max_poll_time,
+    async_public_url=None,
+):
     metadata = inspect_audio(input_path)
 
     with tempfile.TemporaryDirectory(prefix="tencent-asr-cli-") as temp_dir:
@@ -311,6 +326,13 @@ def transcribe_local_file(input_path, short_engine, long_engine, poll_interval, 
         if duration <= FLASH_MAX_SECONDS and size_bytes <= FLASH_MAX_BYTES:
             if appid_configured():
                 return transcribe_flash(str(working_path), long_engine)
+            if async_public_url and duration <= FILE_ASYNC_MAX_SECONDS:
+                return transcribe_async(
+                    async_public_url,
+                    long_engine,
+                    poll_interval,
+                    max_poll_time,
+                )
             if size_bytes <= FILE_BODY_MAX_BYTES:
                 return transcribe_async(
                     str(working_path),
@@ -320,13 +342,25 @@ def transcribe_local_file(input_path, short_engine, long_engine, poll_interval, 
                 )
             fail(
                 "Long audio needs Tencent Cloud AppId for Flash ASR. "
-                "Without AppId, this local file is too large for CreateRecTask body upload."
+                "Without AppId, this local file is too large for CreateRecTask body upload. "
+                "If you already uploaded a normalized file to COS, pass its public URL via "
+                "--async-public-url."
+            )
+
+        if async_public_url and duration <= FILE_ASYNC_MAX_SECONDS:
+            return transcribe_async(
+                async_public_url,
+                long_engine,
+                poll_interval,
+                max_poll_time,
             )
 
         if not appid_configured():
             fail(
                 "Segmented long-audio transcription needs Tencent Cloud AppId because "
-                "the wrapper uses Flash ASR for local segments."
+                "the wrapper uses Flash ASR for local segments. "
+                "If you already uploaded a normalized <=5h file to COS, pass its public URL via "
+                "--async-public-url to avoid local segmentation."
             )
 
         segments_dir = temp_dir_path / "segments"
@@ -342,23 +376,17 @@ def transcribe_local_file(input_path, short_engine, long_engine, poll_interval, 
 
 
 def transcribe_url(input_value, short_engine, long_engine, poll_interval, max_poll_time):
-    metadata = inspect_audio(input_value, allow_async_url_fallback=True)
-    if metadata is None:
+    del short_engine  # URL input defaults to async recording-file recognition.
+    try:
         return transcribe_async(input_value, long_engine, poll_interval, max_poll_time)
-
-    duration = metadata.get("duration_seconds")
-    if duration is None:
-        fail("Unable to determine audio duration for URL input.")
-
-    if metadata.get("sample_rate") == 16000 and metadata.get("channels") == 1:
-        if duration <= SHORT_MAX_SECONDS:
-            return transcribe_short(input_value, short_engine)
-        return transcribe_async(input_value, long_engine, poll_interval, max_poll_time)
-
-    fail(
-        "URL input is not already 16kHz mono. Hosts like OpenClaw usually download audio "
-        "locally first, so prefer passing a local media path to this wrapper."
-    )
+    except SystemExit as exc:
+        message = str(exc)
+        fail(
+            "Async URL recognition failed. For public URLs, the default path is "
+            "file_recognize.py rec. Please first check whether the URL is publicly reachable "
+            "and whether the audio is within the 5h CreateRecTask limit. "
+            f"Original error: {message}"
+        )
 
 
 def parse_args():
@@ -366,11 +394,20 @@ def parse_args():
         description="CLI transcription wrapper for Tencent Cloud ASR."
     )
     parser.add_argument("input", help="Local audio path or public URL.")
+    parser.add_argument(
+        "--async-public-url",
+        help=(
+            "Optional public URL for a normalized file already uploaded to COS or similar storage. "
+            "Used for local inputs when async URL recognition is preferable to body upload or segmentation."
+        ),
+    )
     parser.add_argument("--engine-short", default="16k_zh")
     parser.add_argument("--engine-long", default="16k_zh")
     parser.add_argument("--poll-interval", type=int, default=5)
     parser.add_argument("--max-poll-time", type=int, default=1800)
-    return parser.parse_args()
+    args = parser.parse_args()
+    args.async_public_url = validate_public_url(args.async_public_url, "--async-public-url")
+    return args
 
 
 def main():
@@ -394,6 +431,7 @@ def main():
             args.engine_long,
             args.poll_interval,
             args.max_poll_time,
+            args.async_public_url,
         )
 
     print(transcript)

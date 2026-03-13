@@ -22,6 +22,15 @@ def as_command_text(command):
     return " ".join(command)
 
 
+def run_command(command):
+    return subprocess.run(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        universal_newlines=True,
+    )
+
+
 def linux_privilege_prefix():
     if os.name == "nt":
         return []
@@ -30,6 +39,77 @@ def linux_privilege_prefix():
     if has_command("sudo"):
         return ["sudo"]
     return None
+
+
+def get_rhel_major_version():
+    if not has_command("rpm"):
+        return None
+    result = run_command(["rpm", "-E", "%rhel"])
+    if result.returncode != 0:
+        return None
+    version = result.stdout.strip()
+    return version or None
+
+
+def dnf_yum_repo_fallback(package_manager, prefix):
+    rhel_major = get_rhel_major_version()
+    if not rhel_major:
+        return None
+
+    commands = [
+        {
+            "command": prefix + [package_manager, "install", "-y", "epel-release"],
+            "optional": True,
+        },
+    ]
+
+    if has_command(package_manager):
+        commands.extend(
+            [
+                {
+                    "command": prefix + [package_manager, "config-manager", "--set-enabled", "crb"],
+                    "optional": True,
+                },
+                {
+                    "command": prefix + [package_manager, "config-manager", "--set-enabled", "powertools"],
+                    "optional": True,
+                },
+            ]
+        )
+
+    rpmfusion_url = (
+        "https://mirrors.rpmfusion.org/free/el/"
+        f"rpmfusion-free-release-{rhel_major}.noarch.rpm"
+    )
+    commands.append(
+        {
+            "command": prefix + [package_manager, "install", "-y", rpmfusion_url],
+            "optional": False,
+        }
+    )
+    commands.append(
+        {
+            "command": prefix + [package_manager, "install", "-y", "ffmpeg"],
+            "optional": False,
+        }
+    )
+
+    return {
+        "reason": "ffmpeg_not_in_enabled_repos",
+        "rhel_major": rhel_major,
+        "commands": commands,
+    }
+
+
+def command_failed_for_missing_ffmpeg(result):
+    text = "\n".join([result.stdout or "", result.stderr or ""]).lower()
+    patterns = [
+        "no match for argument: ffmpeg",
+        "unable to find a match: ffmpeg",
+        "no package ffmpeg available",
+        "nothing provides ffmpeg",
+    ]
+    return any(pattern in text for pattern in patterns)
 
 
 def build_install_plan():
@@ -120,6 +200,7 @@ def build_install_plan():
             "source_policy": "package_manager_only",
             "avoid": ["github-direct", "npm", "manual-zip-download"],
             "commands": [prefix + ["dnf", "install", "-y", "ffmpeg"]],
+            "repo_fallback": dnf_yum_repo_fallback("dnf", prefix),
         }
     if has_command("yum") and prefix is not None:
         return {
@@ -129,6 +210,7 @@ def build_install_plan():
             "source_policy": "package_manager_only",
             "avoid": ["github-direct", "npm", "manual-zip-download"],
             "commands": [prefix + ["yum", "install", "-y", "ffmpeg"]],
+            "repo_fallback": dnf_yum_repo_fallback("yum", prefix),
         }
     if has_command("zypper") and prefix is not None:
         return {
@@ -149,30 +231,71 @@ def build_install_plan():
     }
 
 
-def execute_plan(plan):
-    steps = plan.get("commands", [])
-    outputs = []
-    for command in steps:
-        result = subprocess.run(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            universal_newlines=True,
-        )
-        outputs.append(
-            {
-                "command": as_command_text(command),
-                "returncode": result.returncode,
-                "stdout": result.stdout[-4000:],
-                "stderr": result.stderr[-4000:],
-            }
-        )
-        if result.returncode != 0:
+def execute_step(command_spec, outputs):
+    optional = False
+    command = command_spec
+    if isinstance(command_spec, dict):
+        optional = command_spec.get("optional", False)
+        command = command_spec["command"]
+
+    result = run_command(command)
+    outputs.append(
+        {
+            "command": as_command_text(command),
+            "returncode": result.returncode,
+            "stdout": result.stdout[-4000:],
+            "stderr": result.stderr[-4000:],
+            "optional": optional,
+        }
+    )
+    return result, optional
+
+
+def execute_repo_fallback(plan, outputs):
+    fallback = plan.get("repo_fallback")
+    if not fallback:
+        return None
+
+    for command_spec in fallback.get("commands", []):
+        result, optional = execute_step(command_spec, outputs)
+        if result.returncode != 0 and not optional:
             return {
                 "status": "failed",
                 "platform": plan.get("platform"),
                 "package_manager": plan.get("package_manager"),
                 "source_policy": plan.get("source_policy"),
+                "message": (
+                    "Tried enabling EPEL / RPM Fusion automatically, but ffmpeg is still unavailable."
+                ),
+                "repo_fallback_attempted": True,
+                "repo_fallback_reason": fallback.get("reason"),
+                "steps": outputs,
+            }
+    return None
+
+
+def execute_plan(plan):
+    steps = plan.get("commands", [])
+    outputs = []
+    for index, command in enumerate(steps):
+        result, optional = execute_step(command, outputs)
+        if result.returncode != 0:
+            if (
+                not optional
+                and plan.get("package_manager") in {"dnf", "yum"}
+                and index == len(steps) - 1
+                and command_failed_for_missing_ffmpeg(result)
+            ):
+                fallback_result = execute_repo_fallback(plan, outputs)
+                if fallback_result is not None:
+                    return fallback_result
+                break
+            return {
+                "status": "failed",
+                "platform": plan.get("platform"),
+                "package_manager": plan.get("package_manager"),
+                "source_policy": plan.get("source_policy"),
+                "repo_fallback_available": bool(plan.get("repo_fallback")),
                 "steps": outputs,
             }
 
@@ -186,6 +309,7 @@ def execute_plan(plan):
             "source_policy": plan.get("source_policy"),
             "ffmpeg_path": ffmpeg_path,
             "ffprobe_path": ffprobe_path,
+            "repo_fallback_attempted": any(step.get("command", "").find("rpmfusion-free-release") != -1 for step in outputs),
             "steps": outputs,
         }
 
@@ -195,6 +319,7 @@ def execute_plan(plan):
         "package_manager": plan.get("package_manager"),
         "source_policy": plan.get("source_policy"),
         "message": "Installation commands finished but ffmpeg/ffprobe are still unavailable.",
+        "repo_fallback_available": bool(plan.get("repo_fallback")),
         "steps": outputs,
     }
 
@@ -207,11 +332,14 @@ def main():
         if plan.get("status") == "installable":
             plan["commands_text"] = [as_command_text(command) for command in plan["commands"]]
         print_json(plan, exit_code=0 if plan.get("status") != "blocked" else 1)
+        return
 
     if plan.get("status") == "already_available":
         print_json(plan)
+        return
     if plan.get("status") != "installable":
         print_json(plan, exit_code=1)
+        return
 
     result = execute_plan(plan)
     print_json(result, exit_code=0 if result.get("status") == "installed" else 1)

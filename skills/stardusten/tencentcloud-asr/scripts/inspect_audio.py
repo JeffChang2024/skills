@@ -64,7 +64,7 @@ def inspect_with_ffprobe(input_value):
         if is_http_url(input_value):
             error_result["recommended_next_step"] = (
                 "Verify that the URL is publicly reachable. If the URL is known-good and you plan "
-                "to use async URL recognition, you may still try file_recognize.py directly."
+                "to use async URL recognition, you may still try file_recognize.py rec directly."
             )
         return error_result
     if isinstance(result, subprocess.TimeoutExpired):
@@ -74,7 +74,7 @@ def inspect_with_ffprobe(input_value):
             "probe_tool": "ffprobe",
             "recommended_next_step": (
                 "If the input is already a public URL and you plan to use async URL recognition, "
-                "you may call file_recognize.py directly instead of blocking on local probing."
+                "you may call file_recognize.py rec directly instead of blocking on local probing."
             ),
         }
         if is_http_url(input_value):
@@ -195,7 +195,7 @@ def main():
             "recommended_next_step": (
                 "Run ensure_ffmpeg.py first, then rerun inspect_audio.py. "
                 "If the input is already a public URL and you plan to use async URL recognition, "
-                "you may call file_recognize.py directly instead of blocking on local probing."
+                "you may call file_recognize.py rec directly instead of blocking on local probing."
             ),
             "direct_url_async_allowed": is_http_url(input_value),
         },

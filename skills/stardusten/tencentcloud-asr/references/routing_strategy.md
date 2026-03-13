@@ -9,13 +9,20 @@
 
 ## 核心结论
 
-1. **公网 URL 且音频已合规时，优先 URL 路径**
-   - “已合规”指：`sample_rate == 16000`、`channels == 1`
-   - 这样可以避免本地转码、切片和重新上传
-2. **本地文件或不合规 URL，先转成本地标准 WAV**
-   - 标准格式固定为：`16kHz`、单声道、`pcm_s16le`、`.wav`
-3. **本地标准 WAV 的默认大文件策略是切片后逐片走 Flash**
-   - 只有明确命中异步 / URL / 高级结果格式需求时，才走 `file_recognize.py`
+1. **公网 URL 默认直接走异步录音文件识别**
+   - 直接调用 `file_recognize.py rec "<PUBLIC_URL>"`
+   - 不要先本地下载、探测、转码、再路由
+2. **只有 `file_recognize.py rec` 真实失败时，才进入下一层诊断**
+   - URL 不可下载 / 非公网可访问：提示用户提供可公网访问的 URL
+   - 时长超过 `5h`：转入本地下载 + 规范化 + 切片链
+   - 格式/解码失败：再考虑本地下载 + FFmpeg 规范化
+   - 用户明确要求同步返回：才把同步路径当作显式例外
+3. **本地文件默认仍按短音频 / Flash / 切片链处理**
+   - 先规范化为 `16kHz`、单声道、`pcm_s16le`、`.wav`
+   - 再按时长和大小选择脚本
+4. **如果用户已经具备 COS 上传能力，可把“上传标准 WAV 到 COS 后走异步 URL”作为优先优化分支**
+   - 仅适用于最终生成的公网 URL 对应音频 `<=5h`
+   - 这个分支的价值是避免本地切片和多次 Flash 调用，不是绕过 `CreateRecTask` 的 `5h` 上限
 
 ## 硬阈值
 
@@ -27,12 +34,62 @@
 - `FILE_BODY_MAX_BYTES = 5242880`（5MB）
 - `SEGMENT_SECONDS = 1800`（30 分钟）
 
-## 第 1 部分：先探测元数据
+## 第 1 部分：公网 URL
 
-统一先执行：
+### 1.1 默认路径
+
+如果输入本来就是公网 `http://` / `https://` URL，默认直接执行：
 
 ```bash
-python3 <SKILL_DIR>/scripts/inspect_audio.py "<AUDIO_INPUT>"
+python3 <SKILL_DIR>/scripts/file_recognize.py rec "<PUBLIC_URL>"
+```
+
+默认不要先做这些事：
+
+- 不要先下载到本地再判断
+- 不要先用 `inspect_audio.py` 探测 URL 元数据
+- 不要先为了 URL 探测去安装 `ffprobe`
+- 不要先手动 `curl`、`file`、`grep` 做临时判断
+
+正确做法是：先打异步 URL 识别，只有真实失败时再继续诊断。
+
+### 1.2 URL 失败后的处理
+
+当 `file_recognize.py rec "<PUBLIC_URL>"` 失败时，按错误分流：
+
+1. **URL 不可下载 / 非公网可访问**
+   - 直接提示用户换成可公网下载的 URL
+   - 不要先尝试本地转码
+
+2. **时长超过 `5h`**
+   - 下载到本地
+   - 规范化成标准 WAV
+   - 切片后逐片走 `flash_recognize.py`
+
+3. **格式错误 / 解码失败**
+   - 下载到本地
+   - 用 FFmpeg 规范化后再走本地链
+
+4. **用户明确要求同步立即返回**
+   - 这时才考虑把一句话识别或本地 Flash 当作例外路径
+   - 但这不是默认策略
+
+### 1.3 URL 场景下何时允许例外
+
+只有命中以下任一条件，才不要默认坚持异步 URL 路径：
+
+- 用户明确要求同步、立刻返回
+- `file_recognize.py rec` 已真实失败
+- URL 对应音频超过 `5h`
+
+## 第 2 部分：本地处理链
+
+### 2.1 先规范化
+
+本地文件统一优先探测：
+
+```bash
+python3 <SKILL_DIR>/scripts/inspect_audio.py "<LOCAL_AUDIO_FILE>"
 ```
 
 如果返回 `requires_ffprobe_or_ffmpeg`，先执行：
@@ -41,92 +98,8 @@ python3 <SKILL_DIR>/scripts/inspect_audio.py "<AUDIO_INPUT>"
 python3 <SKILL_DIR>/scripts/ensure_ffmpeg.py --execute
 ```
 
-然后重新探测。
+如果满足以下任一条件，就必须转码生成本地标准 WAV：
 
-**例外：公网 URL 的异步快速路径**
-
-如果同时满足：
-
-- 输入本来就是公网 `http://` / `https://` URL
-- `inspect_audio.py` 失败的主要原因是本机缺少 `ffprobe`，或远端 URL 探测超时
-- 你当前本来就倾向于走异步 URL 识别
-
-那么不要被“本地探测失败”卡住。可以直接尝试：
-
-```bash
-python3 <SKILL_DIR>/scripts/file_recognize.py "<PUBLIC_URL>"
-```
-
-只有当它真实返回格式错误、时长超限、URL 不可下载或其他 API 错误时，才转入本地下载 / 转码 / 切片链。
-
-## 第 2 部分：公网 URL 的判断链
-
-### 2.1 什么时候认定为“可直接走 URL”
-
-必须同时满足：
-
-- 输入本身是公网 `http://` / `https://` URL
-- `inspect_audio.py` 能成功拿到元数据
-- `sample_rate == 16000`
-- `channels == 1`
-
-只要以上四项有任意一项不满足，就不要直接走 URL 路径，转到“本地处理链”。
-
-### 2.2 公网 URL 的脚本选择
-
-如果是“可直接走 URL”的公网音频：
-
-1. 如果同时满足：
-   - `duration_seconds <= 60`
-   - 且能确认文件满足一句话识别大小上限
-   那么使用：
-   ```bash
-   python3 <SKILL_DIR>/scripts/main.py "<PUBLIC_URL>"
-   ```
-
-2. 如果：
-   - `60 < duration_seconds <= 18000`
-   那么默认优先：
-   ```bash
-   python3 <SKILL_DIR>/scripts/file_recognize.py "<PUBLIC_URL>"
-   ```
-
-3. 如果：
-   - `duration_seconds > 18000`
-   那么 `file_recognize.py` 也不适用，转到“本地处理链”
-
-### 2.3 公网 URL 何时不要优先走 URL
-
-命中以下任一条件，就不要直接走 URL 路径：
-
-- `sample_rate != 16000`
-- `channels != 1`
-- 用户明确要求**同步**返回且你确认本地处理更合适
-- `duration_seconds > 5h`
-- `inspect_audio.py` 对 URL 探测失败
-
-以上情况统一转到“本地处理链”。
-
-### 2.4 公网 URL 的操作禁忌
-
-对于已经满足“优先 URL 路径”条件的公网音频，默认不要做这些事：
-
-- 不要先下载到本地再判断
-- 不要先尝试安装 `ffprobe` 只为了拿更漂亮的元数据
-- 不要先手动 `curl`、`file`、`grep` 做临时探测
-- 不要先读脚本源码确认凭证读取逻辑
-- 不要先检查 Python 依赖是否已安装
-
-正确做法是：拿到凭证后，直接调用目标脚本；只有在目标脚本真实失败时，才进入下一层诊断。
-
-## 第 3 部分：本地处理链
-
-### 3.1 先规范化
-
-如果满足以下任一条件，就必须先转码，生成本地标准 WAV：
-
-- 输入本来就是本地文件
-- 输入是 URL 但不满足“可直接走 URL”的四个条件
 - `sample_rate != 16000`
 - `channels != 1`
 - `container_format != "wav"`
@@ -137,17 +110,9 @@ python3 <SKILL_DIR>/scripts/file_recognize.py "<PUBLIC_URL>"
 ffmpeg -y -i "<INPUT_AUDIO>" -ac 1 -ar 16000 -c:a pcm_s16le "<NORMALIZED_WAV>"
 ```
 
-转码后：
+### 2.2 本地文件脚本选择
 
-- `WORKING_AUDIO_FILE = NORMALIZED_WAV`
-
-如果无需转码但已经是本地文件：
-
-- `WORKING_AUDIO_FILE = LOCAL_AUDIO_FILE`
-
-### 3.2 本地文件脚本选择
-
-对 `WORKING_AUDIO_FILE` 同时读取：
+对 `WORKING_AUDIO_FILE` 读取：
 
 - `duration_seconds`
 - `file_size_bytes`
@@ -159,7 +124,7 @@ ffmpeg -y -i "<INPUT_AUDIO>" -ac 1 -ar 16000 -c:a pcm_s16le "<NORMALIZED_WAV>"
    - `file_size_bytes <= 3145728`
    使用：
    ```bash
-   python3 <SKILL_DIR>/scripts/main.py "<WORKING_AUDIO_FILE>"
+   python3 <SKILL_DIR>/scripts/sentence_recognize.py "<WORKING_AUDIO_FILE>"
    ```
 
 2. 如果同时满足：
@@ -170,12 +135,21 @@ ffmpeg -y -i "<INPUT_AUDIO>" -ac 1 -ar 16000 -c:a pcm_s16le "<NORMALIZED_WAV>"
    python3 <SKILL_DIR>/scripts/flash_recognize.py "<WORKING_AUDIO_FILE>"
    ```
 
-3. 如果命中以下任一条件：
+3. 如果同时满足：
+   - 用户已经有可用的 COS 上传能力
+   - 能把 `WORKING_AUDIO_FILE` 上传成公网可下载 URL
+   - `duration_seconds <= 18000`
+   那么优先考虑：
+   ```bash
+   python3 <SKILL_DIR>/scripts/file_recognize.py rec "<PUBLIC_URL_FOR_WORKING_AUDIO_FILE>"
+   ```
+
+4. 如果命中以下任一条件：
    - `duration_seconds > 7200`
    - `file_size_bytes > 104857600`
    那么必须先切片，再逐片使用 `flash_recognize.py`
 
-### 3.3 固定切片方案
+### 2.3 固定切片方案
 
 切片命令：
 
@@ -196,22 +170,23 @@ python3 <SKILL_DIR>/scripts/flash_recognize.py "<SEGMENT_FILE>"
 
 最后按文件名顺序拼接文本结果。
 
-## 第 4 部分：什么时候才允许 `file_recognize.py`
+## 第 3 部分：什么时候才允许 `file_recognize.py`
 
-除“公网 URL 且已合规”的优先路径外，只有命中以下任一条件，才允许主动选择 `file_recognize.py`：
+命中以下任一条件时，可以主动选择 `file_recognize.py rec`：
 
-1. 用户明确要求异步任务 / `TaskId` / `--no-poll`
-2. 用户明确要求 `--res-text-format 4` 或 `--res-text-format 5`
-3. 输入是公网 URL，且符合 `file_recognize.py` 的 URL 条件
-4. 本地磁盘空间不足，无法完成规范化或切片
+1. 输入是公网 URL
+2. 用户明确要求异步任务 / `TaskId` / `--no-poll`
+3. 用户明确要求 `--res-text-format 4` 或 `--res-text-format 5`
+4. 用户已经有 COS 上传分支，想用 URL 避开本地切片
+5. 本地磁盘空间不足，无法完成规范化或切片
 
-不要把 `file_recognize.py` 当成本地大文件默认方案。
+不要把 `file_recognize.py` 当成所有本地大文件的默认方案。
 
-## 第 5 部分：脚本上传方式校验
+## 第 4 部分：脚本上传方式校验
 
 当前脚本对“通过 body 传音频内容”的支持如下：
 
-### `main.py`
+### `sentence_recognize.py`
 
 - 本地文件：支持
 - URL：支持
@@ -234,7 +209,7 @@ python3 <SKILL_DIR>/scripts/flash_recognize.py "<SEGMENT_FILE>"
   - 本地小文件走 `SourceType=1 + Data + DataLen`
   - 公网 URL 走 `SourceType=0 + Url`
 
-## 第 6 部分：为什么不默认要求 COS
+## 第 5 部分：为什么不默认要求 COS
 
 腾讯云官方对 `CreateRecTask` 的要求是“公网可下载 URL”，并不是“必须 COS”。
 
@@ -242,20 +217,5 @@ python3 <SKILL_DIR>/scripts/flash_recognize.py "<SEGMENT_FILE>"
 
 - 如果用户已经给了公网可下载 URL，不要默认要求 COS
 - 如果用户给的是本地大文件，也不要先让用户配 COS
-- 只有在你最终确定必须走异步 URL 接口、且用户又没有可用公网 URL 时，才可以把“需要公网可下载链接”告诉用户
-
-## 第 7 部分：凭证注入的最短路径
-
-为了减少“写 profile / source / 子进程没继承环境变量”这种弯路，默认遵循：
-
-1. **单次任务**：把密钥直接注入当前执行命令或当前子进程环境。
-2. **只有明确需要持久化时**：才写 `~/.zshrc`、`~/.bashrc` 或对应系统配置。
-
-不要为了完成当前一次识别任务，先去：
-
-- 写 `~/.bashrc`
-- 写 `~/.zshrc`
-- 执行 `source ~/.bashrc`
-- 执行 `source ~/.zshrc`
-
-先把识别任务跑通，再考虑是否需要持久化。
+- 如果用户已经具备 COS 上传能力，优先上传**规范化后的标准 WAV**，然后把返回的公网 URL 交给 `file_recognize.py rec`
+- 即使走 COS，仍然必须满足 `CreateRecTask` 的 URL 时长上限 `<=5h`

@@ -3,11 +3,16 @@
   "slug": "tencentcloud-asr",
   "displayName": "TencentCloud ASR",
   "latest": {
-    "version": "0.1.2",
-    "publishedAt": 1772984273435,
-    "commit": "https://github.com/openclaw/skills/commit/a567254b1ee629725c07b9e2b2e74cc2b1324477"
+    "version": "0.1.5",
+    "publishedAt": 1773203312644,
+    "commit": null
   },
   "history": [
+    {
+      "version": "0.1.2",
+      "publishedAt": 1772984273435,
+      "commit": "https://github.com/openclaw/skills/commit/a567254b1ee629725c07b9e2b2e74cc2b1324477"
+    },
     {
       "version": "0.1.0",
       "publishedAt": 1772956823012,

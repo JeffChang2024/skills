@@ -2,7 +2,10 @@
 """
 录音文件识别 (CreateRecTask + DescribeTaskStatus)
 异步接口，支持 ≤5h (URL) 或 ≤5MB (上传) 音频。
-提交任务后轮询状态直到完成。
+
+子命令：
+- rec: 提交识别任务，可选择立即轮询直到完成
+- query: 查询已有 TaskId 的识别状态，可选择持续轮询
 """
 
 import base64
@@ -37,21 +40,7 @@ from tencentcloud.common.profile.http_profile import HttpProfile
 from tencentcloud.asr.v20190614 import models, asr_client
 
 
-SUPPORTED_FORMATS = {"wav", "mp3", "m4a", "flv", "mp4", "wma", "3gp", "amr", "aac", "ogg-opus", "flac"}
-
-FORMAT_EXT_MAP = {
-    ".wav": "wav", ".mp3": "mp3", ".m4a": "m4a", ".flv": "flv",
-    ".mp4": "mp4", ".wma": "wma", ".3gp": "3gp", ".amr": "amr",
-    ".aac": "aac", ".ogg": "ogg-opus", ".opus": "ogg-opus", ".flac": "flac",
-}
-
-
-def guess_format(path_or_url):
-    lower = path_or_url.lower().split("?")[0]
-    for ext, fmt in FORMAT_EXT_MAP.items():
-        if lower.endswith(ext):
-            return fmt
-    return "wav"
+STATUS_MAP = {0: "waiting", 1: "doing", 2: "success", 3: "failed"}
 
 
 def get_credentials():
@@ -86,38 +75,109 @@ def build_asr_client(cred):
     return asr_client.AsrClient(cred, "", client_profile)
 
 
-def parse_args():
+def build_parser():
     import argparse
 
     parser = argparse.ArgumentParser(
         description="Tencent Cloud Recording File Recognition (录音文件识别)"
     )
-    parser.add_argument("input", nargs="?", help="Audio URL or local file path")
-    parser.add_argument("--engine", default="16k_zh", help="Engine model type (default: 16k_zh)")
-    parser.add_argument("--channel-num", type=int, default=1, choices=[1, 2],
-                        help="Channel number: 1=mono, 2=dual (8k only) (default: 1)")
-    parser.add_argument("--res-text-format", type=int, default=0, choices=[0, 1, 2, 3, 4, 5],
-                        help="Result text format: 0=basic, 1-3=detailed, 4=nlp segment, 5=oral-to-written (default: 0)")
-    parser.add_argument("--speaker-diarization", type=int, default=0, choices=[0, 1],
-                        help="Speaker diarization: 0=off, 1=on (default: 0)")
-    parser.add_argument("--speaker-number", type=int, default=0,
-                        help="Number of speakers: 0=auto, 1-10=fixed (default: 0)")
-    parser.add_argument("--poll-interval", type=int, default=5,
-                        help="Polling interval in seconds (default: 5)")
-    parser.add_argument("--max-poll-time", type=int, default=10800,
-                        help="Max polling time in seconds (default: 10800 = 3h)")
-    parser.add_argument("--no-poll", action="store_true",
-                        help="Submit task only, do not poll for result (returns TaskId)")
+    subparsers = parser.add_subparsers(dest="command")
+    subparsers.required = True
 
+    rec_parser = subparsers.add_parser(
+        "rec",
+        help="Submit a CreateRecTask request",
+        description="Submit a Tencent Cloud recording-file recognition task.",
+    )
+    rec_parser.add_argument("input", help="Audio URL or local file path")
+    rec_parser.add_argument(
+        "--engine",
+        default="16k_zh",
+        help="Engine model type (default: 16k_zh)",
+    )
+    rec_parser.add_argument(
+        "--channel-num",
+        type=int,
+        default=1,
+        choices=[1, 2],
+        help="Channel number: 1=mono, 2=dual (8k only) (default: 1)",
+    )
+    rec_parser.add_argument(
+        "--res-text-format",
+        type=int,
+        default=0,
+        choices=[0, 1, 2, 3, 4, 5],
+        help="Result text format: 0=basic, 1-3=detailed, 4=nlp segment, 5=oral-to-written (default: 0)",
+    )
+    rec_parser.add_argument(
+        "--speaker-diarization",
+        type=int,
+        default=0,
+        choices=[0, 1],
+        help="Speaker diarization: 0=off, 1=on (default: 0)",
+    )
+    rec_parser.add_argument(
+        "--speaker-number",
+        type=int,
+        default=0,
+        help="Number of speakers: 0=auto, 1-10=fixed (default: 0)",
+    )
+    rec_parser.add_argument(
+        "--poll-interval",
+        type=int,
+        default=5,
+        help="Polling interval in seconds (default: 5)",
+    )
+    rec_parser.add_argument(
+        "--max-poll-time",
+        type=int,
+        default=10800,
+        help="Max polling time in seconds (default: 10800 = 3h)",
+    )
+    rec_parser.add_argument(
+        "--no-poll",
+        action="store_true",
+        help="Submit task only, do not poll for result (returns TaskId)",
+    )
+
+    query_parser = subparsers.add_parser(
+        "query",
+        help="Query an existing TaskId",
+        description="Query a Tencent Cloud recording-file recognition task status.",
+    )
+    query_parser.add_argument("task_id", type=int, help="TaskId returned by CreateRecTask")
+    query_parser.add_argument(
+        "--poll-until-done",
+        action="store_true",
+        help="Keep polling until the task succeeds or fails",
+    )
+    query_parser.add_argument(
+        "--poll-interval",
+        type=int,
+        default=5,
+        help="Polling interval in seconds when --poll-until-done is enabled (default: 5)",
+    )
+    query_parser.add_argument(
+        "--max-poll-time",
+        type=int,
+        default=10800,
+        help="Max polling time in seconds when --poll-until-done is enabled (default: 10800 = 3h)",
+    )
+
+    return parser
+
+
+def parse_args():
+    parser = build_parser()
     args = parser.parse_args()
 
-    if not args.input:
+    if args.command == "rec" and not args.input:
         print(json.dumps({
             "error": "NO_INPUT",
             "message": "No audio input provided.",
             "usage": {
-                "url": 'python3 file_recognize.py "https://example.com/audio.wav"',
-                "file": 'python3 file_recognize.py /path/to/audio.wav (≤5MB)',
+                "url": 'python3 file_recognize.py rec "https://example.com/audio.wav"',
+                "file": 'python3 file_recognize.py rec /path/to/audio.wav (≤5MB)',
             },
         }, ensure_ascii=False, indent=2))
         sys.exit(1)
@@ -125,7 +185,15 @@ def parse_args():
     return args
 
 
-def create_rec_task(client, input_value, engine, channel_num, res_text_format, speaker_diarization, speaker_number):
+def create_rec_task(
+    client,
+    input_value,
+    engine,
+    channel_num,
+    res_text_format,
+    speaker_diarization,
+    speaker_number,
+):
     """Submit a recording file recognition task."""
     req = models.CreateRecTaskRequest()
     params = {
@@ -176,10 +244,29 @@ def describe_task_status(client, task_id):
     return json.loads(resp.to_json_string())
 
 
+def format_task_payload(data, task_id=None):
+    task_id = data.get("TaskId", task_id)
+    status = data.get("Status", -1)
+    payload = {
+        "task_id": task_id,
+        "status": STATUS_MAP.get(status, f"unknown({status})"),
+    }
+
+    if "AudioDuration" in data:
+        payload["audio_duration"] = data.get("AudioDuration", 0)
+    if data.get("Result") is not None:
+        payload["result"] = data.get("Result", "")
+    if data.get("ResultDetail"):
+        payload["result_detail"] = data["ResultDetail"]
+    if data.get("ErrorMsg"):
+        payload["error_msg"] = data["ErrorMsg"]
+
+    return payload
+
+
 def poll_task(client, task_id, poll_interval, max_poll_time):
     """Poll task status until completion or timeout."""
     start_time = time.time()
-    status_map = {0: "waiting", 1: "doing", 2: "success", 3: "failed"}
 
     while True:
         elapsed = time.time() - start_time
@@ -205,11 +292,11 @@ def poll_task(client, task_id, poll_interval, max_poll_time):
 
         data = result.get("Data", {})
         status = data.get("Status", -1)
-        status_str = status_map.get(status, f"unknown({status})")
+        status_str = STATUS_MAP.get(status, f"unknown({status})")
 
-        if status == 2:  # success
+        if status == 2:
             return data
-        elif status == 3:  # failed
+        if status == 3:
             print(json.dumps({
                 "error": "TASK_FAILED",
                 "message": data.get("ErrorMsg", "Task failed"),
@@ -226,57 +313,78 @@ def poll_task(client, task_id, poll_interval, max_poll_time):
         time.sleep(poll_interval)
 
 
+def handle_rec(client, args):
+    print("[INFO] Submitting recognition task...", file=sys.stderr)
+    create_resp = create_rec_task(
+        client,
+        args.input,
+        args.engine,
+        args.channel_num,
+        args.res_text_format,
+        args.speaker_diarization,
+        args.speaker_number,
+    )
+
+    task_data = create_resp.get("Data", {})
+    task_id = task_data.get("TaskId")
+
+    if not task_id:
+        print(json.dumps({
+            "error": "NO_TASK_ID",
+            "message": "Failed to get TaskId from CreateRecTask response.",
+            "response": create_resp,
+        }, ensure_ascii=False, indent=2))
+        sys.exit(1)
+
+    print(f"[INFO] Task submitted, TaskId: {task_id}", file=sys.stderr)
+
+    if args.no_poll:
+        print(json.dumps({
+            "task_id": task_id,
+            "status": "submitted",
+            "message": "Task submitted successfully.",
+            "query_command": f"python3 file_recognize.py query {task_id}",
+        }, ensure_ascii=False, indent=2))
+        return
+
+    data = poll_task(client, task_id, args.poll_interval, args.max_poll_time)
+    print(json.dumps(format_task_payload(data, task_id), ensure_ascii=False, indent=2))
+
+
+def handle_query(client, args):
+    if args.poll_until_done:
+        data = poll_task(client, args.task_id, args.poll_interval, args.max_poll_time)
+        print(json.dumps(format_task_payload(data, args.task_id), ensure_ascii=False, indent=2))
+        return
+
+    result = describe_task_status(client, args.task_id)
+    data = result.get("Data", {})
+    status = data.get("Status", -1)
+
+    if status == 3:
+        print(json.dumps({
+            "error": "TASK_FAILED",
+            "message": data.get("ErrorMsg", "Task failed"),
+            "task_id": args.task_id,
+            "status": STATUS_MAP.get(status, f"unknown({status})"),
+        }, ensure_ascii=False, indent=2))
+        sys.exit(1)
+
+    print(json.dumps(format_task_payload(data, args.task_id), ensure_ascii=False, indent=2))
+
+
 def main():
     args = parse_args()
     cred = get_credentials()
     client = build_asr_client(cred)
 
     try:
-        # Step 1: Create task
-        print("[INFO] Submitting recognition task...", file=sys.stderr)
-        create_resp = create_rec_task(
-            client, args.input, args.engine, args.channel_num,
-            args.res_text_format, args.speaker_diarization, args.speaker_number,
-        )
-
-        task_data = create_resp.get("Data", {})
-        task_id = task_data.get("TaskId")
-
-        if not task_id:
-            print(json.dumps({
-                "error": "NO_TASK_ID",
-                "message": "Failed to get TaskId from CreateRecTask response.",
-                "response": create_resp,
-            }, ensure_ascii=False, indent=2))
-            sys.exit(1)
-
-        print(f"[INFO] Task submitted, TaskId: {task_id}", file=sys.stderr)
-
-        if args.no_poll:
-            print(json.dumps({
-                "task_id": task_id,
-                "message": "Task submitted. Use --task-id to poll result later.",
-            }, ensure_ascii=False, indent=2))
-            return
-
-        # Step 2: Poll for result
-        data = poll_task(client, task_id, args.poll_interval, args.max_poll_time)
-
-        result = {
-            "task_id": data.get("TaskId", task_id),
-            "status": "success",
-            "result": data.get("Result", ""),
-            "audio_duration": data.get("AudioDuration", 0),
-        }
-
-        result_detail = data.get("ResultDetail")
-        if result_detail:
-            result["result_detail"] = result_detail
-
-        if data.get("ErrorMsg"):
-            result["error_msg"] = data["ErrorMsg"]
-
-        print(json.dumps(result, ensure_ascii=False, indent=2))
+        if args.command == "rec":
+            handle_rec(client, args)
+        elif args.command == "query":
+            handle_query(client, args)
+        else:
+            raise ValueError(f"Unknown command: {args.command}")
 
     except TencentCloudSDKException as err:
         print(json.dumps({

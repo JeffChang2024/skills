@@ -8,7 +8,8 @@
 2. **只走系统包管理器**：优先 `apt-get`、`dnf`、`yum`、`zypper`、`brew`、`winget`、`choco`。不要默认使用 `npm`、GitHub Releases、手工下载 ZIP、第三方脚本一键安装。
 3. **避免 GitHub 直拉**：在国内网络环境下，GitHub 直链、`ffmpeg-static`、手动下载预编译二进制都不是优先方案。
 4. **先装 `ffprobe` 所在包，再继续 ASR**：本 Skill 的真实需求不是“勉强能跑一次识别”，而是稳定拿到时长、采样率、声道数并在必要时完成转码。因此应该确保 `ffmpeg` 与 `ffprobe` 一起可用。
-5. **只有在安装链路被阻塞时才找用户**：例如没有可用包管理器、没有权限、公司内网拦截对应软件源，或包管理器仓库本身未配置。
+5. **RHEL 系默认仓库缺包时要自动补仓库**：对 `dnf` / `yum` 场景，如果直接安装 `ffmpeg` 报“仓库里没有包”，脚本应自动尝试补 `epel-release` 和 `rpmfusion-free-release`，再重试安装。
+6. **只有在安装链路被阻塞时才找用户**：例如没有可用包管理器、没有权限、公司内网拦截对应软件源，或补仓库后仍然失败。
 
 ## 推荐执行流
 
@@ -32,7 +33,7 @@ python3 <SKILL_DIR>/scripts/ensure_ffmpeg.py --execute
 ### 3. 平台优先级
 
 - **Ubuntu / Debian**：优先 `apt-get install ffmpeg`
-- **RHEL / CentOS / Rocky / AlmaLinux**：优先 `dnf` 或 `yum install ffmpeg`
+- **RHEL / CentOS / Rocky / AlmaLinux**：先尝试 `dnf` 或 `yum install ffmpeg`；如果仓库里没有包，再自动补 `epel-release` 和 `rpmfusion-free-release`
 - **openSUSE**：优先 `zypper install ffmpeg`
 - **macOS**：仅当本机已经有 `brew` 时，才用 `brew install ffmpeg`
 - **Windows**：优先 `winget install --id Gyan.FFmpeg -e`，其次 `choco install ffmpeg -y`
