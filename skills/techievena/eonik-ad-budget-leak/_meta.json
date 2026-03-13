@@ -1,13 +1,18 @@
 {
   "owner": "techievena",
   "slug": "eonik-ad-budget-leak",
-  "displayName": "eonik Ad Budget Leak",
+  "displayName": "eonik creative audit",
   "latest": {
-    "version": "1.0.4",
-    "publishedAt": 1773038595083,
-    "commit": "https://github.com/openclaw/skills/commit/ecb49fda0791c7eb5c9522bec8c3ee2bf5e5fe88"
+    "version": "1.0.6",
+    "publishedAt": 1773403054937,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.4",
+      "publishedAt": 1773038595083,
+      "commit": "https://github.com/openclaw/skills/commit/ecb49fda0791c7eb5c9522bec8c3ee2bf5e5fe88"
+    },
     {
       "version": "1.0.3",
       "publishedAt": 1772857937245,

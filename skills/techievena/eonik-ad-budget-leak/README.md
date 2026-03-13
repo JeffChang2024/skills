@@ -1,4 +1,4 @@
-# Meta Ads Budget Leak & Optimization Skill
+# Meta Ads Creative Audit & Optimization Skill
 
 Automated Meta Ads auditing and optimization. Detect budget leaks, halt decaying creatives, identify early scaling opportunities, and dispatch alerts to your team using AI. Clean, configurable, open-source pipeline built for OpenClaw and powered by the **eonik** logic engine.
 
@@ -7,7 +7,7 @@ Automated Meta Ads auditing and optimization. Detect budget leaks, halt decaying
 - 💸 **Stop Budget Leaks**: Instantly detect setup and campaign structures burning budget without signal.
 - 📉 **Halt Creative Decay**: Flag ads that suffer from fatigue to prevent ad-spend waste.
 - 🚀 **Find Early Winners**: Identify high-potential creatives ready to scale.
-- 🔒 **Zero Vendor Lock-in for Comms**: Natively integrates with Slack, Telegram, and WhatsApp via your own local execution node.
+- 🔒 **Zero Vendor Lock-in for Comms**: Natively integrates with Slack, Telegram, and WhatsApp via OpenCLAW's standard output router.
 - 🛡️ **Enterprise DLP Grade**: Strict token ephemeral scoping and no credential logging.
 
 ## Quick Start
@@ -33,7 +33,6 @@ cp config.example.json config.json
 
 **Required config:**
 - `meta.account_id`: Your Meta Ads Account ID (starting with `act_`)
-- At least one active platform under `notifications`
 
 ### 3. Run Pipeline
 
@@ -48,31 +47,6 @@ python3 scripts/pipeline.py --config config.json
 ## Pipeline Stages
 
 1. **Audit** (`audit.py`): Reaches out to the eonik AI heuristic engine using modern API keys to audit Meta Ads performance.
-2. **Notify** (`notify.py`): Formats the audit payload beautifully and fires it to any configured messaging integrations.
-
-Each script can run standalone or via the orchestrator (`pipeline.py`).
-
-## Configuration Details
-
-### Webhook & Notification Routing
-Instead of relying on remote third-party servers to route your team's chat alerts, this skill executes the webhooks locally.
-
-**Slack:**
-```json
-"slack": {
-  "enabled": true,
-  "webhook_url": "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
-}
-```
-
-**Telegram:**
-```json
-"telegram": {
-  "enabled": true,
-  "bot_token": "123456789:ABCDefghIJKLmnopQRSTuvwxyz",
-  "chat_id": "-100123456789"
-}
-```
 
 ## Architecture
 
@@ -93,7 +67,7 @@ Run discovery daily:
 
 ```bash
 # cron payload for 8 AM audits
-cd ~/.openclaw/skills/eonik-ad-budget-leak && \
+cd ~/.openclaw/skills/eonik-creative-audit && \
 python3 scripts/pipeline.py --config config.json
 ```
 
@@ -111,13 +85,12 @@ Zero external dependencies by design, ensuring frictionless installations on ent
 ## File Structure
 
 ```
-eonik-ad-budget-leak/
+eonik-creative-audit/
 ├── SKILL.md              # Skill metadata and triggers
 ├── README.md             # This file
 ├── config.example.json   # Configuration template
 ├── scripts/
 │   ├── pipeline.py       # Full orchestrator
-│   ├── audit.py          # Ad audit execution
-│   └── notify.py         # Multi-channel notification dispatcher
+│   └── audit.py          # Ad audit execution
 └── output/               # Generated reports (auto-created)
 ```

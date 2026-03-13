@@ -1,7 +1,7 @@
 ---
-name: "eonik Ad Budget Leak Agent"
+name: "eonik creative audit"
 slug: "eonik-ad-budget-leak"
-version: "1.0.4"
+version: "1.0.6"
 description: "Identifies burning and decaying Meta Ads by running the eonik Budget heuristics engine."
 tags: ["ads", "marketing", "meta", "budgeting", "eonik"]
 author: "eonik"
@@ -19,6 +19,17 @@ metadata:
 Automated end-to-end Meta Ads auditing pipeline. Analyzes your campaigns for budget leaks (Burn without Signal, Creative Decay) and scaling opportunities (Early Winners), and dispatches beautiful multi-channel alerts directly to your team.
 
 Powered by the robust **eonik** heuristics engine, while retaining local control over your sensitive data and webhook credentials.
+
+## Agent Instructions
+
+When a user triggers this skill, you MUST follow these steps exactly:
+1.  **Check Configuration:** Check if `config.json` exists in the local directory.
+2.  **Request Input (if needed):** If `config.json` is missing, check if they want to run it on their default connected Meta account. Once confirmed, copy `config.example.json` to `config.json` (the Meta Account ID can be left blank as it auto-resolves).
+3.  **Execute Pipeline:** Once `config.json` is present and configured, you MUST run the audit pipeline natively by executing the following command in the terminal:
+    ```bash
+    python3 scripts/pipeline.py --config config.json
+    ```
+4.  **Display Results:** After the script finishes, read the output report (typically `output/audit-<date>.json`) and provide a concise, formatted summary of the findings to the user. Do not invent details; only report what the script output contains.
 
 ## Triggers
 
@@ -42,7 +53,7 @@ This skill is powered by the [eonik](https://eonik.ai) intelligence engine. Whil
 ```bash
 cd ~/.openclaw/skills/eonik-ad-budget-leak
 cp config.example.json config.json
-# Edit config.json: add your Meta Account ID and configure Slack/Telegram/WhatsApp webhooks
+# Edit config.json: optionally add your Meta Account ID (or leave blank to auto-resolve)
 ```
 
 ### 2. Run Audit Pipeline
@@ -57,29 +68,16 @@ python3 scripts/pipeline.py --config config.json
 ```json
 {
   "meta": {
-    "account_id": "act_123456789",
+    "account_id": "",
     "evaluation_days": 7
-  },
-  "notifications": {
-    "slack": {
-      "enabled": true,
-      "webhook_url": "https://hooks.slack.com/services/..."
-    }
   }
 }
 ```
 
-**Notification Options:**
-- `slack` — Send via incoming webhook
-- `telegram` — Send via Bot Token + Chat ID
-- `whatsapp` — Send via WhatsApp Business API
-
 ## Pipeline Stages
 
 1. **Audit** (`audit.py`) — Executes the eonik heuristics engine via your `EONIK_API_KEY`.
-2. **Notify** (`notify.py`) — Formats the response and securely dispatches it to your configured local endpoints over standard HTTP requests.
-
-The orchestrator (`pipeline.py`) manages the lifecycle of these stages directly.
+2. **Output** (`pipeline.py`) — Formats the response and outputs it natively through OpenCLAW to your active channel (WhatsApp/Discord/TUI).
 
 ## Usage Examples
 
@@ -90,12 +88,7 @@ python3 scripts/pipeline.py --config config.json
 
 **Audit Only (Save to File):**
 ```bash
-python3 scripts/audit.py --account_id act_12345 --days 7 > data/report.json
-```
-
-**Notify Only (Test Webhooks):**
-```bash
-python3 scripts/notify.py --config config.json --report data/report.json
+python3 scripts/audit.py --days 7 > data/report.json
 ```
 
 ## Data & Security Commitment
@@ -105,8 +98,8 @@ This skill is designed specifically to comply with enterprise Data Loss Preventi
 1. **Secure API Key Handling**
    The skill requires `EONIK_API_KEY` (via the standard `x-api-key` header). The execution script securely drops the ephemeral token from the environment immediately after binding. No keys are logged or written to disk.
 
-2. **Local Notification Routing**
-   Unlike legacy versions, this architecture does NOT rely on backend servers to route your Slack messages. Webhooks are executed solely from your local node using Python's `urllib`, keeping your webhook endpoint URLs and tokens out of third-party systems.
+2. **Native OpenCLAW Routing**
+   Unlike legacy versions, this architecture does NOT rely on webhooks. Standard Output is passed directly to the local OpenCLAW node which natively routes the message to your active chat surface (WhatsApp, Slack, Discord, or the local TUI). No configurations needed!
 
 3. **Data Scope**
    Execution logs and generated `report.json` files contain the exposed Meta Ad IDs flagged for leaking or scaling. Keep your local `output/` directory protected and adhere to your internal security policies for Chat UI visibility.
@@ -126,8 +119,3 @@ python3 scripts/pipeline.py --config config.json
 **API Verification Fails:**
 - Ensure `EONIK_API_KEY` is exported.
 - Verify your eonik billing and usage caps aren't exceeded.
-
-**No Notifications Received:**
-- Validate your `webhook_url` or `bot_token` in `config.json`.
-- Ensure `"enabled": true` is set for the channel you want to receive on.
-- Check the terminal output when running `notify.py` for immediate HTTP errors.

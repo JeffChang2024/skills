@@ -29,9 +29,8 @@ def main():
     account_id = config.get("meta", {}).get("account_id")
     days = config.get("meta", {}).get("evaluation_days", 7)
     
-    if not account_id:
-        print("meta.account_id is required in config", file=sys.stderr)
-        sys.exit(1)
+    if account_id == "YOUR_ACCOUNT_ID_OR_LEAVE_BLANK_TO_AUTO_RESOLVE" or account_id == "":
+        account_id = None
 
     run_date = datetime.datetime.now().strftime("%Y-%m-%d")
     output_dir = "output"
@@ -42,27 +41,47 @@ def main():
     print("=== Stage 1: Running Audit ===")
     audit_cmd = [
         sys.executable, "scripts/audit.py",
-        "--account_id", account_id,
         "--days", str(days)
     ]
-    # Keep current environment so EONIK_API_KEY passes through
-    audit_out = run_command(audit_cmd, env=os.environ.copy())
-    
+    if account_id:
+        audit_cmd.extend(["--account_id", account_id])
+    # Security: Pass only the explicitly required variables to the child process.
+    safe_env = {
+        "PATH": os.environ.get("PATH", ""),
+        "EONIK_API_KEY": os.environ.get("EONIK_API_KEY", "")
+    }
+    # Keep current environment minimal so only EONIK_API_KEY passes through
+    audit_out = run_command(audit_cmd, env=safe_env)    
     with open(report_path, "w") as f:
         f.write(audit_out)
     
     print(f"Audit complete. Report saved to {report_path}")
 
-    # Step 2: Dispatch Notifications
-    print("\n=== Stage 2: Dispatching Notifications ===")
-    notify_cmd = [
-        sys.executable, "scripts/notify.py",
-        "--config", args.config,
-        "--report", report_path
-    ]
-    notify_out = run_command(notify_cmd)
-    print(notify_out)
-    print("Pipeline Complete!")
+    print("\n\n=== Eonik AI Audit Report ===")
+    try:
+        data = json.loads(audit_out)
+        if data.get("status") != "success":
+            print(f"Audit Status: {data.get('status', 'failed')}")
+        print("\n💰 Overall Impact 💰")
+        print(f"Flags Found: {data.get('flagged_ads_count', 0)}")
+        spent = data.get('total_leaked_spend', 0.0)
+        print(f"Wasted Spend Detected: ${spent:.2f}")
+        
+        pauses = data.get("pause_recommendations", [])
+        if pauses:
+            print("\n🚨 Urgent Leaks 🚨")
+            for ad in pauses:
+                reason = ad.get("recommendation", {}).get("reason", ad.get("category", "Burn"))
+                print(f"• Ad [{ad.get('ad_id')} - {ad.get('ad_name', 'Unknown')}]: {reason}")
+                signals = ad.get("signals", [])
+                for sig in signals:
+                    print(f"  └ {sig.get('detail')}")
+        
+        print("\n\n✅ Report dispatched to active OpenCLAW channel.")
+    except Exception as e:
+        print(f"Failed to parse or format the audit report: {e}")
+        
+    print("\nPipeline Complete!")
 
 if __name__ == "__main__":
     main()
