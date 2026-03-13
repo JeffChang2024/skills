@@ -68,9 +68,36 @@ metadata:
 
 ## 配置
 
-环境变量：
+### 方式一：.env 文件（推荐）
+
+在技能目录下创建 `.env` 文件：
+
+```env
+# 飞书应用配置
+FEISHU_APP_ID=your_app_id_here
+FEISHU_APP_SECRET=your_app_secret_here
+```
+
+可复制 `.env.example` 为 `.env` 并填入实际值。
+
+### 方式二：环境变量
+
+设置系统环境变量：
 - `FEISHU_APP_ID`
 - `FEISHU_APP_SECRET`
+
+### 优先级
+
+系统环境变量 > `.env` 文件
+
+## 环境检测
+
+脚本启动时自动检测依赖：
+
+| 类型 | 依赖 | 处理方式 |
+|------|------|----------|
+| Python | requests | 自动安装 |
+| 系统 | ffmpeg, ffprobe | 提示安装方法 |
 
 ## 依赖
 

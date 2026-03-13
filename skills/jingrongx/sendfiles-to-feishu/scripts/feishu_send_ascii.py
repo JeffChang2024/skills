@@ -1,20 +1,118 @@
 #!/usr/bin/env python3
 import sys
 import io
-# 强制 stdout 为 utf-8，忽略无法编码的字符
 if sys.platform == 'win32':
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
-# 下面是 feishu_send.py 的核心内容（简化，无 emoji）
 import os
 import json
 import uuid
 import subprocess
-import requests
 import tempfile
 import re
 import math
 import zipfile
+import shutil
+
+PYTHON_DEPS = ['requests']
+SYSTEM_DEPS = ['ffmpeg', 'ffprobe']
+
+def check_python_package(package):
+    try:
+        __import__(package)
+        return True
+    except ImportError:
+        return False
+
+def install_python_package(package):
+    print(f'正在安装 Python 依赖: {package}...')
+    try:
+        subprocess.check_call([sys.executable, '-m', 'pip', 'install', package], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        print(f'{package} 安装成功')
+        return True
+    except subprocess.CalledProcessError:
+        print(f'{package} 安装失败，请手动执行: pip install {package}')
+        return False
+
+def check_system_command(cmd):
+    try:
+        result = subprocess.run([cmd, '-version'], capture_output=True, timeout=5)
+        return result.returncode == 0
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False
+
+def get_install_hint(cmd):
+    hints = {
+        'ffmpeg': {
+            'win32': 'choco install ffmpeg 或 winget install ffmpeg',
+            'darwin': 'brew install ffmpeg',
+            'linux': 'sudo apt install ffmpeg 或 sudo yum install ffmpeg'
+        },
+        'ffprobe': {
+            'win32': 'choco install ffmpeg 或 winget install ffmpeg',
+            'darwin': 'brew install ffmpeg',
+            'linux': 'sudo apt install ffmpeg 或 sudo yum install ffmpeg'
+        }
+    }
+    return hints.get(cmd, {}).get(sys.platform, f'请安装 {cmd}')
+
+def check_environment(auto_install=True):
+    missing_python = []
+    for pkg in PYTHON_DEPS:
+        if not check_python_package(pkg):
+            missing_python.append(pkg)
+    
+    if missing_python:
+        print(f'检测到缺失的 Python 依赖: {", ".join(missing_python)}')
+        if auto_install:
+            for pkg in missing_python:
+                install_python_package(pkg)
+        else:
+            print(f'请手动安装: pip install {" ".join(missing_python)}')
+            return False
+    
+    missing_system = []
+    for cmd in SYSTEM_DEPS:
+        if not check_system_command(cmd):
+            missing_system.append(cmd)
+    
+    if missing_system:
+        print(f'检测到缺失的系统依赖: {", ".join(missing_system)}')
+        for cmd in missing_system:
+            hint = get_install_hint(cmd)
+            print(f'  {cmd}: {hint}')
+        return False
+    
+    return True
+
+def load_env_from_skill_dir():
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    skill_dir = os.path.dirname(script_dir)
+    env_path = os.path.join(skill_dir, '.env')
+    if os.path.isfile(env_path):
+        with open(env_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                if '=' in line:
+                    key, value = line.split('=', 1)
+                    key = key.strip()
+                    value = value.strip()
+                    if value.startswith('"') and value.endswith('"'):
+                        value = value[1:-1]
+                    elif value.startswith("'") and value.endswith("'"):
+                        value = value[1:-1]
+                    if key and key not in os.environ:
+                        os.environ[key] = value
+
+load_env_from_skill_dir()
+
+if not check_environment():
+    print('环境检测未通过，请先安装缺失的依赖')
+    sys.exit(1)
+
+import requests
 
 APP_ID = os.getenv('FEISHU_APP_ID')
 APP_SECRET = os.getenv('FEISHU_APP_SECRET')
@@ -34,21 +132,21 @@ def get_duration(filepath):
     try:
         result = subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', filepath], capture_output=True, text=True, timeout=10)
         return int(float(result.stdout.strip()) * 1000)
-    except:
+    except (subprocess.TimeoutExpired, ValueError, OSError):
         return 0
 
 def has_audio_stream(filepath):
     try:
         result = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'a', '-show_entries', 'stream=codec_type', '-of', 'csv=p=0', filepath], capture_output=True, text=True, timeout=10)
         return result.stdout.strip() != ''
-    except:
+    except (subprocess.TimeoutExpired, OSError):
         return False
 
 def has_video_stream(filepath):
     try:
         result = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'v', '-show_entries', 'stream=codec_type', '-of', 'csv=p=0', filepath], capture_output=True, text=True, timeout=10)
         return result.stdout.strip() != ''
-    except:
+    except (subprocess.TimeoutExpired, OSError):
         return False
 
 def merge_audio_video_if_needed(video_path, output_dir):
@@ -76,6 +174,37 @@ def merge_audio_video_if_needed(video_path, output_dir):
                 print(f'合并失败: {e}')
     return video_path
 
+def get_audio_codec(filepath):
+    try:
+        result = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'a', '-show_entries', 'stream=codec_name', '-of', 'csv=p=0', filepath], capture_output=True, text=True, timeout=10)
+        codecs = result.stdout.strip().split('\n')
+        return codecs[0] if codecs else None
+    except (subprocess.TimeoutExpired, OSError):
+        return None
+
+def convert_to_aac_if_needed(filepath, output_dir):
+    codec = get_audio_codec(filepath)
+    if codec and codec.lower() in ['opus', 'vorbis', 'flac']:
+        print(f'检测到 {codec} 音频，转换为 AAC 以提高兼容性...')
+        base_name = os.path.splitext(os.path.basename(filepath))[0]
+        output_path = os.path.join(output_dir, f'{base_name}_aac.mp4')
+        cmd = [
+            'ffmpeg', '-i', filepath,
+            '-c:v', 'copy',
+            '-c:a', 'aac', '-b:a', '192k',
+            '-movflags', '+faststart',
+            output_path
+        ]
+        try:
+            subprocess.run(cmd, check=True, capture_output=True, timeout=300)
+            if os.path.exists(output_path):
+                print(f'转换完成: {output_path}')
+                return output_path
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+            err = e.stderr.decode(errors='ignore') if hasattr(e, 'stderr') and e.stderr else str(e)
+            print(f'转换失败: {err}')
+    return filepath
+
 def sanitize_filename(name, max_len=50):
     name = os.path.basename(name)
     name = re.sub(r'[^\w\u4e00-\u9fff\-\.]', '_', name)
@@ -89,23 +218,35 @@ def split_video_by_size(filepath, max_size_mb=MAX_FILE_SIZE_MB):
     size_mb = os.path.getsize(filepath) / (1024*1024)
     if size_mb <= max_size_mb:
         return [filepath]
-    print(f'视频 {size_mb:.1f}MB 超过 {max_size_mb}MB，准备分割...')
-    duration = get_duration(filepath) / 1000
+    print(f'视频 {size_mb:.1f}MB 超过 {max_size_mb}MB，开始分割...')
+    duration = get_duration(filepath) / 1000.0
     num_parts = math.ceil(size_mb / max_size_mb)
     segment_duration = int(duration / num_parts) + 1
     output_dir = os.path.dirname(filepath)
     base_name = os.path.splitext(os.path.basename(filepath))[0]
+    output_template = os.path.join(output_dir, f'{base_name}_part%03d.mp4')
+    cmd = [
+        'ffmpeg', '-i', filepath,
+        '-c', 'copy',
+        '-map', '0',
+        '-segment_time', str(segment_duration),
+        '-f', 'segment',
+        '-reset_timestamps', '1',
+        output_template
+    ]
+    try:
+        subprocess.run(cmd, check=True, capture_output=True, timeout=600)
+    except subprocess.CalledProcessError as e:
+        err = e.stderr.decode(errors='ignore') if e.stderr else str(e)
+        print(f'分割失败: {err}')
+        return [filepath]
     part_files = []
     for i in range(num_parts):
-        part_name = os.path.join(output_dir, f'{base_name}_part{i:03d}.mp4')
-        cmd = ['ffmpeg', '-i', filepath, '-c', 'copy', '-map', '0', '-segment_time', str(segment_duration), '-f', 'segment', '-reset_timestamps', '1', part_name]
-        try:
-            subprocess.run(cmd, check=True, capture_output=True, timeout=120)
-        except subprocess.CalledProcessError as e:
-            print(f'分割失败: {e}')
+        candidate = os.path.join(output_dir, f'{base_name}_part{i:03d}.mp4')
+        if os.path.exists(candidate) and os.path.getsize(candidate) > 0:
+            part_files.append(candidate)
+        else:
             break
-        if os.path.exists(part_name) and os.path.getsize(part_name) > 0:
-            part_files.append(part_name)
     print(f'分割完成: {len(part_files)} 段')
     return part_files if part_files else [filepath]
 
@@ -123,9 +264,8 @@ def split_zip_by_size(zip_path, max_size_mb=MAX_FILE_SIZE_MB):
         return [zip_path]
     print(f'ZIP {size_mb:.1f}MB 超过 {max_size_mb}MB，需要分割...')
     base_name = os.path.splitext(zip_path)[0]
-    dir_path = os.path.dirname(zip_path)
     original_size = os.path.getsize(zip_path)
-    num_parts = math.ceil(original_size / max_size_mb)
+    num_parts = math.ceil(original_size / (max_size_mb * 1024 * 1024))
     part_files = []
     for i in range(num_parts):
         part_path = f"{base_name}_part{i:03d}.zip"
@@ -165,17 +305,14 @@ def process_and_send_file(token, filepath, receive_id, receive_id_type):
     is_video = has_video_stream(filepath)
     is_audio = has_audio_stream(filepath) and not is_video
     files_to_send = []
+    temp_dir = None
     if is_video or is_audio:
         print(f'检测到{"视频" if is_video else "音频"}文件')
-        output_dir = tempfile.mkdtemp(prefix='feishu_proc_')
-        processed = merge_audio_video_if_needed(filepath, output_dir)
+        temp_dir = tempfile.mkdtemp(prefix='feishu_proc_')
+        processed = merge_audio_video_if_needed(filepath, temp_dir)
+        processed = convert_to_aac_if_needed(processed, temp_dir)
         parts = split_video_by_size(processed, MAX_FILE_SIZE_MB)
         files_to_send.extend(parts)
-        if processed != filepath:
-            try:
-                os.remove(processed)
-            except:
-                pass
     else:
         print('压缩文件为 ZIP...')
         zip_path = compress_to_zip(filepath)
@@ -202,6 +339,11 @@ def process_and_send_file(token, filepath, receive_id, receive_id_type):
         except Exception as e:
             print(f'  出错: {e}')
             results.append({'file': fp, 'error': str(e)})
+    if temp_dir and os.path.exists(temp_dir):
+        try:
+            shutil.rmtree(temp_dir)
+        except Exception:
+            pass
     return results
 
 def main():
