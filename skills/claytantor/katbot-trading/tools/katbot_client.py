@@ -425,6 +425,43 @@ def create_portfolio(token: str, name: str, portfolio_type: str = "PAPER",
     return r.json()
 
 
+def get_portfolio_history(
+    token: str,
+    portfolio_id: int,
+    window: str = "7D",
+    granularity: str = "4h",
+    limit: int = 100,
+    require_agent: bool = True,
+) -> dict:
+    """Get portfolio history with explicit window, granularity, and limit params.
+
+    Use this function (not get_portfolio) when you need trade history for
+    charting or PnL reconstruction — it passes all three query params so
+    data density is explicitly controlled.
+
+    Args:
+        token: JWT access token
+        portfolio_id: Portfolio ID to query
+        window: Time window — "24H", "7D", or "30D" (default "7D")
+        granularity: Data bucket size — "1h", "4h", "1d" (default "4h")
+        limit: Max number of data points returned (default 100)
+        require_agent: If True (default), raises error if agent key not
+                       available. Set to False for paper portfolios.
+
+    Returns:
+        Portfolio history dict including trades[], total_pnl_usd,
+        total_pnl_pct, realized_pnl_usd, trade_fees_usd, etc.
+    """
+    agent_key = _require_agent_key() if require_agent else AGENT_PRIVATE_KEY
+    r = requests.get(
+        f"{BASE_URL}/portfolio/{portfolio_id}",
+        params={"window": window, "granularity": granularity, "limit": limit},
+        headers=_auth(token, agent_key),
+    )
+    r.raise_for_status()
+    return r.json()
+
+
 def get_portfolio(token: str, portfolio_id: int, window: str = "1d", require_agent: bool = True) -> dict:
     """Get portfolio state with optional time window.
     

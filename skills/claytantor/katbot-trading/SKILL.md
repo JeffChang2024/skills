@@ -1,6 +1,6 @@
 ---
 name: katbot-trading
-version: 0.2.23
+version: 0.2.25
 description: Live crypto trading on Hyperliquid via Katbot.ai. Includes BMI market analysis, token selection, and AI-powered trade execution.
 # Note: Homepage URL removed to avoid GitHub API rate limit errors during publish
 metadata:
@@ -29,7 +29,8 @@ This skill teaches the agent how to use the Katbot.ai API to manage a Hyperliqui
 4. **Recommendations**: Get AI-powered trade setups (Entry, TP, SL, Leverage).
 5. **Execution**: Execute and close trades on Hyperliquid with user confirmation.
 6. **Portfolio Tracking**: Monitor open positions, uPnL, and balances.
-7. **Chat**: Send free-form messages to the portfolio agent and receive analysis.
+7. **Performance Charts**: Generate cumulative PnL charts (24H/7D/30D) as PNG images for Telegram sharing.
+8. **Chat**: Send free-form messages to the portfolio agent and receive analysis.
 
 ## Tools
 
@@ -44,6 +45,7 @@ Dependencies are listed in `{baseDir}/requirements.txt`.
 - `token_selector.py`: Momentum-based token selection via CoinGecko.
 - `btc_momentum.py`: Calculates BTC Momentum Index (BMI).
 - `bmi_alert.py`: Telegram alerting workflow for BMI changes.
+- `portfolio_chart.py`: Fetches portfolio trade history, reconstructs cumulative realized PnL using FIFO coin-level matching, and saves an 800×450px dark-theme PNG chart for Telegram sharing. Supports `--window 24H|7D|30D`, `--output PATH`, and `--json` flags.
 
 ### BMI Analysis Tool Usage
 
@@ -55,6 +57,34 @@ The BMI (BTC Momentum Index) is a proprietary indicator used to determine market
 - If `OPENCLAW_NOTIFY_CHANNEL` or `OPENCLAW_NOTIFY_TARGET` is not set, the `--send` flag and `bmi_alert.py` will print the message to stdout instead of sending it.
 
 The `bmi_alert.py` script reads `~/.openclaw/workspace/portfolio_tokens.json` to include specific token performance in the alert message.
+
+### Portfolio Charts Tool Usage
+
+`portfolio_chart.py` generates a cumulative PnL curve from raw trade history and saves a dark-theme PNG sized for Telegram (800×450px). Portfolio ID is loaded automatically from `katbot_config.json`.
+
+- **Generate 7-day chart (default)**:
+  ```bash
+  PYTHONPATH={baseDir}/tools python3 {baseDir}/tools/portfolio_chart.py
+  ```
+- **Generate 24-hour chart**:
+  ```bash
+  PYTHONPATH={baseDir}/tools python3 {baseDir}/tools/portfolio_chart.py --window 24H
+  ```
+- **Generate 30-day chart**:
+  ```bash
+  PYTHONPATH={baseDir}/tools python3 {baseDir}/tools/portfolio_chart.py --window 30D
+  ```
+- **JSON output (for agent consumption)**:
+  ```bash
+  PYTHONPATH={baseDir}/tools python3 {baseDir}/tools/portfolio_chart.py --window 7D --json
+  ```
+  JSON output includes: `chart_path`, `total_pnl_usd`, `total_pnl_pct`, `trade_fees_usd`, `trade_count`.
+- **Custom output path**:
+  ```bash
+  PYTHONPATH={baseDir}/tools python3 {baseDir}/tools/portfolio_chart.py --output /tmp/chart.png
+  ```
+
+Default output: `~/.openclaw/workspace/portfolio_chart_{window}.png`
 
 > **Note for contributors**: The `scripts/` directory contains only publish tooling (`publish.sh`, `publish.py`, etc.). Do NOT add copies of tool scripts there — all trading logic lives solely in `{baseDir}/tools/`.
 
@@ -177,6 +207,15 @@ status    = check_subscription_status(user_data)  # Evaluates subscription healt
 portfolios = list_portfolios(token)
 portfolio  = get_portfolio(token, portfolio_id, window="1d")  # window: "1h","1d","7d","30d"
 recs       = get_recommendations(token, portfolio_id)         # List existing recommendations
+
+# For charting/PnL reconstruction — passes all three query params:
+history = get_portfolio_history(
+    token, portfolio_id,
+    window="7D",       # "24H", "7D", or "30D"
+    granularity="4h",  # "1h", "4h", "1d"
+    limit=100,
+)
+# Returns: trades[], total_pnl_usd, total_pnl_pct, trade_fees_usd, etc.
 ```
 
 ### Recommendations `[key→remote]`
@@ -234,6 +273,7 @@ PYTHONPATH={baseDir}/tools python3 {baseDir}/tools/katbot_client.py close-positi
 - **ALWAYS** check `feature_usage` from the subscription status — if any feature's `near_limit` is True, warn the user: "You have used X/Y [feature]. Visit https://katbot.ai to upgrade your plan."
 - **ALWAYS** present the Credential Transmission Notice and obtain user acknowledgement before the first onboarding or trading operation in any session.
 - **ALWAYS** check the BMI before suggesting a new trade.
+- **To share portfolio performance on Telegram**, run `portfolio_chart.py --json` to get the chart PNG path, then send it with `openclaw message send --channel <channel> --target <target> --file <chart_path>`. Always prefer `--json` for agent consumption so the path is machine-readable. Example: `PYTHONPATH={baseDir}/tools python3 {baseDir}/tools/portfolio_chart.py --window 7D --json`
 - **NEVER** execute a trade without explicit user confirmation (e.g., "Confirm execution of LONG AAVE?").
 - **NEVER** log, print, or reveal any private key or token value in the chat.
 - **ALWAYS** report the risk/reward ratio and leverage for any recommendation.
