@@ -1,11 +1,17 @@
 {
   "owner": "bytesagain",
   "slug": "book-recommend",
-  "displayName": "book-recommend",
+  "displayName": "Book Recommend",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1773152410446,
-    "commit": "https://github.com/openclaw/skills/commit/fc1068647cf2d6e38d7283b271760f9904c2f1e4"
+    "version": "2.2.0",
+    "publishedAt": 1773420959209,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1773152410446,
+      "commit": "https://github.com/openclaw/skills/commit/fc1068647cf2d6e38d7283b271760f9904c2f1e4"
+    }
+  ]
 }

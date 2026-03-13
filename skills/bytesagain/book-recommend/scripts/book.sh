@@ -33,7 +33,7 @@ EOF
 }
 
 cmd_recommend() {
-  local interests="${1:?请提供兴趣关键词 (逗号分隔)}"
+  local interests="${1:-科技,AI,编程}"
   local book_type="${2:-any}"
   local level="${3:-any}"
 
@@ -98,7 +98,7 @@ EOF
 }
 
 cmd_summary() {
-  local book="${1:?请提供书名}"
+  local book="${1:-三体}"
 
   cat <<EOF
 ## 📖 书籍摘要: ${book}
@@ -150,7 +150,7 @@ EOF
 }
 
 cmd_similar() {
-  local book="${1:?请提供书名}"
+  local book="${1:-三体}"
 
   cat <<EOF
 ## 📚 类似书籍推荐: ${book}
@@ -245,7 +245,7 @@ EOF
 }
 
 cmd_club() {
-  local book="${1:?请提供书名}"
+  local book="${1:-三体}"
   local duration="${2:-4weeks}"
 
   local weeks="${duration//[!0-9]/}"
