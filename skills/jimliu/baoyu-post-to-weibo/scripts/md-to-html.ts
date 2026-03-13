@@ -446,7 +446,9 @@ Options:
   }
 }
 
-await main().catch((err) => {
-  console.error(`Error: ${err instanceof Error ? err.message : String(err)}`);
-  process.exit(1);
-});
+if (import.meta.main ?? (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(import.meta.filename ?? ''))) {
+  await main().catch((err) => {
+    console.error(`Error: ${err instanceof Error ? err.message : String(err)}`);
+    process.exit(1);
+  });
+}
