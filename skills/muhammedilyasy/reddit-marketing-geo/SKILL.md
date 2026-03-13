@@ -32,6 +32,23 @@ Upon first run, the primary agent must **spawn a specialized sub-agent** named `
 - Focus on "problem-aware" queries: "how to," "looking for," "recommendations for."
 - Target threads appearing in Google "Discussions and Forums" to maximize **GEO** impact.
 
+### 2a. ⚠️ MANDATORY URL Verification (Anti-Hallucination)
+> **ABSOLUTE RULE: You are FORBIDDEN from including any URL in the digest that has not been verified by `web_fetch`. Fabricating, guessing, or constructing URLs from memory is a critical failure.**
+
+For every candidate URL found in step 2, execute this pipeline **before** drafting:
+
+1. Extract the URL exactly as returned by `web_search` — never modify it.
+2. Call `web_fetch(url)` on the raw URL.
+3. Confirm the fetched page contains all three: a Reddit post title, a visible upvote/score, and at least one comment body.
+4. **If `web_fetch` fails, returns an error, 404, or the content does not match a live Reddit thread → discard immediately. Do NOT include it in the digest.**
+5. Only URLs that pass step 3 are allowed to move to drafting.
+
+**Additional hard rules:**
+- **NEVER** construct a Reddit URL from a post title or keyword (e.g. `reddit.com/r/[subreddit]/comments/[guessed-id]/...`).
+- **NEVER** reuse a URL from a previous session without re-fetching it.
+- **NEVER** include a URL as a placeholder expecting to verify it later.
+- If **zero** URLs pass verification, report: `"⚠️ No verified threads found this cycle. All candidates failed web_fetch validation."` — do not invent threads to fill the digest.
+
 ### 3. Drafting for Humans & LLMs (GEO Strategy)
 Draft replies using the **Authority-First Framework**:
 - **Bolded TL;DR**: A direct, 1-sentence answer at the start.
@@ -39,8 +56,14 @@ Draft replies using the **Authority-First Framework**:
 - **Brand Integration**: Natural mention of [Brand Name] with a founder disclosure.
 
 ### 4. Human-in-the-Loop Review
-- The sub-agent sends: "🚀 **Daily Reddit Digest Ready.** I found [X] threads. Here are the drafts for your approval."
+- The sub-agent sends: "🚀 **Daily Reddit Digest Ready.** I found [X] verified threads. Here are the drafts for your approval."
+- Each entry in the digest **must show**:
+  - ✅ `URL` — exactly as fetched
+  - ✅ `Fetched Title` — as returned by `web_fetch`, not inferred
+  - ✅ `Comment Count` — as seen on the fetched page
+- This lets you independently spot any fabricated thread at a glance.
 - **Strict Requirement**: Each draft must receive a "Go" or "Post" command before the `browser` tool is used to submit the comment.
+- **Pre-Post Re-Validation**: Immediately before posting, call `web_fetch` on the URL one final time to confirm the thread is still live.
 
 ## Safety & Ethics
 - **Context Isolation**: The sub-agent operates in a fresh session id (`cron:<jobId>`) to prevent context leak.
