@@ -1,0 +1,11 @@
+{
+  "owner": "qrg-cloud",
+  "slug": "sim-trading-mvp",
+  "displayName": "Sim Trading MVP",
+  "latest": {
+    "version": "0.2.1",
+    "publishedAt": 1773228661201,
+    "commit": null
+  },
+  "history": []
+}
