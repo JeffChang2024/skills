@@ -1,0 +1,11 @@
+{
+  "owner": "shawn92",
+  "slug": "ftshare-kline-data",
+  "displayName": "Skills of A-share kline data released by ft.tech.",
+  "latest": {
+    "version": "1.0.1",
+    "publishedAt": 1773333172105,
+    "commit": null
+  },
+  "history": []
+}
