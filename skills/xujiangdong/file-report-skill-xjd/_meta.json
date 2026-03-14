@@ -1,0 +1,11 @@
+{
+  "owner": "xujiangdong",
+  "slug": "file-report-skill-xjd",
+  "displayName": "统计指定目录的文件类型和数量，生成Markdown格式报表",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773371333727,
+    "commit": null
+  },
+  "history": []
+}
