@@ -1,6 +1,6 @@
 ---
 name: Investment Portfolio
-description: >-
+description: "Investment Portfolio Analyzer. Use when you need investment portfolio capabilities. Triggers on: investment portfolio."
   投资组合分析。资产配置、风险评估、再平衡、收益分析、分散化、回测。Portfolio analysis with allocation, rebalancing. 投资组合、资产配置。
 ---
 # Investment Portfolio
@@ -27,3 +27,6 @@ description: >-
 
 ---
 *Investment Portfolio by BytesAgain*
+---
+💬 Feedback & Feature Requests: https://bytesagain.com/feedback
+Powered by BytesAgain | bytesagain.com
