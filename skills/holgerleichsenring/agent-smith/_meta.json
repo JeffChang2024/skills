@@ -1,0 +1,11 @@
+{
+  "owner": "holgerleichsenring",
+  "slug": "agent-smith",
+  "displayName": "Agent Smith",
+  "latest": {
+    "version": "0.1.1",
+    "publishedAt": 1773337057055,
+    "commit": null
+  },
+  "history": []
+}
