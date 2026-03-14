@@ -1,0 +1,11 @@
+{
+  "owner": "jisuapi",
+  "slug": "todayhistory",
+  "displayName": "历史上的今天 - Today in History",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773375006673,
+    "commit": null
+  },
+  "history": []
+}
