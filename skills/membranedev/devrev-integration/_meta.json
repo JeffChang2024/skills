@@ -1,0 +1,11 @@
+{
+  "owner": "membranedev",
+  "slug": "devrev-integration",
+  "displayName": "Devrev",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773266532842,
+    "commit": null
+  },
+  "history": []
+}
