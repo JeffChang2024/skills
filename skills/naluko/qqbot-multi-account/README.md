@@ -2,6 +2,14 @@
 
 QQBot 多账号运维排障技能，适用于 OpenClaw 多机器人、多 Agent 部署场景。
 
+## 前置依赖
+
+本 Skill 基于 `@tencent-connect/openclaw-qqbot` 插件，使用前请先安装：
+
+```bash
+openclaw plugins install @tencent-connect/openclaw-qqbot@latest
+```
+
 ## 功能
 
 - 多账号 QQBot 路由配置指导
@@ -31,10 +39,3 @@ QQBot 多账号运维排障技能，适用于 OpenClaw 多机器人、多 Agent 
 bash scripts/inspect-qqbot.sh
 bash scripts/export-local-qqbot.sh
 ```
-
-## 发布建议
-
-- 通过 `clawhub publish` 直接发布整个 skill 目录
-- 发布时显式传入 `--slug`、`--name`、`--version`
-- 示例中的 `appId` 与密钥路径均为占位符，不包含真实密钥
-- 如果你的 `dist/` 下后续生成了额外文件，建议用 `.clawhubignore` 排除
