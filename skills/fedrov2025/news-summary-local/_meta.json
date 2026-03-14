@@ -1,0 +1,11 @@
+{
+  "owner": "fedrov2025",
+  "slug": "news-summary-local",
+  "displayName": "News Summary Local",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773478866811,
+    "commit": null
+  },
+  "history": []
+}
