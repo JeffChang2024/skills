@@ -1,0 +1,11 @@
+{
+  "owner": "krishnakumarmahadevan-cmd",
+  "slug": "openclaw-skill-tools",
+  "displayName": "OpenClaw Skill Generator & Security Scanner",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773491676154,
+    "commit": null
+  },
+  "history": []
+}
