@@ -3,9 +3,15 @@
   "slug": "time-tracker",
   "displayName": "Time Tracker",
   "latest": {
-    "version": "2.3.0",
-    "publishedAt": 1773446965077,
-    "commit": "https://github.com/openclaw/skills/commit/c2b3c77bb25ee36890d704a6e15e26e73aa79b39"
+    "version": "1.0.3",
+    "publishedAt": 1773614858113,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "2.3.0",
+      "publishedAt": 1773446965077,
+      "commit": "https://github.com/openclaw/skills/commit/c2b3c77bb25ee36890d704a6e15e26e73aa79b39"
+    }
+  ]
 }

@@ -22,7 +22,6 @@ description: "时间追踪与分析工具。时间记录、分析报告、分类
 - **improve** — improve
 - **pomodoro** — pomodoro
 
-
 ## 专业建议
 
 - Identify the need: log / analyze / categorize / report / improve / pomodoro
@@ -36,3 +35,17 @@ description: "时间追踪与分析工具。时间记录、分析报告、分类
 ---
 💬 Feedback & Feature Requests: https://bytesagain.com/feedback
 Powered by BytesAgain | bytesagain.com
+
+## Examples
+
+```bash
+# Show help
+time-tracker help
+
+# Run
+time-tracker run
+```
+
+## Commands
+
+Run `time-tracker help` to see all available commands.
