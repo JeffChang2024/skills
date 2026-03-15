@@ -3,9 +3,15 @@
   "slug": "marketing-strategy-pmm",
   "displayName": "Marketing Strategy Pmm",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1770402551634,
-    "commit": "https://github.com/openclaw/skills/commit/57d89ff58ff5282c9d94b83a2c678167f528b45d"
+    "version": "2.1.1",
+    "publishedAt": 1773070262187,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1770402551634,
+      "commit": "https://github.com/openclaw/skills/commit/57d89ff58ff5282c9d94b83a2c678167f528b45d"
+    }
+  ]
 }
