@@ -1,13 +1,18 @@
 {
   "owner": "galbria",
   "slug": "bria-ai",
-  "displayName": "Image generation, editing and remove background",
+  "displayName": "Image generation and editing",
   "latest": {
-    "version": "0.2.6",
-    "publishedAt": 1773227369853,
-    "commit": "https://github.com/openclaw/skills/commit/68396fbfe2965d7bffc61643cb86c05016743dee"
+    "version": "1.2.7",
+    "publishedAt": 1773485782975,
+    "commit": null
   },
   "history": [
+    {
+      "version": "0.2.6",
+      "publishedAt": 1773227369853,
+      "commit": "https://github.com/openclaw/skills/commit/68396fbfe2965d7bffc61643cb86c05016743dee"
+    },
     {
       "version": "1.2.4",
       "publishedAt": 1773175296101,

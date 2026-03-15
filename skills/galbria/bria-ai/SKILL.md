@@ -1,15 +1,17 @@
 ---
 name: bria-ai
-description: Generate, edit, create product images with AI. Remove or replace backgrounds, lifestyle shots, transparent PNGs, visual assets, batch generation, illustrations. Controllable image editing with Bria.ai commercially-safe models — fine-grained control over what gets generated, edited, or removed. Edit by text instruction, mask specific regions, add/replace/remove individual objects, control lighting, season, and style. Use for e-commerce product photography, background removal, image upscaling, style transfer, hero images, icons, banners, and pipeline workflows. Triggers on AI image generation, controllable editing, background removal, or visual asset creation.
-homepage: https://bria.ai
+description: Generate, edit, and transform images with commercially-safe AI models. Create images from text, edit by natural language instruction, remove backgrounds (transparent PNG), replace backgrounds, add/replace/remove objects, inpaint, outpaint, upscale (2x/4x), enhance quality, restyle (oil painting, anime, 3D), relight, reseason, restore old photos, colorize, sketch to photo, and product lifestyle shots. Use for websites, apps, presentations needing hero images, banners, product photos, product placement in scenes, icons, illustrations, or backgrounds. Also for e-commerce photography, batch generation, and pipelines. Triggers are image generation, generate/create image, edit photo, remove background, transparent PNG, replace background, product shot, lifestyle scenes, upscale, style transfer, photo restoration, colorize, sketch to image, outpaint, inpaint, cut out subject, integrate products into scene.
 license: MIT
 metadata:
   author: Bria AI
   version: "1.2.6"
-  dependencies:
-    - type: env
-      name: BRIA_API_KEY
-      description: "Bria AI API key (get one at https://platform.bria.ai/console/account/api-keys)"
+  openclaw:
+    requires:
+      env:
+        - BRIA_API_KEY
+      bins:
+        - curl
+    primaryEnv: BRIA_API_KEY
 ---
 
 # Bria — Generate, Edit & Remove Background from Images with AI
@@ -20,10 +22,14 @@ Generate, edit, and create visual assets using Bria's commercially-safe AI model
 
 Before making any Bria API call, check for the API key and help the user set it up if missing:
 
-### Step 1: Check if the key exists
+### Step 1: Check if the key exists (without printing the key)
 
 ```bash
-echo $BRIA_API_KEY
+if [ -z "$BRIA_API_KEY" ]; then
+  echo "BRIA_API_KEY is not set"
+else
+  echo "BRIA_API_KEY is set"
+fi
 ```
 
 If the output is **not empty**, skip to the next section.
