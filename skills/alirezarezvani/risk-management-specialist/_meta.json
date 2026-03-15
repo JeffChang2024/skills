@@ -3,11 +3,16 @@
   "slug": "risk-management-specialist",
   "displayName": "Risk Management Specialist",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1770402715156,
-    "commit": "https://github.com/openclaw/skills/commit/06af4a5b1c73237afebbb3f2633d82e4b221d484"
+    "version": "2.1.1",
+    "publishedAt": 1773070416045,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1770402715156,
+      "commit": "https://github.com/openclaw/skills/commit/06af4a5b1c73237afebbb3f2633d82e4b221d484"
+    },
     {
       "version": "0.1.0",
       "publishedAt": 1770027381575,
