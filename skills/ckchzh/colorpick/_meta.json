@@ -3,9 +3,15 @@
   "slug": "colorpick",
   "displayName": "Colorpick",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1773450789547,
-    "commit": "https://github.com/openclaw/skills/commit/03fd0f41046992f875dbf0845432f553cefead99"
+    "version": "1.0.1",
+    "publishedAt": 1773538730092,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1773450789547,
+      "commit": "https://github.com/openclaw/skills/commit/03fd0f41046992f875dbf0845432f553cefead99"
+    }
+  ]
 }
