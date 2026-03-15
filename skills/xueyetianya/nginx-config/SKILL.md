@@ -1,6 +1,6 @@
 ---
 name: Nginx Config
-description: >-
+description: "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━. Use when you need nginx config capabilities. Triggers on: nginx config."
   Nginx配置生成。服务器配置、反向代理、SSL、缓存、安全加固、性能优化。Nginx config generator with reverse proxy, SSL, caching, security, optimization. Nginx、服务器、运维。
 ---
 # Nginx Config
@@ -26,6 +26,16 @@ Nginx配置生成。服务器配置、反向代理、SSL、缓存、安全加固
   optimize        optimize
 ```
 
-
 ---
 *Nginx Config by BytesAgain*
+---
+💬 Feedback & Feature Requests: https://bytesagain.com/feedback
+Powered by BytesAgain | bytesagain.com
+
+- Run `nginx-config help` for all commands
+
+## Commands
+
+Run `nginx-config help` to see all available commands.
+
+- Run `nginx-config help` for all commands
