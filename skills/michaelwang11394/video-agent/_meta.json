@@ -1,13 +1,18 @@
 {
   "owner": "michaelwang11394",
   "slug": "video-agent",
-  "displayName": "Video Agent",
+  "displayName": "Video Agent (Deprecated)",
   "latest": {
-    "version": "2.13.0",
-    "publishedAt": 1772835197652,
-    "commit": "https://github.com/openclaw/skills/commit/ce1a98373ed837eace9f192d0350ca30e83db346"
+    "version": "2.16.0",
+    "publishedAt": 1773444379689,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.13.0",
+      "publishedAt": 1772835197652,
+      "commit": "https://github.com/openclaw/skills/commit/ce1a98373ed837eace9f192d0350ca30e83db346"
+    },
     {
       "version": "2.11.0",
       "publishedAt": 1772499967940,
