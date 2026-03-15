@@ -3,11 +3,16 @@
   "slug": "workflow-automator",
   "displayName": "Workflow Automator",
   "latest": {
-    "version": "2.3.1",
-    "publishedAt": 1773536770768,
-    "commit": "https://github.com/openclaw/skills/commit/ea5481bc089e6867cf90ee45d1f9faff7de19729"
+    "version": "2.3.2",
+    "publishedAt": 1773575541778,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.3.1",
+      "publishedAt": 1773536770768,
+      "commit": "https://github.com/openclaw/skills/commit/ea5481bc089e6867cf90ee45d1f9faff7de19729"
+    },
     {
       "version": "2.3.0",
       "publishedAt": 1773446991751,
