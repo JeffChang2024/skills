@@ -1,0 +1,11 @@
+{
+  "owner": "benkalsky",
+  "slug": "wordpress-api-skill",
+  "displayName": "WordPress API",
+  "latest": {
+    "version": "3.0.1",
+    "publishedAt": 1773615267584,
+    "commit": null
+  },
+  "history": []
+}
