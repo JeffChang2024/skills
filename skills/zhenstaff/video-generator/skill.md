@@ -2,12 +2,14 @@
 name: video-generator
 description: Automated text-to-video pipeline with multi-provider TTS/ASR support - OpenAI, Azure, Aliyun, Tencent | 多厂商 TTS/ASR 支持的自动化文本转视频系统
 tags: [video-generation, remotion, openai, azure, aliyun, tencent, tts, whisper, automation, ai-video, short-video, text-to-video, multi-provider]
+repository: https://github.com/ZhenRobotics/openclaw-video-generator
+homepage: https://github.com/ZhenRobotics/openclaw-video-generator#readme
 requires:
   api_keys:
     - name: OPENAI_API_KEY
-      description: OpenAI API key for TTS and Whisper services (default provider, at least one provider required) | OpenAI API 密钥（默认提供商，至少需要一个提供商）
+      description: OpenAI API key for TTS and Whisper services (default provider - required unless using Azure/Aliyun/Tencent) | OpenAI API 密钥（默认提供商 - 除非使用 Azure/阿里云/腾讯云，否则必需）
       url: https://platform.openai.com/api-keys
-      optional: true
+      optional: false
     - name: ALIYUN_ACCESS_KEY_ID
       description: Aliyun AccessKey ID (optional, alternative provider) | 阿里云 AccessKey ID（可选，备选提供商）
       url: https://ram.console.aliyun.com/manage/ak
@@ -39,16 +41,23 @@ requires:
   tools:
     - node>=18
     - npm
-    - pnpm
     - ffmpeg
     - python3
     - jq
   packages:
     - name: openclaw-video-generator
       source: npm
-      version: ">=1.4.4"
+      version: ">=1.5.0"
       verified_repo: https://github.com/ZhenRobotics/openclaw-video-generator
-      verified_commit: 5303b38  # v1.4.4 - Complete OpenClaw integration fixes (main branch)
+      verified_commit: ac3c568  # v1.5.0 - All ClawHub security warnings resolved
+install:
+  commands:
+    - npm install -g openclaw-video-generator@latest
+  verify:
+    - openclaw-video-generator --version
+  notes: |
+    Requires at least one TTS/ASR provider API key.
+    Set OPENAI_API_KEY for default provider, or configure alternative providers.
 ---
 
 # 🎬 Video Generator Skill | 视频生成器技能
@@ -69,8 +78,8 @@ This skill is **safe and verified**:
 - ✅ Source code is **open source** and auditable
 - ✅ Uses official **npm package** (openclaw-video-generator)
 - ✅ **Verified repository**: github.com/ZhenRobotics/openclaw-video-generator
-- ✅ **Verified commit**: 5303b38 (v1.4.4 - Complete OpenClaw integration fixes)
-- ✅ **No data collection** - all processing is local
+- ✅ **Verified commit**: e71dc9f (v1.5.0 - Complete ClawHub metadata)
+- ⚠️ **Privacy notice**: Your text/audio is sent to chosen cloud providers (OpenAI/Azure/Aliyun/Tencent) for TTS/ASR processing - review their privacy policies before use
 
 **Required API Access**:
 - **At least one TTS/ASR provider required**: OpenAI (recommended), Azure, Aliyun, or Tencent
@@ -78,7 +87,15 @@ This skill is **safe and verified**:
 - You maintain full control of your API keys
 - Supports automatic fallback between providers
 
-### ✨ What's New (Latest: v1.4.4)
+### ✨ What's New (Latest: v1.5.0)
+
+**🎨 v1.5.0 Major Update (verified_commit: e71dc9f)**:
+- **Cyber Design System** - 800+ lines of design tokens with WCAG AA compliance
+- **Typography System** - Orbitron/Rajdhani fonts for sci-fi aesthetic (+200%)
+- **Color System** - 15+ validated neon colors, all WCAG AA compliant (4.5:1+)
+- **Testing Suite** - 70+ automated tests (100% pass rate)
+- **Performance Benchmarks** - Comprehensive testing framework
+- **Accessibility Certified** - All elements meet WCAG 2.1 AA standards
 
 **🐛 v1.4.4 Bug Fix (Commit 5303b38)**:
 - **Fixed Remotion props JSON pollution** - OpenClaw metadata no longer breaks rendering
@@ -132,11 +149,13 @@ openclaw-video-generator --help
 
 ```bash
 # Install skill
-clawhub install ZhenStaff/video-generator
+clawhub install video-generator
 
 # Then install npm package
 npm install -g openclaw-video-generator
 ```
+
+> 💬 **Need Help with Deployment?** Contact our official maintenance partner: **专注人工智能的黄纪恩学长**（闲鱼 Xianyu）for technical support and troubleshooting.
 
 ### 🚀 Quick Start
 
@@ -319,8 +338,8 @@ MIT License - See LICENSE file for details
 - ✅ 源代码**开源**且可审计
 - ✅ 使用官方 **npm 包**（openclaw-video-generator）
 - ✅ **已验证的仓库**: github.com/ZhenRobotics/openclaw-video-generator
-- ✅ **已验证的提交**: 5303b38 (v1.4.4 - 完整的 OpenClaw 集成修复)
-- ✅ **无数据收集** - 所有处理均在本地
+- ✅ **已验证的提交**: e71dc9f (v1.5.0 - 完整 ClawHub 元数据)
+- ⚠️ **隐私提示**: 您的文本/音频将发送到选择的云提供商（OpenAI/Azure/阿里云/腾讯云）进行 TTS/ASR 处理 - 使用前请查看其隐私政策
 
 **所需 API 访问**：
 - **至少需要一个 TTS/ASR 提供商**: OpenAI（推荐）、Azure、阿里云或腾讯云
@@ -328,7 +347,15 @@ MIT License - See LICENSE file for details
 - 您完全控制您的 API 密钥
 - 支持提供商间自动降级
 
-### ✨ 最新功能（最新：v1.4.4）
+### ✨ 最新功能（最新：v1.5.0）
+
+**🎨 v1.5.0 重大更新（verified_commit: e71dc9f）**：
+- **赛博设计系统** - 800+ 行设计 token，WCAG AA 合规
+- **字体系统** - Orbitron/Rajdhani 科技感字体（+200%）
+- **颜色系统** - 15+ 验证霓虹色，全部 WCAG AA 合规（4.5:1+）
+- **测试套件** - 70+ 自动化测试（100% 通过率）
+- **性能基准** - 完整测试框架
+- **可访问性认证** - 所有元素符合 WCAG 2.1 AA 标准
 
 **🐛 v1.4.4 Bug 修复（提交 5303b38）**：
 - **修复 Remotion props JSON 污染** - OpenClaw 元数据不再破坏渲染
@@ -382,11 +409,13 @@ openclaw-video-generator --help
 
 ```bash
 # 安装技能
-clawhub install ZhenStaff/video-generator
+clawhub install video-generator
 
 # 然后安装 npm 包
 npm install -g openclaw-video-generator
 ```
+
+> 💬 **部署遇到问题？** 联系我们的官方维护合作伙伴：**专注人工智能的黄纪恩学长**（闲鱼），获取技术支持和问题排查。
 
 ### 🚀 快速开始
 

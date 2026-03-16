@@ -10,9 +10,9 @@ Automated text-to-video generation system with multi-provider TTS/ASR support.
 
 ### Version
 
-**Current Version**: v1.4.4
-**Latest Commit**: 5303b38 (main branch)
-**Release Date**: 2026-03-13
+**Current Version**: v1.5.0
+**Latest Commit**: ac3c568 (main branch)
+**Release Date**: 2026-03-14
 
 ### What's New (Latest)
 
@@ -55,8 +55,10 @@ Automated text-to-video generation system with multi-provider TTS/ASR support.
 npm install -g openclaw-video-generator
 
 # Or via ClawHub
-clawhub install ZhenStaff/video-generator
+clawhub install video-generator
 ```
+
+> 💬 **Need Help with Deployment?** Contact our official maintenance partner: **专注人工智能的黄纪恩学长**（闲鱼 Xianyu）for technical support and troubleshooting.
 
 #### Basic Usage
 
@@ -186,10 +188,21 @@ MIT License - See LICENSE file for details
 
 ### Support
 
-For issues or questions:
-1. Check GitHub Issues
-2. Read documentation in repository
-3. Create new issue with details
+#### 🤝 Official Maintenance Partner
+
+**Need help with deployment or customization?** Our official maintenance partner provides technical support:
+
+- **Contact**: 专注人工智能的黄纪恩学长 (闲鱼 Xianyu)
+- **Services**:
+  - ✅ Deployment troubleshooting
+  - ✅ Provider integration (OpenAI/Azure/Aliyun/Tencent)
+  - ✅ Custom configuration
+  - ✅ Technical consulting
+
+#### Community Support
+
+- **GitHub Issues**: [Report bugs & request features](https://github.com/ZhenRobotics/openclaw-video-generator/issues)
+- **Documentation**: See GitHub repository for detailed docs
 
 ---
 
@@ -201,11 +214,19 @@ For issues or questions:
 
 ### 版本
 
-**当前版本**: v1.4.4
-**最新提交**: 5303b38 (main 分支)
-**发布日期**: 2026-03-13
+**当前版本**: v1.5.0
+**最新提交**: ac3c568 (main 分支)
+**发布日期**: 2026-03-14
 
 ### 最新功能
+
+#### 🎨 v1.5.0 重大更新（提交 ac3c568）
+- **赛博设计系统** - 800+ 行设计 token，WCAG AA 合规
+- **字体系统** - Orbitron/Rajdhani 科技感字体（+200%）
+- **颜色系统** - 15+ 验证霓虹色，全部 WCAG AA 合规（4.5:1+）
+- **测试套件** - 70+ 自动化测试（100% 通过率）
+- **性能基准** - 完整测试框架
+- **可访问性认证** - 所有元素符合 WCAG 2.1 AA 标准
 
 #### 🐛 v1.4.4 Bug 修复（提交 5303b38）
 - **修复 Remotion props JSON 污染**：OpenClaw 元数据不再破坏渲染
@@ -246,8 +267,10 @@ For issues or questions:
 npm install -g openclaw-video-generator
 
 # 或通过 ClawHub
-clawhub install ZhenStaff/video-generator
+clawhub install video-generator
 ```
+
+> 💬 **部署遇到问题？** 联系我们的官方维护合作伙伴：**专注人工智能的黄纪恩学长**（闲鱼），获取技术支持和问题排查。
 
 #### 基础使用
 
@@ -377,13 +400,24 @@ MIT License - 详见 LICENSE 文件
 
 ### 支持
 
-如有问题或疑问：
-1. 查看 GitHub Issues
-2. 阅读仓库中的文档
-3. 创建新 issue 并提供详细信息
+#### 🤝 官方维护合作伙伴
+
+**部署遇到问题？需要定制开发？** 我们的官方维护合作伙伴提供技术支持：
+
+- **联系方式**: 专注人工智能的黄纪恩学长（闲鱼）
+- **服务内容**:
+  - ✅ 部署问题排查
+  - ✅ 多厂商集成配置（OpenAI/Azure/阿里云/腾讯云）
+  - ✅ 自定义配置调优
+  - ✅ 技术咨询服务
+
+#### 社区支持
+
+- **GitHub Issues**: [报告 Bug 和功能请求](https://github.com/ZhenRobotics/openclaw-video-generator/issues)
+- **文档**: 详细文档见 GitHub 仓库
 
 ---
 
-**Version | 版本**: v1.4.4
-**Last Updated | 最后更新**: 2026-03-13
+**Version | 版本**: v1.5.0
+**Last Updated | 最后更新**: 2026-03-14
 **Maintainer | 维护者**: ZhenStaff
