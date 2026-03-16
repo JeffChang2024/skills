@@ -1,9 +1,8 @@
 ---
+version: "2.0.0"
 name: story-writer
-version: 1.0.0
-description: 小说创作、角色设计、情节设计(三幕式)、对话生成、世界观构建、续写。Story writing with character design, three-act plot structure, dialogue generation, worldbuilding, and continuation.
+description: "小说创作、角色设计、情节设计(三幕式)、对话生成、世界观构建、续写。Story writing with character design, three-act plot structure, dialogue generation, worldbuilding, and continuation. Use when you need story writer capabilities. Triggers on: story writer, 随机角色生成, 情节种子含反转, 角色弧光可视化, 每次运行结果不同."
 author: BytesAgain
-tags: [story, novel, fiction, character, plot, dialogue, worldbuilding, 小说, 创作, 角色, 情节, 续写]
 ---
 # story-writer
 
@@ -27,7 +26,6 @@ tags: [story, novel, fiction, character, plot, dialogue, worldbuilding, 小说, 
   continue        continue
 ```
 
-
 ## 专业建议
 
 - 冲突驱动**：每个好故事的核心都是冲突——人vs人、人vs自然、人vs自我
@@ -38,3 +36,10 @@ tags: [story, novel, fiction, character, plot, dialogue, worldbuilding, 小说, 
 
 ---
 *story-writer by BytesAgain*
+---
+💬 Feedback & Feature Requests: https://bytesagain.com/feedback
+Powered by BytesAgain | bytesagain.com
+
+## Commands
+
+Run `story-writer help` to see all available commands.
