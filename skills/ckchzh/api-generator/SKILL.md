@@ -1,6 +1,8 @@
 ---
+version: "2.0.0"
 name: api-generator
-description: "API code generator. Generate RESTful endpoints, GraphQL schemas, OpenAPI/Swagger docs, API clients, mock servers, authentication, rate limiting, and test suites. Commands: rest, graphql, swagger, client, mock, auth, rate-limit, test. Use for backend development, API scaffolding, interface generation."
+description: "API code generator. Generate RESTful endpoints, GraphQL schemas, OpenAPI/Swagger docs, API clients, mock servers, authentication, rate limiting, and test suites. Commands: rest, graphql, swagger, client, mock, auth, rate-limit, test. Use for backend development, API scaffolding, interface generation. Use when you need api generator capabilities. Triggers on: api generator."
+author: BytesAgain
 ---
 
 # ⚡ API Generator
@@ -40,3 +42,6 @@ bash scripts/apigen.sh test order         # Order API tests
 
 All code prints to stdout. Copy or redirect into your project files.
 Generated code includes full comments and can serve as a project starting point.
+---
+💬 Feedback & Feature Requests: https://bytesagain.com/feedback
+Powered by BytesAgain | bytesagain.com
