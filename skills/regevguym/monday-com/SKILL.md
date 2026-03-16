@@ -1,6 +1,6 @@
 ---
 name: monday
-version: 1.2.0
+version: 1.3.0
 description: Manage monday.com boards, items, columns, groups, updates, and workflows via MCP server (preferred) and GraphQL API (fallback). Use when a user asks to create tasks, update statuses, manage projects, query boards, automate workflows, manage CRM, track development, or interact with any monday.com resource. Also use for AI features like AI Blocks, Sidekick skills, or agent workflows on monday.com.
 homepage: https://developer.monday.com
 metadata: {"openclaw": {"emoji": "📋", "requires": {"env": ["MONDAY_API_TOKEN"]}, "primaryEnv": "MONDAY_API_TOKEN"}}
@@ -48,22 +48,12 @@ Manage everything on monday.com: boards, items, columns, groups, updates, users,
 
 1. Go to **monday.com → Profile picture → Developers → My Access Tokens**
 2. Copy your **Personal API V2 Token**
-3. Store it:
+3. Store it securely in your agent's environment or config (e.g. via `openclaw config set` or your platform's secrets manager)
 
-```bash
-export MONDAY_API_TOKEN="your_token_here"
-```
-
-Or configure in OpenClaw:
-```bash
-openclaw config set skills.entries.monday.env.MONDAY_API_TOKEN "your_token_here"
-```
-
-> **Token types:** Personal API tokens inherit the user's full UI permissions — there's no scoping. For production or shared agents, prefer **OAuth apps** which support granular permission scopes (boards:read, boards:write, users:read, etc.). See [OAuth docs](https://developer.monday.com/apps/oauth).
 
 ## MCP Server (Preferred Method)
 
-**Always use the MCP server first.** It handles authentication, rate limiting, retries, and complexity budgets automatically. Only fall back to raw GraphQL/curl when the MCP tools don't cover your operation.
+**Always use the MCP server first.** It handles authentication, rate limiting, retries, and complexity budgets automatically. Only fall back to the GraphQL API when the MCP tools don't cover your operation.
 
 monday.com has an official MCP server (`@mondaydotcomorg/monday-api-mcp`):
 
@@ -74,7 +64,7 @@ monday.com has an official MCP server (`@mondaydotcomorg/monday-api-mcp`):
       "command": "npx",
       "args": ["-y", "@mondaydotcomorg/monday-api-mcp@latest"],
       "env": {
-        "MONDAY_API_TOKEN": "your_token_here"
+        "MONDAY_API_TOKEN": "<your-api-token>"
       }
     }
   }
@@ -145,213 +135,41 @@ For most agent use cases, **GraphQL fallback is the practical choice** when MCP 
 
 Use the GraphQL API directly when MCP tools don't cover the operation (webhooks, file uploads, subitems, pagination, user/workspace queries, activity logs).
 
-All requests go to a single endpoint:
+- **Endpoint:** `https://api.monday.com/v2` (POST, JSON body with `query` field)
+- **File uploads:** `https://api.monday.com/v2/file` (multipart POST, max 500MB)
+- **Auth:** Include your API token in the request header (see [API docs](https://developer.monday.com/api-reference))
+- **API version:** Include `API-Version: 2024-10` header. Check [developer.monday.com/api-reference](https://developer.monday.com/api-reference) for the current stable version.
 
-```bash
-curl -X POST "https://api.monday.com/v2" \
-  -H "Authorization: $MONDAY_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -H "API-Version: 2024-10" \
-  -d '{"query": "{ me { id name email } }"}'
-```
+> For full GraphQL query and mutation examples, see `references/graphql-examples.md`.
 
-> **API versioning:** monday.com deprecates API versions periodically. `2024-10` is the latest stable version as of this writing. Check [developer.monday.com/api-reference](https://developer.monday.com/api-reference) for the current stable version if you encounter deprecation warnings.
+## Core Operations (GraphQL)
 
-## Core Operations
+All operations use `POST` to the API endpoint with a `query` field. Key operations:
 
-### List Boards
-
-```bash
-curl -X POST "https://api.monday.com/v2" \
-  -H "Authorization: $MONDAY_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "{ boards(limit: 25, order_by: used_at) { id name board_folder_id state workspace { id name } } }"}'
-```
-
-### Get Board with Items
-
-```bash
-curl -X POST "https://api.monday.com/v2" \
-  -H "Authorization: $MONDAY_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "{ boards(ids: [BOARD_ID]) { id name columns { id title type settings_str } groups { id title } items_page(limit: 50) { cursor items { id name group { id title } column_values { id text type value } } } } }"}'
-```
-
-### Create Board
-
-```bash
-curl -X POST "https://api.monday.com/v2" \
-  -H "Authorization: $MONDAY_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "mutation { create_board(board_name: \"Project Alpha\", board_kind: public, workspace_id: WORKSPACE_ID) { id } }"}'
-```
-
-Board kinds: `public`, `private`, `share`.
-
-### Create Item
-
-```bash
-curl -X POST "https://api.monday.com/v2" \
-  -H "Authorization: $MONDAY_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "mutation { create_item(board_id: BOARD_ID, group_id: \"GROUP_ID\", item_name: \"New Task\", column_values: \"{\\\"status\\\": {\\\"label\\\": \\\"Working on it\\\"},\\\"date\\\": {\\\"date\\\": \\\"2026-03-15\\\"}}\") { id } }"}'
-```
-
-### Update Column Values
-
-```bash
-curl -X POST "https://api.monday.com/v2" \
-  -H "Authorization: $MONDAY_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "mutation { change_multiple_column_values(board_id: BOARD_ID, item_id: ITEM_ID, column_values: \"{\\\"status\\\": {\\\"label\\\": \\\"Done\\\"},\\\"person\\\": {\\\"personsAndTeams\\\": [{\\\"id\\\": USER_ID, \\\"kind\\\": \\\"person\\\"}]}}\") { id } }"}'
-```
-
-Always prefer `change_multiple_column_values` over `change_column_value` for efficiency.
-
-### Create Group
-
-```bash
-curl -X POST "https://api.monday.com/v2" \
-  -H "Authorization: $MONDAY_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "mutation { create_group(board_id: BOARD_ID, group_name: \"Sprint 3\", group_color: \"#00CA72\") { id } }"}'
-```
-
-### Add Update (Comment)
-
-```bash
-curl -X POST "https://api.monday.com/v2" \
-  -H "Authorization: $MONDAY_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "mutation { create_update(item_id: ITEM_ID, body: \"Completed the review. Ready for QA.\") { id } }"}'
-```
-
-### Create Subitem
-
-```bash
-curl -X POST "https://api.monday.com/v2" \
-  -H "Authorization: $MONDAY_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "mutation { create_subitem(parent_item_id: ITEM_ID, item_name: \"Subtask: Write tests\") { id board { id } } }"}'
-```
-
-### Move Item to Group
-
-```bash
-curl -X POST "https://api.monday.com/v2" \
-  -H "Authorization: $MONDAY_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "mutation { move_item_to_group(item_id: ITEM_ID, group_id: \"GROUP_ID\") { id } }"}'
-```
-
-### Delete Item
-
-```bash
-curl -X POST "https://api.monday.com/v2" \
-  -H "Authorization: $MONDAY_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "mutation { delete_item(item_id: ITEM_ID) { id } }"}'
-```
-
-### Search Items by Column Value
-
-```bash
-curl -X POST "https://api.monday.com/v2" \
-  -H "Authorization: $MONDAY_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "{ items_page_by_column_values(board_id: BOARD_ID, limit: 50, columns: [{column_id: \"status\", column_values: [\"Working on it\"]}]) { cursor items { id name column_values { id text } } } }"}'
-```
-
-### Upload File to Item
-
-File uploads use a multipart POST (not the standard JSON body):
-
-```bash
-curl -X POST "https://api.monday.com/v2/file" \
-  -H "Authorization: $MONDAY_API_TOKEN" \
-  -F 'query=mutation ($file: File!) { add_file_to_column(item_id: ITEM_ID, column_id: "files", file: $file) { id name url } }' \
-  -F 'variables[file]=@/path/to/file.pdf'
-```
-
-> **Note:** The endpoint is `/v2/file` (not `/v2`). The column must be a "Files" type column. Max file size: 500MB. The `@` prefix is required for curl file uploads.
-
-### Upload File to Update
-
-```bash
-curl -X POST "https://api.monday.com/v2/file" \
-  -H "Authorization: $MONDAY_API_TOKEN" \
-  -F 'query=mutation ($file: File!) { add_file_to_update(update_id: UPDATE_ID, file: $file) { id name url } }' \
-  -F 'variables[file]=@/path/to/file.png'
-```
-
-### Get Activity Logs
-
-Query what changed on a board recently — useful for "what happened since yesterday?" or audit trails:
-
-```bash
-curl -X POST "https://api.monday.com/v2" \
-  -H "Authorization: $MONDAY_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "{ boards(ids: [BOARD_ID]) { activity_logs(limit: 50) { id event data entity account_id created_at user_id } } }"}'
-```
-
-Filter by date range or specific columns:
-```bash
-# Activity from the last 7 days
-curl -X POST "https://api.monday.com/v2" \
-  -H "Authorization: $MONDAY_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "{ boards(ids: [BOARD_ID]) { activity_logs(limit: 50, from: \"2026-03-03T00:00:00Z\", to: \"2026-03-10T00:00:00Z\") { id event data entity created_at user_id } } }"}'
-```
-
-Common `event` values: `update_column_value`, `create_pulse` (item created), `delete_pulse`, `create_update`, `move_pulse` (item moved between groups).
-
-### Create Webhook
-
-```bash
-curl -X POST "https://api.monday.com/v2" \
-  -H "Authorization: $MONDAY_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "mutation { create_webhook(board_id: BOARD_ID, url: \"https://your-endpoint.com/webhook\", event: change_column_value) { id } }"}'
-```
-
-Events: `change_column_value`, `change_status_column_value`, `create_item`, `delete_item`, `change_name`, `create_update`, `change_subitem_column_value`, `create_subitem`.
-
-### Get User Info
-
-```bash
-curl -X POST "https://api.monday.com/v2" \
-  -H "Authorization: $MONDAY_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "{ me { id name email account { id name slug } } }"}'
-```
-
-### List Workspaces
-
-```bash
-curl -X POST "https://api.monday.com/v2" \
-  -H "Authorization: $MONDAY_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "{ workspaces { id name kind } }"}'
-```
+| Operation | Mutation/Query | Key Fields |
+|-----------|---------------|------------|
+| List boards | `{ boards(limit: 25) { id name } }` | `order_by: used_at` |
+| Get board + items | `{ boards(ids: [...]) { columns groups items_page { ... } } }` | Always fetch schema first |
+| Create board | `create_board(board_name, board_kind, workspace_id)` | Kinds: `public`, `private`, `share` |
+| Create item | `create_item(board_id, group_id, item_name, column_values)` | column_values = JSON string |
+| Update columns | `change_multiple_column_values(board_id, item_id, column_values)` | Prefer over single-column updates |
+| Create group | `create_group(board_id, group_name, group_color)` | — |
+| Add comment | `create_update(item_id, body)` | Supports HTML |
+| Create subitem | `create_subitem(parent_item_id, item_name)` | Returns subitem board ID |
+| Move item | `move_item_to_group(item_id, group_id)` | — |
+| Delete item | `delete_item(item_id)` | Always confirm first |
+| Search by column | `items_page_by_column_values(board_id, columns)` | Column ID + value filter |
+| Activity logs | `boards(ids) { activity_logs(limit, from, to) }` | Events: `update_column_value`, `create_pulse`, etc. |
+| Create webhook | `create_webhook(board_id, url, event)` | Events: `change_column_value`, `create_item`, etc. |
+| User info | `{ me { id name email account { slug } } }` | Get account slug for URLs |
+| Workspaces | `{ workspaces { id name kind } }` | — |
 
 ## Pagination
 
 Use cursor-based pagination for large datasets:
 
-```bash
-# First page
-curl -X POST "https://api.monday.com/v2" \
-  -H "Authorization: $MONDAY_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "{ boards(ids: [BOARD_ID]) { items_page(limit: 200) { cursor items { id name } } } }"}'
-
-# Next page (use cursor from previous response)
-curl -X POST "https://api.monday.com/v2" \
-  -H "Authorization: $MONDAY_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "{ next_items_page(limit: 200, cursor: \"CURSOR_VALUE\") { cursor items { id name } } }"}'
-```
+1. First request: include `items_page(limit: 200)` — returns a `cursor`
+2. Next pages: use `next_items_page(limit: 200, cursor: "CURSOR_VALUE")`
 
 Recommended page size: 200. Max: 500. Cursors expire after 60 minutes.
 
