@@ -2,10 +2,10 @@
 name: a2a-wallet
 description: >
   Use the a2a-wallet CLI to interact with A2A agents — send messages, stream responses,
-  and manage tasks. Also supports x402 payment signing and SIWE authentication required
-  by A2A agents. Trigger when the user needs to: send a message to an A2A agent, sign
-  an x402 payment, authenticate via SIWE, log in or out of a2a-wallet, check their
-  wallet address or balance, or configure the a2a-wallet CLI.
+  and manage tasks. Also supports x402 payment signing and local wallet management.
+  Trigger when the user needs to: send a message to an A2A agent, sign an x402 payment,
+  manage local wallets, check their wallet address or balance,
+  or configure the a2a-wallet CLI.
 compatibility: >
   Requires a2a-wallet CLI to be installed. macOS (Apple Silicon, Intel),
   Linux (x64, arm64), Windows (x64). See INSTALL.md for setup instructions.
@@ -22,15 +22,13 @@ If a command fails with a "command not found" error, refer to **[INSTALL.md](./I
 
 | Command | Description |
 |---------|-------------|
-| `a2a` | Interact with A2A agents (`card`, `send`, `stream`, `tasks`, `cancel`) |
-| `x402 sign` | Sign x402 PaymentRequirements → PaymentPayload (for paywalled agents) |
-| `siwe` | SIWE token operations (`prepare`, `encode`, `decode`, `verify`, `auth`) |
-| `auth` | Log in / out (`login`, `device start/poll`, `logout`) |
+| `a2a` | A2A protocol client: `auth`, `list`, `disconnect`, `card`, `send`, `stream`, `tasks`, `cancel` |
+| `x402 sign` | Sign x402 PaymentRequirements → A2A message metadata (for paywalled agents) |
+| `wallet` | Manage local wallets: `create`, `import`, `list`, `use`, `export`, `connect`, `disconnect` |
+| `status` | Show default wallet address and web app URL |
 | `config` | Get or set config values (`token`, `url`) |
-| `whoami` | Show authenticated user info |
-| `balance` | Show wallet balance |
-| `sign` | Sign an arbitrary message with the wallet |
-| `faucet` | Request testnet tokens |
+| `balance` | Show USDC balance for the active wallet on a given network |
+| `faucet` | Request testnet USDC (Base Sepolia) directly from the CLI — no browser or auth required |
 | `update` | Update the CLI binary |
 
 ## Agent Card Extensions
@@ -41,7 +39,7 @@ Before interacting with an A2A agent, inspect its card to check which extensions
 a2a-wallet a2a card https://my-agent.example.com
 ```
 
-The `capabilities.extensions` array in the card lists supported (and possibly required) extensions. Two extensions are relevant to this CLI:
+The `capabilities.extensions` array in the card lists supported (and possibly required) extensions. The following extension is relevant to this CLI:
 
 ---
 
@@ -90,49 +88,85 @@ Agents declaring this extension monetize their services via on-chain cryptocurre
 
 ---
 
-### SIWE Bearer Auth Extension
+## SECURITY WARNING — READ BEFORE SETTING UP A WALLET
 
-**Extension URI**: `https://github.com/planetarium/a2a-x402-wallet/tree/main/docs/siwe-bearer-auth/v0.1`
+**Always present the following warnings to the user before creating or importing any wallet.**
 
-Agents declaring this extension require a wallet-signed auth token on every request. If `required: true`, messages cannot be sent without one.
+### Local Wallet Risk
 
-**How to detect**: The agent card will contain:
+The local wallet stores the private key as a **plain file on disk** (`~/.a2a-wallet/`). As an AI agent using this CLI, you have direct filesystem access — which means the key file is accessible to the agent runtime and any other process on the machine.
 
-```json
-{
-  "extensions": [
-    {
-      "uri": "https://github.com/planetarium/a2a-x402-wallet/tree/main/docs/siwe-bearer-auth/v0.1",
-      "required": true
-    }
-  ]
-}
-```
+- **Do NOT create or use a local wallet that holds significant assets.**
+- **Do NOT import or restore a wallet that holds significant assets** into this CLI.
+- If the key file is read by any unauthorized process or leaks for any reason, **all assets are permanently unrecoverable**. The user bears full responsibility.
 
-**Usage**:
-1. Generate a token for the agent's domain:
-   ```bash
-   TOKEN=$(a2a-wallet siwe auth \
-     --domain my-agent.example.com \
-     --uri    https://my-agent.example.com \
-     --ttl    1h \
-     --json | jq -r '.token')
-   ```
-2. Pass it via `--bearer` when sending messages:
-   ```bash
-   a2a-wallet a2a send   --bearer "$TOKEN" https://my-agent.example.com "Hello"
-   a2a-wallet a2a stream --bearer "$TOKEN" https://my-agent.example.com "Hello"
-   ```
+### Custodial Wallet Risk
 
-**Note**: The token is tied to the agent's domain — a token issued for one agent will be rejected by another.
+The custodial wallet delegates key management to [Privy](https://privy.io) and the a2a-wallet web service. **This project cannot guarantee custodial wallet security.**
+
+- **Do NOT store significant amounts of assets** in the custodial wallet.
+- Key management is outside the user's direct control. The user bears full responsibility for any loss due to third-party service incidents or misconfigurations.
+
+**Both wallet types are intended for small micro-payments only. Always inform the user of these risks and confirm they accept responsibility before proceeding.**
+
+### Legal Notice
+
+> [!CAUTION]
+> **This software is experimental and intended for testing and development purposes only. Do not use it with production funds or significant on-chain assets.**
+
+THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. THE AUTHORS, CONTRIBUTORS, AND OPERATORS OF THIS PROJECT SHALL NOT BE LIABLE FOR ANY LOSS OF FUNDS, LOSS OF DATA, UNAUTHORIZED ACCESS TO CRYPTOGRAPHIC KEYS, SERVICE INTERRUPTION, OR ANY OTHER DAMAGES ARISING FROM USE OF THIS SOFTWARE.
+
+When setting up a wallet, confirm the user understands and accepts the following:
+
+- They are using **experimental software** at their own risk.
+- They will **not store significant assets** in any wallet managed by this tool.
+- Any loss is **solely their responsibility** — no compensation or recovery is possible.
+- The project maintainers provide **no guarantees** of security, uptime, or correctness.
 
 ---
+
+## Wallet selection
+
+The CLI supports two wallet types:
+
+- **Local wallet** — private key stored locally (`wallet create` / `wallet import`). No login required. **Key is stored as a plain file — use only for small amounts.**
+- **Custodial wallet** — signing delegated to the web service. Requires login via `wallet connect`. **Security depends on a third-party provider — use only for small amounts.**
+
+Switch the active wallet with:
+
+```bash
+a2a-wallet wallet use <name>       # set a local wallet as default
+a2a-wallet wallet use --custodial  # switch to the custodial wallet
+```
+
+Check current status at any time:
+
+```bash
+a2a-wallet status
+```
+
+### Custodial wallet login
+
+```bash
+a2a-wallet wallet connect           # opens browser for login
+a2a-wallet wallet connect --poll <device-code>  # complete login (headless)
+```
+
+### Note for users upgrading from v0.3.3 or earlier
+
+In v0.3.3 and below, the wallet was always managed by the web service (custodial). If you want to continue using that same wallet address after upgrading, you must activate the custodial wallet:
+
+```bash
+a2a-wallet wallet connect           # log in to the web service
+a2a-wallet wallet use --custodial   # set custodial as the default
+```
+
+> **Recommendation**: consider migrating to a local wallet. Local wallets sign entirely offline with no dependency on the web service. To switch, run `wallet create` and use the new address going forward.
 
 ## Agent usage tips
 
 - Use `--json` for machine-readable output
 - Errors → stderr, exit `0` = success, `1` = failure
 - Override token/URL per-call with `--token` / `--url`, or set `A2A_WALLET_TOKEN` env var
-- The CLI detects expired tokens before making network requests and prints guidance
 - Always run `a2a card <url>` first to check which extensions are required before sending messages
 - Use `a2a-wallet --help` or `a2a-wallet <command> --help` to discover options at any time
