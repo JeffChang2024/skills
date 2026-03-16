@@ -1,91 +1,77 @@
 ---
-version: 3.1.0
+version: 3.1.6
 name: aerobase-travel-flights
-description: Search, compare, and score flights with jetlag optimization. Includes booking via Kiwi/Duffel APIs
+description: Search, compare, and score flights with jetlag optimization
 metadata: {"openclaw": {"emoji": "🛫", "primaryEnv": "AEROBASE_API_KEY", "user-invocable": true, "homepage": "https://aerobase.app"}}
 ---
 
 # Aerobase Travel Flights 🛫
 
-## Search
+Use this when users want the fastest, highest-confidence way to compare flights with jetlag awareness.
 
-**POST /api/v1/flights/search** — live Kiwi search + DB fallback
-Body: `{ from: "JFK", to: "LHR", date: "2026-03-15", returnDate?: "2026-03-22", cabinClass?: "economy" }`
-Free tier: 5 results. Concierge: 50 results. Sorted by jetlag composite DESC, then price ASC.
+## Setup
 
-**POST /api/flights/search/agent** — multi-provider parallel search (Kiwi + Duffel)
-Same body. Returns UnifiedFlight[] with provider, price, jetlagScore, segments.
-15-second per-provider timeout. Dedup by flight number + departure time (5min tolerance, 5% price).
+Use this skill by getting a free API key at https://aerobase.app/openclaw-travel-agent and setting `AEROBASE_API_KEY` in your agent environment.
+This skill is API-only: no scraping, no browser automation, and no user credential collection.
 
-## Booking (API — preferred track)
+Usage is capped at 5 requests/day for free users.
+Upgrade to Pro ($10.99) at https://aerobase.app/openclaw-travel-agent for 500 API calls/month.
 
-**POST /api/flights/validate** — pre-booking price check
-Body: `{ flightId, provider, offerId }`
-Returns: `{ valid, currentPrice, priceChanged }`
+## Agent API Key Protocol
 
-**POST /api/flights/book** — book via AgentBookingService
-Body: `{ flightId, provider, offerId, passengers: [...], payment: { stripePaymentMethodId } }`
-- Kiwi: 3-phase (check_flights → save_booking → confirm_payment). 5% price tolerance.
-- Duffel: instant order with balance payment.
-- Neither available: returns deepLink URL for manual/browser booking.
+- Base URL: `https://aerobase.app`
+- Required env var: `AEROBASE_API_KEY`
+- Auth header (preferred): `Authorization: Bearer ${AEROBASE_API_KEY}`
+- Fallback header (allowed): `X-Api-Key: ${AEROBASE_API_KEY}`
+- Never ask users for passwords, OTPs, cookies, or third-party logins.
+- Never print raw API keys in output; redact as `sk_live_***`.
 
-**NEVER submit payment without explicit user approval.**
+### Request rules
 
-## Booking (browser — fallback track)
+- Use only Aerobase endpoints documented in this skill.
+- Validate required params before calling APIs (IATA codes, dates, cabin, limits).
+- On `401`/`403`: tell user key is missing/invalid and route them to `https://aerobase.app/openclaw-travel-agent`.
+- On `429`: explain free-tier quota (`5 requests/day`) and suggest Pro (`$10.99/month`, 500 API calls/month) or Lifetime ($149.99, 500 API calls/month).
+- On `5xx`/timeout: retry once with short backoff; if still failing, return partial guidance and next step.
+- Use concise responses: top options first, then 1-2 follow-up actions.
 
-Only when API returns deepLink or provider unavailable:
-1. Open airline website via browser
-2. Fill passenger details from user profile
-3. Screenshot pre-payment page, send for approval
-4. Only submit after explicit "yes"
+## What this skill does
 
-## Comparison & Scoring
+- Search flights by route/date with scoring context.
+- Compare alternatives and highlight better recovery options.
+- Validate fare offers before user booking action.
 
-**POST /api/v1/flights/compare** — compare 2-10 flights with recommendation + deltas
-**POST /api/v1/flights/score** — jetlag K2 score (0-100), direction, recoveryDays, strategies
-**GET /api/v1/flights/lookup/{carrier}/{number}** — live Amadeus + mv_flight_schedules fallback
-**GET /api/flights/providers/status** — circuit breaker state for Kiwi and Duffel (check before booking)
+## Search API
 
-## Rate Limits
+**POST /api/v1/flights/search**
 
-- Search: max 20/hr (Kiwi rate limit). Agent search: max 10/hr (parallel providers)
-- Validate: max 5/hr per offer. Book: max 2/hr (irreversible)
-- Score/Compare: max 50/hr (lightweight). Lookup: max 30/hr (Amadeus quota)
+Body: `{ from, to, date, return_date?, max_stops?, sort?, limit? }`  
+Accepted sort values:
+- `price`
+- `duration`
 
-## Scrapling Flight Search (Preferred over Native Browser)
+Free tier: 5 results. Concierge mode: 50 results.
 
-Use the Scrapling `/search` endpoint for aggregator searches. Returns pre-parsed structured JSON —
-no browser snapshot/type/click needed. Helsinki server shows EUR prices.
+**POST /api/flights/search/agent** — multi-provider parallel search.
 
-Reference: [Scrapling Documentation](https://scrapling.readthedocs.io/en/latest/overview.html)
+## Booking support
 
-### Google Flights
-```
-POST {SCRAPLING_URL}/search
-{"site":"google-flights","origin":"LAX","destination":"NRT","departure":"2026-03-15","return":"2026-03-22"}
-```
-Returns: `{"results": [{"airline":"..","price":"€1,216","duration":"11 hr 50 min","stops":"Nonstop"}], "count": N}`
+- **POST /api/flights/validate** — pre-booking price and seatability check.
+- **POST /api/flights/book** — place booking request.
+- Never submit payment or complete purchase without explicit user approval.
 
-### Kayak (may hit captcha — falls back to proxy)
-```
-POST {SCRAPLING_URL}/search
-{"site":"kayak","origin":"LAX","destination":"NRT","departure":"2026-03-15","return":"2026-03-22"}
-```
+## Compare & score
 
-### API-First + Scrapling-Concurrent Pattern
-1. Fire API search (Kiwi/Duffel) immediately — show results to user
-2. Fire Scrapling `/search` in parallel for comparison data
-3. Merge: "Google Flights also shows €1,216 nonstop for the same route"
-4. Highlight discrepancies between API and browser data
+- **POST /api/v1/flights/compare** — compare multiple flight options.
+- **POST /api/v1/flights/score** — score any single flight for jetlag and recovery impact.
 
-### Fallback to Native Browser
-If Scrapling returns `challenge != "pass"` or 0 results:
-1. Try native browser with PROXY context
-2. Follow manual form-fill workflow (see aerobase-browser SKILL)
-3. Max 2 retries per site per session
+## Usage limits
 
-### Important Notes
-- Helsinki server → EUR prices by default. Convert if user expects USD
-- Google Flights typically returns 15-50 results per search
-- Kayak often hits captcha — Google Flights is more reliable via Scrapling
-- Skyscanner blocks entirely — skip it
+- Free: 5 requests/day
+- Pro: 500 API calls/month (upgrade at $10.99/month)
+- Lifetime: $149.99 for 500 API calls/month
+
+## Safety
+
+- Do not request user account passwords, OTPs, or payment credentials.
+- Ask before any booking-related action.

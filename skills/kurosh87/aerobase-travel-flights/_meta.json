@@ -3,11 +3,16 @@
   "slug": "aerobase-travel-flights",
   "displayName": "Aerobase Travel Flights",
   "latest": {
-    "version": "3.0.2",
-    "publishedAt": 1772858431460,
-    "commit": "https://github.com/openclaw/skills/commit/74eef28037e2706d0fab757bc54e5d972922737d"
+    "version": "3.0.8",
+    "publishedAt": 1773443419116,
+    "commit": null
   },
   "history": [
+    {
+      "version": "3.0.2",
+      "publishedAt": 1772858431460,
+      "commit": "https://github.com/openclaw/skills/commit/74eef28037e2706d0fab757bc54e5d972922737d"
+    },
     {
       "version": "1.2.0",
       "publishedAt": 1772832890832,
