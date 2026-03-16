@@ -3,11 +3,16 @@
   "slug": "wip-readme-format",
   "displayName": "Wip Readme Format",
   "latest": {
-    "version": "1.9.12",
-    "publishedAt": 1773439144543,
-    "commit": "https://github.com/openclaw/skills/commit/7c35aef93312f67cd42ee4234e2fbe6a83730c75"
+    "version": "1.9.35",
+    "publishedAt": 1773684125022,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.9.12",
+      "publishedAt": 1773439144543,
+      "commit": "https://github.com/openclaw/skills/commit/7c35aef93312f67cd42ee4234e2fbe6a83730c75"
+    },
     {
       "version": "1.9.11",
       "publishedAt": 1773437119082,
