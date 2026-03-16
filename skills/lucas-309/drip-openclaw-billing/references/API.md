@@ -20,7 +20,7 @@ Drip issues two key types. **Always use the least-privileged key that meets your
 ## Provenance & Execution Policy
 
 - Package: https://www.npmjs.com/package/@drip-sdk/node
-- Source: https://github.com/MichaelLevin5908/drip
+- Source: https://github.com/DripYCx26/drip
 - This skill is instruction-only and does not bundle `@drip-sdk/node` source code.
 - Use pinned dependency versions in `package.json` + lockfile.
 - Treat SDK installation as an external npm supply-chain dependency and verify provenance before installation.

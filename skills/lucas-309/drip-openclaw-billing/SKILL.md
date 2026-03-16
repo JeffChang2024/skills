@@ -5,7 +5,7 @@ license: MIT
 compatibility: Requires Node.js 18+, npm, and DRIP_API_KEY. Optional: DRIP_BASE_URL, DRIP_WORKFLOW_ID.
 provenance:
   npmPackage: https://www.npmjs.com/package/@drip-sdk/node
-  sourceRepository: https://github.com/MichaelLevin5908/drip
+  sourceRepository: https://github.com/DripYCx26/drip/tree/main/packages/sdk
 credentials:
   primary: DRIP_API_KEY
   keyTypes:
@@ -110,9 +110,7 @@ npm install @drip-sdk/node@<pinned-version>
 - Use pinned versions in `package.json` and a committed lockfile.
 - Verify package provenance before supplying credentials:
   - npm: https://www.npmjs.com/package/@drip-sdk/node
-  - repo: https://github.com/MichaelLevin5908/drip
-  - sdk repo (node): https://github.com/MichaelLevin5908/drip-sdk
-  - sdk repo (python): https://github.com/MichaelLevin5908/drip-sdk-python
+  - repo: https://github.com/DripYCx26/drip
 - Do not run ad-hoc remote package execution flows (`npx <package>`) for this skill.
 
 ## Registry Consistency

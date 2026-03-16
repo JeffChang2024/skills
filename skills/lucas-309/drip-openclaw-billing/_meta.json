@@ -3,11 +3,16 @@
   "slug": "drip-openclaw-billing",
   "displayName": "Drip OpenClaw Billing",
   "latest": {
-    "version": "1.0.6",
-    "publishedAt": 1772660556544,
-    "commit": "https://github.com/openclaw/skills/commit/6ffcf08df4fbd5d22b4d72b8fd5023f9f695f40e"
+    "version": "1.0.9",
+    "publishedAt": 1773449984958,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.6",
+      "publishedAt": 1772660556544,
+      "commit": "https://github.com/openclaw/skills/commit/6ffcf08df4fbd5d22b4d72b8fd5023f9f695f40e"
+    },
     {
       "version": "1.0.4",
       "publishedAt": 1772644030457,
