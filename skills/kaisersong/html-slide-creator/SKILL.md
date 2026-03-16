@@ -1,8 +1,8 @@
 ---
 name: slide-creator
-description: Create beautiful, animation-rich HTML presentations that run entirely in the browser — no npm, no build tools. Generates polished single-file slide decks with visual style discovery, responsive viewport fitting, and optional PPTX export. Use whenever someone asks to make a presentation, create slides, build a pitch deck, convert a PPT/PPTX to web, or prepare slides for a talk or demo — even if they don't mention HTML. Also use for planning a deck outline first (`--plan`), generating HTML from a plan (`--generate`), or exporting to PowerPoint (`--export pptx`).
-version: 1.4.1
-metadata: {"openclaw":{"emoji":"🎞️","os":["darwin","linux"],"homepage":"https://github.com/kaisersong/slide-creator","requires":{"bins":["python3"]},"install":[{"id":"pillow","kind":"uv","package":"Pillow","label":"Pillow (image processing)"},{"id":"python-pptx","kind":"uv","package":"python-pptx","label":"python-pptx (PPT import/export)"},{"id":"playwright","kind":"uv","package":"playwright","label":"Playwright (pixel-perfect PPTX export via system Chrome)"}]}}
+description: Create beautiful, zero-dependency HTML presentations that run entirely in the browser — no npm, no build tools. 21 curated style presets with named layout variations, visual style discovery with live previews, viewport-fitted slides, inline browser editing, Presenter Mode, and optional PPTX export. Content-type routing suggests the best style for pitch decks, dev docs, data reports, and more. Supports --plan (outline), --generate (HTML from plan), and --export pptx flags.
+version: 1.9.0
+metadata: {"openclaw":{"emoji":"🎞","os":["darwin","linux","windows"],"homepage":"https://github.com/kaisersong/slide-creator","requires":{"bins":["python3"]},"install":[{"id":"pillow","kind":"uv","package":"Pillow","label":"Pillow (image processing)"},{"id":"python-pptx","kind":"uv","package":"python-pptx","label":"python-pptx (PPT import/export)"},{"id":"playwright","kind":"uv","package":"playwright","label":"Playwright (pixel-perfect PPTX export via system Chrome)"}]}}
 ---
 
 # Slide Creator
@@ -23,7 +23,7 @@ Parse the invocation to determine mode:
 
 - **`--plan [prompt]`** — Planning mode. Inspect `resources/`, analyze the prompt, create `PLANNING.md`. **Stop — do NOT generate HTML.**
 - **`--generate [instructions]`** — Generation mode. Read `PLANNING.md` if present (skip Phase 1/2 questions), then generate HTML.
-- **`--export pptx [--scale N]`** — Export the most recently modified HTML as PPTX via the bundled script. Requires Node ≥ 18.
+- **`--export pptx [--scale N]`** — Export the most recently modified HTML as PPTX via the bundled Python script. Requires Python 3 + `pip install playwright python-pptx`. No Node.js required.
 - **No flag** — Auto-detect mode (Phase 0).
 
 ---
@@ -45,7 +45,7 @@ Parse the invocation to determine mode:
 2. Run: `python3 <skill-path>/scripts/export-pptx.py <presentation.html> [output.pptx]`
 3. Report the PPTX file path and slide count.
 
-The script uses Playwright with the user's **existing system Chrome** (no Chromium download). It captures pixel-perfect screenshots of each slide and assembles them into a PPTX. Only `pip install playwright python-pptx` required — no Node.js, no 300MB browser download.
+The script uses Playwright with the user's **existing system Chrome** (`--channel chrome` flag, no Chromium download). It captures pixel-perfect screenshots of each slide and assembles them into a PPTX. Only `pip install playwright python-pptx` required — no Node.js, no 300MB browser download. If system Chrome is not found, the script will report an error and ask the user to install Chrome.
 
 ---
 
@@ -56,6 +56,20 @@ Determine what the user wants:
 - **Mode A — New Presentation:** Check for `PLANNING.md` first. If it exists, read it as source of truth and jump directly to Phase 3 — skip Phase 1/2.
 - **Mode B — PPT Conversion:** User has a `.ppt/.pptx` file → go to Phase 4.
 - **Mode C — Enhance Existing:** Read the existing HTML, understand its structure, then enhance. When adding content, always check viewport fit — if adding would overflow a slide, split the content rather than cramming it in. Proactively split and inform the user.
+
+**Content-type → Style hints** (use when user hasn't chosen a style):
+
+| Content type | Suggested styles |
+|---|---|
+| Data report / KPI dashboard | Data Story, Enterprise Dark, Swiss Modern |
+| Business pitch / VC deck | Bold Signal, Aurora Mesh, Enterprise Dark |
+| Developer tool / API docs | Terminal Green, Neon Cyber, Neo-Retro Dev Deck |
+| Research / thought leadership | Modern Newspaper, Paper & Ink, Swiss Modern |
+| Creative / personal brand | Vintage Editorial, Split Pastel, Neo-Brutalism |
+| Product launch / SaaS | Aurora Mesh, Glassmorphism, Electric Studio |
+| Education / tutorial | Notebook Tabs, Paper & Ink, Pastel Geometry |
+| Chinese content | Chinese Chan, Aurora Mesh, Blue Sky |
+| Hackathon / indie dev | Neo-Retro Dev Deck, Neo-Brutalism, Terminal Green |
 
 ---
 
@@ -71,7 +85,11 @@ Then gather everything in a **single AskUserQuestion call with all 5 questions a
 - **Images** (single select): No images / ./assets / Other (user types path)
 - **Inline Editing** (single select): Yes — edit text in-browser, auto-save (Recommended) / No — presentation only
 
+> **Default:** Always include inline editing unless user explicitly selects "No". When `--generate` skips Phase 1, include inline editing by default.
+
 If user has content, ask them to share it after submitting the form.
+
+**Language:** Detect from the user's message — never default to a fixed language. Maintain the detected language throughout all slide text including labels, CTAs, and captions. English may appear as secondary annotation text only when the style calls for it.
 
 ### Image Evaluation
 
@@ -94,7 +112,11 @@ Most people can't articulate design preferences in words. Generate 3 mini visual
 
 Ask via AskUserQuestion:
 - **"Show me options"** → ask mood question → generate 3 previews based on answer
-- **"I know what I want"** → show preset picker (Bold Signal / Dark Botanical / Notebook Tabs / Pastel Geometry — with "Other" option for full list)
+- **"I know what I want"** → show preset picker (Bold Signal / Blue Sky / Modern Newspaper / Neo-Retro Dev Deck — with "Other" option for all 21 presets)
+
+**Before showing presets, silently scan `<skill-path>/themes/` for subdirectories.**
+Skip any directory whose name starts with `_` (those are examples/templates, not real themes).
+Each remaining subdirectory with a `reference.md` is a custom theme. Append them to the preset list as `Custom: <folder-name>` entries. If any custom themes exist, mention them first: "I also found N custom theme(s) in your themes/ folder."
 
 **Available Presets** (full details in [STYLE-DESC.md](STYLE-DESC.md)):
 
@@ -104,6 +126,7 @@ Ask via AskUserQuestion:
 | Electric Studio | Clean, professional | Agency presentations |
 | Creative Voltage | Energetic, retro-modern | Creative pitches |
 | Dark Botanical | Elegant, sophisticated | Premium brands |
+| Blue Sky | Clean, airy, enterprise-ready | SaaS pitches, AI/tech decks |
 | Notebook Tabs | Editorial, organized | Reports, reviews |
 | Pastel Geometry | Friendly, approachable | Product overviews |
 | Split Pastel | Playful, modern | Creative agencies |
@@ -112,15 +135,28 @@ Ask via AskUserQuestion:
 | Terminal Green | Developer-focused | Dev tools, APIs |
 | Swiss Modern | Minimal, precise | Corporate, data |
 | Paper & Ink | Literary, thoughtful | Storytelling |
+| Aurora Mesh | Vibrant, premium SaaS | Product launches, VC pitch |
+| Enterprise Dark | Authoritative, data-driven | B2B, investor decks, strategy |
+| Glassmorphism | Light, translucent, modern | Consumer tech, brand launches |
+| Neo-Brutalism | Bold, uncompromising | Indie dev, creative manifesto |
+| Chinese Chan | Still, contemplative | Design philosophy, brand, culture |
+| Data Story | Clear, precise, persuasive | Business review, KPI, analytics |
+| Modern Newspaper | Punchy, authoritative, editorial | Business reports, thought leadership, research summaries |
+| Neo-Retro Dev Deck | Opinionated, technical, handmade | Dev tool launches, API docs, hackathon presentations |
 
 **Mood → Preset mapping:**
 
 | Mood | Style Options |
 |------|---------------|
-| Impressed/Confident | Bold Signal, Electric Studio, Dark Botanical |
-| Excited/Energized | Creative Voltage, Neon Cyber, Split Pastel |
-| Calm/Focused | Notebook Tabs, Paper & Ink, Swiss Modern |
-| Inspired/Moved | Dark Botanical, Vintage Editorial, Pastel Geometry |
+| Impressed/Confident | Bold Signal, Enterprise Dark, Neo-Brutalism |
+| Excited/Energized | Creative Voltage, Neon Cyber, Aurora Mesh |
+| Calm/Focused | Notebook Tabs, Paper & Ink, Chinese Chan |
+| Inspired/Moved | Dark Botanical, Vintage Editorial, Glassmorphism |
+| Clean/Enterprise | Blue Sky, Electric Studio, Enterprise Dark |
+| Data-Driven | Data Story, Enterprise Dark, Swiss Modern |
+| Playful/Creative | Split Pastel, Pastel Geometry, Neo-Brutalism |
+| Developer-Focused | Terminal Green, Neon Cyber, Neo-Retro Dev Deck |
+| Editorial/Organized | Notebook Tabs, Vintage Editorial, Modern Newspaper |
 
 ### Generate Previews
 
@@ -150,9 +186,15 @@ All 10 signature visual elements (orbs, noise texture, grid, glassmorphism, spri
 
 Do **not** rewrite the visual system CSS. Do **not** change the track/slide layout. Content goes inside `.slide` wrappers using the pre-built component classes: `.g` (glass card), `.gt` (gradient text), `.pill`, `.stat`, `.divider`, `.cols2/3/4`, `.ctable`, `.co` (amber callout), `.warn` (red warning), `.info` (blue info), `.layer` (org row), `ul.bl` (bullet list).
 
+### If a custom theme from themes/ is selected
+
+Read the theme's `reference.md` for style constraints. If a `starter.html` exists in the theme folder, use it as the base (same as Blue Sky). Otherwise, follow the standard references below and apply the custom theme's colors, typography, and layout rules.
+
 ### For all other styles → read the standard references
 
 **Read [references/html-template.md](references/html-template.md)** — it contains the required HTML structure, JavaScript patterns, animation recipes, and edit button implementation.
+
+> **IMPORTANT — MUST READ before writing any HTML.** Do NOT implement the edit button or presenter button from memory. The correct pattern uses a hotzone `<div>` + JS `mouseenter`/`mouseleave` with a 400ms grace period. Using `body:hover` is a known mistake — it makes the button permanently visible. The exact implementation is in `html-template.md`; copy it directly.
 
 **Also read [STYLE-DESC.md](STYLE-DESC.md)** for viewport fitting CSS, responsive breakpoints, style preset details, and CSS gotchas (especially: never negate CSS functions directly — use `calc(-1 * clamp(...))` not `-clamp(...)`).
 
@@ -173,6 +215,28 @@ Each slide must equal exactly one viewport height (`100vh` / `100dvh`). When con
 
 When in doubt → split the slide.
 
+**Visual Rhythm:** Alternate between text-heavy and visual-heavy slides. Three or more consecutive slides with the same layout signal low effort. Vary between: headline-dominant → data/diagram → evidence list → quote or visual break → headline-dominant. Every 4–5 slides, one slide should be nearly empty (a single statement, a big number, or a quote).
+
+### Diagram Slides (when content calls for a visual relationship)
+
+When a slide needs to show a process, comparison, hierarchy, timeline, or data — generate an **inline SVG diagram** instead of bullet points.
+
+**Read [references/diagram-patterns.md](references/diagram-patterns.md)** for ready-to-use SVG templates:
+
+| Need | Pattern |
+|------|---------|
+| Steps in a process | Horizontal Flowchart |
+| Events over time | Vertical Timeline |
+| Ranking / metrics | Horizontal Bar Chart |
+| Prioritisation | 2×2 Comparison Grid |
+| Team / structure | Org / Hierarchy Chart |
+
+Rules:
+- One diagram per slide, never combined with a bullet list
+- Use `currentColor` so diagrams inherit the slide's text color automatically
+- Apply `--accent` color to the most important element (first step, top bar, highlighted quadrant)
+- **Never use Mermaid.js, Chart.js, or any external library** — inline SVG only
+
 ### Image Pipeline (skip if no images)
 
 For each USABLE image from Step 1.2, determine processing needed (circular crop for logos, resize for large files, padding for screenshots needing breathing room) and run it with Pillow. Reference images with relative paths (`assets/...`) — don't base64 encode unless the user explicitly wants a fully self-contained file.
@@ -187,6 +251,7 @@ Rules:
 - Semantic HTML (`<section>`, `<nav>`, `<main>`)
 - ARIA labels on nav elements and interactive controls
 - `@media (prefers-reduced-motion: reduce)` support
+- No markdown symbols (`#`, `*`, `**`, `_`) in slide text — use semantic HTML elements (`<strong>`, `<em>`, `<h2>`) for structure and emphasis
 
 ---
 
@@ -197,17 +262,17 @@ Read [references/pptx-extraction.md](references/pptx-extraction.md) for the Pyth
 1. Run the extraction script to get slides_data (title, content, images, notes per slide)
 2. Present extracted structure to user, confirm it looks right
 3. Run Phase 2 (Style Discovery) with extracted content in mind
-4. Generate HTML preserving all text, images (from `assets/`), and slide order. Add speaker notes as HTML comments if present.
+4. Generate HTML preserving all text, images (from `assets/`), and slide order. Put speaker notes in `data-notes` attributes on each `.slide` section (not HTML comments) so they work in Presenter Mode.
 
 ---
 
 ## Phase 5: Delivery
 
 1. **Clean up:** delete `.claude-design/slide-previews/` if it exists.
-2. **Generate speaker notes** if deck has 8+ slides or was created from PLANNING.md:
-   - Create `PRESENTATION_SCRIPT.md` with 2-4 sentences per slide: what to say, emphasis points, transition cue.
-3. **Open:** `open [filename].html`
-4. **Summarize:**
+2. **Embed speaker notes in HTML** — every `.slide` section must have a `data-notes="..."` attribute with 2-4 sentences (what to say, key emphasis, transition cue). These power the built-in Presenter Mode.
+3. **Generate `PRESENTATION_SCRIPT.md`** if deck has 8+ slides or was created from PLANNING.md (same notes content, formatted as a readable document).
+4. **Open:** `open [filename].html`
+5. **Summarize:**
 
 ```
 Your presentation is ready!
@@ -217,13 +282,14 @@ Your presentation is ready!
 📊 Slides: [count]
 
 Navigation: Arrow keys or Space · Scroll or swipe · Click dots to jump
+Presenter Mode: press P to open the presenter window (notes + timer + controls)
 
 To customize: edit :root variables at the top of the CSS for colors, fonts, and spacing.
 
-To export as PPTX: run `/slide-creator --export pptx` (requires Node.js ≥ 18)
+To export as PPTX: run `/slide-creator --export pptx` (requires Python 3 + playwright + python-pptx, no Node.js)
 ```
 
-If inline editing was opted in: mention hovering the top-left corner or pressing `E` to enter edit mode.
+Always mention: hover the top-left corner or press `E` to enter edit mode (included by default unless user explicitly opted out).
 
 ---
 
