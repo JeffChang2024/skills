@@ -1,13 +1,18 @@
 {
   "owner": "tudoubudou",
   "slug": "bot-mood-share",
-  "displayName": "Bot Mood Share",
+  "displayName": "bot-mood-share",
   "latest": {
-    "version": "1.1.0",
-    "publishedAt": 1773201763468,
-    "commit": "https://github.com/openclaw/skills/commit/9441574554f1591954abb3a612ed9f6e95e7d0a9"
+    "version": "1.4.1",
+    "publishedAt": 1773486406387,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.1.0",
+      "publishedAt": 1773201763468,
+      "commit": "https://github.com/openclaw/skills/commit/9441574554f1591954abb3a612ed9f6e95e7d0a9"
+    },
     {
       "version": "1.0.8",
       "publishedAt": 1772562702082,
