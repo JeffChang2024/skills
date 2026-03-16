@@ -1,17 +1,35 @@
 ---
 name: tech-news-daily
-description: 获取今日最热门的科技资讯，特别是 AI 大模型领域的最新动态。使用 Tavily Search API 搜索并整理 Top 10 热点新闻，适合每日科技简报、行业资讯收集、AI 领域跟踪等场景。
+description: 获取今日最热门的科技资讯，特别是 AI 大模型领域的最新动态。支持多数据源自动切换（Tavily API→科技网站直连），适合每日科技简报、行业资讯收集、AI 领域跟踪等场景。
 ---
 
-# 科技资讯日报技能
+# 科技资讯日报技能 (增强版)
 
 每日获取最热门的科技资讯，重点关注 AI 大模型领域的最新进展。
 
+## 数据源策略
+
+**优先级顺序:**
+```
+1. Tavily Search API (主要数据源)
+   ↓ 失败或无 API Key
+2. 科技网站直连 (备用数据源)
+   - 36 氪 AI 频道
+   - 机器之心
+   - 量子位
+   - AI 科技大本营
+```
+
+**自动切换逻辑:**
+- 有 `TAVILY_API_KEY` 时优先使用 Tavily API
+- Tavily API 失败或无 Key 时自动切换到网站抓取
+- 无需用户干预，全自动降级
+
 ## 前置要求
 
-### 配置 Tavily Search API
+### 配置 Tavily Search API（可选）
 
-此技能需要 Tavily Search API 密钥才能实时搜索新闻：
+此技能**支持无 API Key 运行**，但配置后可获得更高质量的搜索结果：
 
 #### 方式 1：设置环境变量（推荐）
 
@@ -28,11 +46,11 @@ export TAVILY_API_KEY=your_tavily_api_key_here
 }
 ```
 
-#### 方式 2：在脚本中直接配置
+#### 方式 2：不使用 API Key
 
-编辑 `scripts/fetch_tech_news_tavily.py`，将 API key 写入脚本（不推荐用于生产环境）。
+无需任何配置，技能会自动切换到备用数据源（直接抓取科技新闻网站）。
 
-### 获取 Tavily API Key
+### 获取 Tavily API Key（可选）
 
 1. 访问 https://tavily.com/
 2. 注册账号并登录
@@ -40,6 +58,8 @@ export TAVILY_API_KEY=your_tavily_api_key_here
 4. 免费额度：每月 1000 次搜索
 
 **文档**: https://docs.tavily.com/
+
+**注意**: 即使没有 API Key，技能也能正常工作（使用备用数据源）。
 
 ## 使用方式
 
@@ -59,6 +79,16 @@ export TAVILY_API_KEY=your_tavily_api_key_here
 - "播报今日科技资讯"
 - "今天有什么 AI 大模型的新闻？"
 - "获取今日最热门的十个科技资讯"
+
+### 运行脚本
+
+```bash
+# 使用增强版脚本（推荐 - 支持多数据源）
+python3 scripts/fetch_tech_news_enhanced.py
+
+# 使用原版 Tavily 脚本（仅当有 API Key 时）
+python3 scripts/fetch_tech_news_tavily.py
+```
 
 ## 搜索策略
 
@@ -154,8 +184,18 @@ export TAVILY_API_KEY=your_tavily_api_key_here
 
 | 问题 | 解决方案 |
 |------|----------|
-| 返回 API 密钥错误 | 确认 `TAVILY_API_KEY` 环境变量已设置 |
+| 返回 API 密钥错误 | 技能会自动切换到备用数据源，无需干预 |
 | 搜索结果过时 | Tavily 默认返回最新结果，可检查查询词是否包含时间关键词 |
 | 结果太少 | 增加搜索词多样性，或调整 `max_results` 参数 |
 | 中文结果少 | 同时搜索中英文关键词 |
-| 网络请求失败 | 检查网络连接，确认 Tavily API 服务正常 |
+| 网络请求失败 | 检查网络连接，Tavily 失败时会自动切换到网站抓取 |
+| 所有数据源失败 | 检查网络连接，稍后重试 |
+
+## 数据源对比
+
+| 数据源 | 优点 | 缺点 |
+|--------|------|------|
+| **Tavily API** | 搜索结果质量高，覆盖广，实时更新 | 需要 API Key，有配额限制 |
+| **科技网站直连** | 无需 API Key，免费，专注 AI 领域 | 覆盖范围有限，依赖网站结构 |
+
+**建议**: 高频使用建议配置 Tavily API，偶尔使用可直接用备用方案。

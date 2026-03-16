@@ -1,11 +1,17 @@
 {
   "owner": "chenchaoqun",
   "slug": "tech-news-daily",
-  "displayName": "Tech News Daily",
+  "displayName": "科技资讯日报",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1772802529166,
-    "commit": "https://github.com/openclaw/skills/commit/a4eab1e2edffa73a09933c05570c77f9a0d06957"
+    "version": "1.0.1",
+    "publishedAt": 1773419113952,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1772802529166,
+      "commit": "https://github.com/openclaw/skills/commit/a4eab1e2edffa73a09933c05570c77f9a0d06957"
+    }
+  ]
 }
