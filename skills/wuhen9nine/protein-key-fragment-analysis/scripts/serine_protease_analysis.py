@@ -232,6 +232,7 @@ def analyze_key_fragments(consensus_seq, conservation_scores, species_list):
                     for frag in key_fragments
                 )
                 if not already_found and 'X' not in frag_seq:
+                    composition = analyze_fragment_composition(frag_seq)
                     key_fragments.append({
                         "fragment_id": f"高保守连续区_{region_start+1}_{region_end}",
                         "sequence": frag_seq,
@@ -240,7 +241,8 @@ def analyze_key_fragments(consensus_seq, conservation_scores, species_list):
                         "avg_conservation": f"{avg_conservation:.2%}",
                         "criticality": "高保守（功能待确认）",
                         "function": "高度保守连续区域，可能涉及结构稳定或功能活性位点",
-                        "evidence": f"连续{region_len}aa保守性分析（平均{avg_conservation:.2%}）"
+                        "evidence": f"连续{region_len}aa保守性分析（平均{avg_conservation:.2%}）",
+                        "composition": composition
                     })
 
     # 3. 搜索Cys残基（潜在二硫键）
@@ -256,6 +258,89 @@ def analyze_key_fragments(consensus_seq, conservation_scores, species_list):
         })
 
     return key_fragments, clean_consensus
+
+
+# ── 氨基酸分类（用于片段理化性质分析）────────────────────
+# 注意：此处 A/G/P 重新归入 Hydrophobic（与氨基酸对分析的分类方案不同）
+AA_CATEGORIES = {
+    'Hydrophobic': set('VLIMAG P'.replace(' ', '')),  # V, L, I, M, A, G, P
+    'Nucleophilic': set('STC'),
+    'Aromatic':    set('FYW'),
+    'Amide':       set('NQ'),
+    'Acidic':      set('DE'),
+    'Cationic':    set('HKR'),
+}
+# X 不参与统计
+
+# 理化性质判断规则（主导类别 → 理化性质描述）
+PROPERTY_DESCRIPTIONS = {
+    'Hydrophobic': '疏水性（Hydrophobic）——倾向埋藏于蛋白质疏水核心，参与疏水堆积/折叠',
+    'Nucleophilic': '亲核性（Nucleophilic）——富含 Ser/Thr/Cys，具有强亲核反应能力，常见于催化活性位点或翻译后修饰位点',
+    'Aromatic':    '芳香性（Aromatic）——含 Phe/Tyr/Trp，可参与π-π堆叠、阳离子-π作用及疏水核心稳定',
+    'Amide':       '酰胺类（Amide）——富含 Asn/Gln，侧链具有极性但不带电，常参与氢键网络及底物识别',
+    'Acidic':      '酸性（Acidic）——富含 Asp/Glu，带负电，参与盐桥、金属离子结合及活性位点催化',
+    'Cationic':    '阳离子性（Cationic）——富含 His/Lys/Arg，带正电，参与底物识别、催化三联体及DNA/RNA结合',
+    'Mixed':       '混合型（Mixed）——无单一主导类别（最高占比 < 35%），理化性质复合，可能涉及多功能结合界面',
+}
+
+
+def analyze_fragment_composition(fragment_seq):
+    """
+    对片段序列进行各类氨基酸比例分析，判断主要理化性质。
+
+    参数：
+        fragment_seq: 片段氨基酸序列（字符串，可含X）
+
+    返回：dict，包含：
+        - category_counts: {类别: 计数}
+        - category_ratios: {类别: 比例（%）}
+        - total_valid: 有效氨基酸总数（排除X）
+        - dominant_category: 主导类别名称（或 'Mixed'）
+        - dominant_ratio: 主导类别占比（%）
+        - physicochemical_property: 理化性质描述
+    """
+    # 只统计非X氨基酸
+    valid_aas = [aa for aa in fragment_seq.upper() if aa != 'X']
+    total_valid = len(valid_aas)
+
+    if total_valid == 0:
+        return {
+            "category_counts": {},
+            "category_ratios": {},
+            "total_valid": 0,
+            "dominant_category": "Unknown",
+            "dominant_ratio": 0.0,
+            "physicochemical_property": "无有效氨基酸（全为X），无法判断"
+        }
+
+    counts = {cat: 0 for cat in AA_CATEGORIES}
+    unclassified = 0
+    for aa in valid_aas:
+        classified = False
+        for cat, members in AA_CATEGORIES.items():
+            if aa in members:
+                counts[cat] += 1
+                classified = True
+                break
+        if not classified:
+            unclassified += 1
+
+    ratios = {cat: round(cnt / total_valid * 100, 1) for cat, cnt in counts.items()}
+
+    # 找主导类别（最高占比，且 ≥ 35% 才称为主导）
+    top_cat = max(counts, key=lambda c: counts[c])
+    top_ratio = ratios[top_cat]
+    dominant = top_cat if top_ratio >= 35.0 else 'Mixed'
+
+    return {
+        "category_counts": counts,
+        "category_ratios": ratios,
+        "total_valid": total_valid,
+        "unclassified_count": unclassified,
+        "dominant_category": dominant,
+        "dominant_ratio": top_ratio,
+        "physicochemical_property": PROPERTY_DESCRIPTIONS.get(dominant, "未知")
+    }
 
 
 def get_block_function(block_name):
@@ -319,6 +404,20 @@ def generate_report(species_name, sequences, consensus_seq, conservation_scores,
                 f.write(f"| **证据** | {frag.get('evidence', 'N/A')} |\n")
                 if 'avg_conservation' in frag:
                     f.write(f"| **平均保守率** | {frag['avg_conservation']} |\n")
+
+                # 氨基酸组成与理化性质（仅高保守连续区片段有此字段）
+                comp = frag.get('composition')
+                if comp and comp.get('total_valid', 0) > 0:
+                    ratios = comp['category_ratios']
+                    # 按比例从高到低排列
+                    sorted_cats = sorted(ratios.items(), key=lambda x: -x[1])
+                    ratio_str = " | ".join(
+                        f"{cat}: {pct}%" for cat, pct in sorted_cats if pct > 0
+                    )
+                    f.write(f"| **氨基酸组成** | {ratio_str} |\n")
+                    f.write(f"| **主导类别** | {comp['dominant_category']}（{comp['dominant_ratio']}%） |\n")
+                    f.write(f"| **主要理化性质** | {comp['physicochemical_property']} |\n")
+
                 f.write("\n")
 
         f.write("---\n\n")
@@ -332,17 +431,29 @@ def generate_report(species_name, sequences, consensus_seq, conservation_scores,
         f.write(f"2. **共识序列**：各位置最高频氨基酸占比 ≥ {THRESHOLD} 则写入，否则标X\n")
         f.write("3. **关键片段识别**：\n")
         f.write("   - 匹配已知保守块（GDSG、IVGG等Pfam S1家族特征序列）\n")
-        f.write("   - 滑动窗口（5aa）筛选平均保守率 ≥ 85% 的区段\n")
+        f.write("   - 连续保守区检测（保守率 ≥ 90%，长度 ≥ 6aa）\n")
         f.write("   - 检测保守Cys残基（潜在二硫键）\n")
-        f.write("4. **功能注释**：基于UniProt/Pfam已知丝氨酸蛋白酶结构-功能数据库\n\n")
+        f.write("4. **片段氨基酸组成分析（新）**：对每个高保守连续区段统计各功能类别氨基酸比例\n")
+        f.write("   - 分类方案（含A/G/P归入疏水类）：\n")
+        f.write("     Hydrophobic(V/L/I/M/A/G/P) | Nucleophilic(S/T/C) | Aromatic(F/Y/W)\n")
+        f.write("     Amide(N/Q) | Acidic(D/E) | Cationic(H/K/R)；X不参与统计\n")
+        f.write("   - 主导类别判定：最高占比 ≥ 35% 则为该类别主导，否则为 Mixed\n")
+        f.write("5. **功能注释**：基于UniProt/Pfam已知丝氨酸蛋白酶结构-功能数据库\n\n")
         f.write("---\n\n")
         f.write("*本报告由自动化分析pipeline生成，关键片段功能解读基于已知丝氨酸蛋白酶家族注释。*\n")
 
     return report_path
 
 
-def analyze_species(species_name, fasta_path, output_dir):
-    """对单个物种/类群执行完整分析流程"""
+def analyze_species(species_name, fasta_path, output_dir, precomputed_aligned=None):
+    """对单个物种/类群执行完整分析流程
+    
+    Args:
+        species_name: 物种名称
+        fasta_path: 原始FASTA文件路径
+        output_dir: 输出目录
+        precomputed_aligned: 预计算的比对FASTA路径（共享缓存，跳过MSA步骤）
+    """
     print(f"\n{'='*60}")
     print(f"分析：{species_name}")
     print(f"{'='*60}")
@@ -361,12 +472,17 @@ def analyze_species(species_name, fasta_path, output_dir):
         consensus_seq = list(sequences.values())[0]
         conservation_scores = [1.0] * len(consensus_seq)
     else:
-        # Step 2: MSA
+        # Step 2: MSA（若提供预计算比对则跳过）
         aln_path = species_dir / f"{species_name}_aligned.fasta"
-        success = run_clustalo(fasta_path, aln_path)
-        if not success:
-            print("  MSA失败，终止")
-            return None
+        if precomputed_aligned and Path(precomputed_aligned).exists():
+            import shutil
+            shutil.copy2(precomputed_aligned, aln_path)
+            print(f"[Step2] 使用共享比对缓存：{precomputed_aligned}")
+        else:
+            success = run_clustalo(fasta_path, aln_path)
+            if not success:
+                print("  MSA失败，终止")
+                return None
 
         # Step 3: 提取共识序列
         aligned_seqs = parse_fasta(aln_path)
@@ -438,16 +554,27 @@ def generate_summary_report(all_results, output_dir):
 
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="丝氨酸蛋白酶关键片段预测分析流程")
+    parser.add_argument("species_name", nargs="?", help="物种名称")
+    parser.add_argument("fasta_file", nargs="?", help="FASTA文件路径")
+    parser.add_argument("--precomputed-aligned", default=None,
+                        help="预计算的比对FASTA路径（共享缓存，跳过MSA步骤）")
+    parser.add_argument("--output-dir", default=None, help="输出目录（默认：脚本目录/results）")
+    args = parser.parse_args()
+
     print("丝氨酸蛋白酶关键片段预测分析流程")
     print(f"工作目录：{WORK_DIR}")
-    print("\n请将各物种FASTA文件放入 input/ 目录，然后重新运行。")
-    print("或通过命令行参数指定：python serine_protease_analysis.py <species_name> <fasta_file>")
 
-    if len(sys.argv) >= 3:
-        sp_name = sys.argv[1]
-        fasta = Path(sys.argv[2])
-        out_dir = WORK_DIR / "results"
+    if args.species_name and args.fasta_file:
+        fasta = Path(args.fasta_file)
+        out_dir = Path(args.output_dir) if args.output_dir else WORK_DIR / "results"
         out_dir.mkdir(exist_ok=True)
-        result = analyze_species(sp_name, fasta, out_dir)
+        result = analyze_species(args.species_name, fasta, out_dir,
+                                 precomputed_aligned=args.precomputed_aligned)
         if result:
-            generate_summary_report([result], WORK_DIR)
+            generate_summary_report([result], out_dir.parent if args.output_dir else WORK_DIR)
+    else:
+        print("\n请将各物种FASTA文件放入 input/ 目录，然后重新运行。")
+        print("或通过命令行参数指定：python serine_protease_analysis.py <species_name> <fasta_file>")
+        print("  可选：--precomputed-aligned <aligned.fasta>  使用共享MSA缓存跳过比对步骤")
