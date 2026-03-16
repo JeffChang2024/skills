@@ -3,11 +3,16 @@
   "slug": "clawshier",
   "displayName": "Clawshier",
   "latest": {
-    "version": "0.0.6",
-    "publishedAt": 1772937441408,
-    "commit": "https://github.com/openclaw/skills/commit/636369f86c33685741caa97457addc86541be9d8"
+    "version": "0.1.2",
+    "publishedAt": 1773457982269,
+    "commit": null
   },
   "history": [
+    {
+      "version": "0.0.6",
+      "publishedAt": 1772937441408,
+      "commit": "https://github.com/openclaw/skills/commit/636369f86c33685741caa97457addc86541be9d8"
+    },
     {
       "version": "0.0.2",
       "publishedAt": 1772780154849,

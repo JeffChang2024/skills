@@ -1,33 +1,67 @@
 #!/usr/bin/env node
 require("dotenv").config({ path: require("path").resolve(__dirname, "../../.env") });
 
-const { appendRow } = require("../../lib/googleSheets");
+const {
+  ensureSheet, deleteSheetIfExists, appendRow, appendRows, updateSummary,
+} = require("../../lib/googleSheets");
+
+const EXPENSE_HEADERS = [
+  "Fingerprint", "Date", "Vendor", "Category",
+  "Subtotal", "Tax", "Total", "Currency",
+];
+const BREAKDOWN_SHEET = "Invoice Archive Breakdown";
+const BREAKDOWN_HEADERS = ["Fingerprint", "Item", "Quantity", "Cost"];
+
+function sheetNameFromDate(dateStr) {
+  const d = new Date(dateStr + "T00:00:00");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yy = String(d.getFullYear()).slice(-2);
+  return `${mm}-${yy}`;
+}
 
 async function main() {
   let input = "";
   for await (const chunk of process.stdin) input += chunk;
 
   const expense = JSON.parse(input);
-  const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
 
-  const itemsSummary = (expense.items || [])
-    .map((i) => `${i.description} x${i.quantity || 1}`)
-    .join("; ");
+  if (!expense.fingerprint) {
+    throw new Error(
+      "Missing fingerprint — ensure the expense passed through the validator (step 3) before storing"
+    );
+  }
+
+  const spreadsheetId = process.env.GOOGLE_SHEETS_ID;
+  const sheetName = sheetNameFromDate(expense.date);
+
+  await ensureSheet(spreadsheetId, sheetName, EXPENSE_HEADERS, [4, 5, 6]);
 
   const row = [
+    expense.fingerprint,
     expense.date,
     expense.vendor,
     expense.category,
-    itemsSummary,
     expense.subtotal,
     expense.tax,
     expense.total,
     expense.currency,
-    expense.fingerprint,
-    new Date().toISOString(),
   ];
 
-  const rowNumber = await appendRow(spreadsheetId, row);
+  const rowNumber = await appendRow(spreadsheetId, sheetName, row);
+
+  await ensureSheet(spreadsheetId, BREAKDOWN_SHEET, BREAKDOWN_HEADERS, [3]);
+
+  const itemRows = (expense.items || []).map((item) => [
+    expense.fingerprint,
+    item.description,
+    item.quantity || 1,
+    item.amount,
+  ]);
+
+  await appendRows(spreadsheetId, BREAKDOWN_SHEET, itemRows);
+
+  await deleteSheetIfExists(spreadsheetId, "Sheet1");
+  await updateSummary(spreadsheetId);
 
   process.stdout.write(JSON.stringify({ success: true, row: rowNumber }));
 }
