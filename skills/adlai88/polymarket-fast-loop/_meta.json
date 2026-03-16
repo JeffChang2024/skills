@@ -1,13 +1,18 @@
 {
   "owner": "adlai88",
   "slug": "polymarket-fast-loop",
-  "displayName": "Polymarket FastLoop Trader",
+  "displayName": "Polymarket Fast Loop",
   "latest": {
-    "version": "1.4.0",
-    "publishedAt": 1773567156558,
-    "commit": "https://github.com/openclaw/skills/commit/ce51954e4e6e2ceacfc8d4b7e09d93f6fc953c67"
+    "version": "1.4.1",
+    "publishedAt": 1773667602359,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.4.0",
+      "publishedAt": 1773567156558,
+      "commit": "https://github.com/openclaw/skills/commit/ce51954e4e6e2ceacfc8d4b7e09d93f6fc953c67"
+    },
     {
       "version": "1.3.5",
       "publishedAt": 1773328430659,
