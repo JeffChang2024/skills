@@ -26,6 +26,10 @@ vi.mock('../src/outbound.js', () => {
       outboundCalls.push({ kind: 'record', args });
       return { status: 'ok', retcode: 0, data: {} };
     },
+    reactToMessage: async (...args: any[]) => {
+      outboundCalls.push({ kind: 'react', args });
+      return { channel: 'onebot', ok: true, messageId: args[1], emojiId: args[2] };
+    },
   };
 });
 
@@ -182,6 +186,173 @@ describe('gateway', () => {
     expect(String(envArgs.body)).toContain('[Image: http://img]');
     // Voice download fails in test (fake URL) -> falls back to placeholder
     expect(String(envArgs.body)).toMatch(/\[语音\]|<media:audio>/);
+
+    ac.abort();
+    await runP;
+    await wsServer.close();
+  });
+
+  it('delivers block replies as multiple outbound messages', async () => {
+    runtimeState = createMockRuntime({
+      nextDeliverPayloads: [
+        { text: 'part-1' },
+        { text: 'part-2' },
+      ],
+    });
+
+    const wsServer = await startMockOneBotWsServer();
+    const ac = new AbortController();
+    const { startGateway } = await import('../src/gateway.js');
+
+    let readyResolve!: () => void;
+    const readyP = new Promise<void>((r) => (readyResolve = r));
+
+    const runP = startGateway({
+      account: {
+        accountId: 'default',
+        enabled: true,
+        wsUrl: wsServer.wsUrl,
+        httpUrl: 'http://x',
+        config: {},
+      },
+      abortSignal: ac.signal,
+      cfg: {
+        agents: { defaults: { blockStreamingDefault: 'on' } },
+      },
+      onReady: () => readyResolve(),
+      log: { info: () => {}, error: () => {}, debug: () => {} },
+    });
+
+    await readyP;
+
+    wsServer.sendToAll({
+      post_type: 'message',
+      message_type: 'private',
+      sub_type: 'friend',
+      message_id: 113,
+      user_id: 224,
+      message: [{ type: 'text', data: { text: 'stream please' } }],
+      raw_message: 'stream please',
+      sender: { user_id: 224, nickname: 'Streamer' },
+      self_id: 999,
+      time: Math.floor(Date.now() / 1000),
+    });
+
+    await vi.waitFor(() => {
+      const texts = outboundCalls.filter((c) => c.kind === 'text');
+      expect(texts.length).toBeGreaterThanOrEqual(2);
+    }, WAIT_FOR_BATCH);
+
+    const textPayloads = outboundCalls
+      .filter((c) => c.kind === 'text')
+      .map((c) => c.args.text);
+    expect(textPayloads).toEqual(expect.arrayContaining(['part-1', 'part-2']));
+
+    ac.abort();
+    await runP;
+    await wsServer.close();
+  });
+
+  it('auto reacts to inbound group messages by default', async () => {
+    const wsServer = await startMockOneBotWsServer();
+    const ac = new AbortController();
+    const { startGateway } = await import('../src/gateway.js');
+
+    let readyResolve!: () => void;
+    const readyP = new Promise<void>((r) => (readyResolve = r));
+
+    const runP = startGateway({
+      account: {
+        accountId: 'default',
+        enabled: true,
+        wsUrl: wsServer.wsUrl,
+        httpUrl: 'http://x',
+        groupAutoReact: true,
+        groupAutoReactEmojiId: 1,
+        config: {},
+      },
+      abortSignal: ac.signal,
+      cfg: {},
+      onReady: () => readyResolve(),
+      log: { info: () => {}, error: () => {}, debug: () => {} },
+    });
+
+    await readyP;
+
+    wsServer.sendToAll({
+      post_type: 'message',
+      message_type: 'group',
+      sub_type: 'normal',
+      message_id: 114,
+      user_id: 225,
+      group_id: 999001,
+      message: [{ type: 'text', data: { text: 'hello group' } }],
+      raw_message: 'hello group',
+      sender: { user_id: 225, nickname: 'GroupUser', role: 'member' },
+      self_id: 999,
+      time: Math.floor(Date.now() / 1000),
+    });
+
+    await vi.waitFor(() => {
+      const reactions = outboundCalls.filter((c) => c.kind === 'react');
+      expect(reactions.length).toBeGreaterThanOrEqual(1);
+    }, WAIT_FOR_BATCH);
+
+    const reactionCall = outboundCalls.find((c) => c.kind === 'react');
+    expect(reactionCall.args[1]).toBe(114);
+    expect(reactionCall.args[2]).toBe(1);
+
+    ac.abort();
+    await runP;
+    await wsServer.close();
+  });
+
+  it('can disable automatic group reactions via config', async () => {
+    const wsServer = await startMockOneBotWsServer();
+    const ac = new AbortController();
+    const { startGateway } = await import('../src/gateway.js');
+
+    let readyResolve!: () => void;
+    const readyP = new Promise<void>((r) => (readyResolve = r));
+
+    const runP = startGateway({
+      account: {
+        accountId: 'default',
+        enabled: true,
+        wsUrl: wsServer.wsUrl,
+        httpUrl: 'http://x',
+        groupAutoReact: false,
+        groupAutoReactEmojiId: 1,
+        config: {},
+      },
+      abortSignal: ac.signal,
+      cfg: {},
+      onReady: () => readyResolve(),
+      log: { info: () => {}, error: () => {}, debug: () => {} },
+    });
+
+    await readyP;
+
+    wsServer.sendToAll({
+      post_type: 'message',
+      message_type: 'group',
+      sub_type: 'normal',
+      message_id: 115,
+      user_id: 226,
+      group_id: 999002,
+      message: [{ type: 'text', data: { text: 'no react please' } }],
+      raw_message: 'no react please',
+      sender: { user_id: 226, nickname: 'MutedGroupUser', role: 'member' },
+      self_id: 999,
+      time: Math.floor(Date.now() / 1000),
+    });
+
+    await vi.waitFor(() => {
+      expect(runtimeState.state.lastDispatchArgs).not.toBeNull();
+    }, WAIT_FOR_BATCH);
+
+    const reactions = outboundCalls.filter((c) => c.kind === 'react');
+    expect(reactions).toHaveLength(0);
 
     ac.abort();
     await runP;

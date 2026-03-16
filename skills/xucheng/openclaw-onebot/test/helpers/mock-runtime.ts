@@ -5,6 +5,7 @@ export interface MockRuntimeState {
   lastFinalizeArgs: any | null;
   lastDispatchArgs: any | null;
   nextDeliverPayload?: { text?: string; mediaUrl?: string; mediaUrls?: string[] };
+  nextDeliverPayloads?: Array<{ text?: string; mediaUrl?: string; mediaUrls?: string[] }>;
 }
 
 export function createMockRuntime(state?: Partial<MockRuntimeState>) {
@@ -43,8 +44,24 @@ export function createMockRuntime(state?: Partial<MockRuntimeState>) {
         resolveEffectiveMessagesConfig: (_cfg: any, _agentId: string) => ({ responsePrefix: '' }),
         dispatchReplyWithBufferedBlockDispatcher: async ({ ctx, dispatcherOptions }: any) => {
           s.lastDispatchArgs = { ctx, dispatcherOptions };
-          // Immediately deliver a response
-          await dispatcherOptions.deliver(s.nextDeliverPayload ?? { text: '' }, { kind: 'final' });
+          const payloads = s.nextDeliverPayloads?.length
+            ? s.nextDeliverPayloads
+            : [s.nextDeliverPayload ?? { text: '' }];
+          for (let i = 0; i < payloads.length; i++) {
+            const kind = i === payloads.length - 1 ? 'final' : 'block';
+            await dispatcherOptions.deliver(payloads[i], { kind });
+          }
+        },
+      },
+      commands: {
+        resolveCommandAuthorizedFromAuthorizers: ({ useAccessGroups, authorizers, modeWhenAccessGroupsOff }: any) => {
+          if (!useAccessGroups) {
+            if (modeWhenAccessGroupsOff === 'allow') return true;
+            if (modeWhenAccessGroupsOff === 'deny') return false;
+            if (!authorizers.some((entry: any) => entry.configured)) return true;
+            return authorizers.some((entry: any) => entry.configured && entry.allowed);
+          }
+          return authorizers.some((entry: any) => entry.configured && entry.allowed);
         },
       },
     },
