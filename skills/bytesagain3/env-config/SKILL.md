@@ -1,7 +1,9 @@
 ---
+version: "2.0.0"
 name: Env Config Manager
 description: "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━. Use when you need env config capabilities. Triggers on: env config."
   环境变量配置管理。.env模板生成(Node/Python/Go/Docker)、验证、环境变量生成、多环境合并、加密建议、文档化。Environment variable config manager with templates, validation, generation, multi-env merge, encryption, documentation. .env、配置管理、环境变量。
+author: BytesAgain
 ---
 # Env Config Manager
 
@@ -19,7 +21,6 @@ description: "━━━━━━━━━━━━━━━━━━━━━━
 - **merge** — merge
 - **encrypt** — encrypt
 - **document** — document
-
 
 ## 专业建议
 
@@ -49,3 +50,13 @@ description: "━━━━━━━━━━━━━━━━━━━━━━
 ---
 💬 Feedback & Feature Requests: https://bytesagain.com/feedback
 Powered by BytesAgain | bytesagain.com
+
+## Examples
+
+```bash
+# Show help
+env-config help
+
+# Run
+env-config run
+```
