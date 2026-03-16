@@ -1,7 +1,7 @@
 ---
 name: mistral-agents-orchestrator
 description: Multi-agent orchestration via Mistral's Agents API — register agents, manage conversations, delegate via handoffs, bind function calling tools. Use when building multi-agent systems with Mistral models, coordinating specialist agents, or implementing agent-to-agent delegation patterns. Requires MISTRAL_API_KEY.
-version: 1.0.0
+version: 1.0.1
 metadata:
   {
       "openclaw": {
@@ -16,7 +16,8 @@ metadata:
             "network": {
                   "outbound": true,
                   "reason": "Calls Mistral Agents API (api.mistral.ai) for agent registration, conversations, and handoff delegation."
-            }
+            },
+            "security_notes": "base64 used for encoding message payloads in API requests — standard format. UploadFile is a FastAPI type used for document ingestion to agent tools. 'system prompt' refers to Mistral agent configuration field — a standard API parameter, not prompt injection."
       }
 }
 ---
