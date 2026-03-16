@@ -347,28 +347,41 @@ def fetch_world_monitor(url="https://world-monitor.com/api/signal-markers", conf
                 if not any(tc.lower() in country.lower() for tc in target_countries):
                     continue
             
-            # Use latest key_point as title if available
+            # Emit one item PER key_point (not per location) so each event gets its own hash
             if key_points:
-                latest = key_points[-1]
-                title = f"{latest.get('point', summary[:120])}"
-                date_str = latest.get("date", "")
+                # Only emit key_points from the last 24 hours (recent events)
+                for kp in key_points[-10:]:  # Last 10 key_points per location
+                    point_text = kp.get("point", "")
+                    date_str = kp.get("date", "")
+                    if not point_text:
+                        continue
+                    items.append({
+                        "title": f"[{country}] {point_text[:150]}",
+                        "description": f"{name} — {point_text}",
+                        "url": f"https://world-monitor.com/",
+                        "published": date_str,
+                        "raw": f"{name} {country}. {date_str}. {point_text}",
+                        "metadata": {
+                            "lat": lat, "lng": lng,
+                            "location": name,
+                            "country": country,
+                            "key_points_count": len(key_points)
+                        }
+                    })
             else:
-                title = summary[:150]
-                date_str = ""
-            
-            items.append({
-                "title": f"[{country}] {title}",
-                "description": f"{name} — {summary[:300]}",
-                "url": f"https://world-monitor.com/",
-                "published": date_str,
-                "raw": f"{name} {country}. {summary}. {analysis[:300]}",
-                "metadata": {
-                    "lat": lat, "lng": lng,
-                    "location": name,
-                    "country": country,
-                    "key_points_count": len(key_points)
-                }
-            })
+                items.append({
+                    "title": f"[{country}] {summary[:150]}",
+                    "description": f"{name} — {summary[:300]}",
+                    "url": f"https://world-monitor.com/",
+                    "published": "",
+                    "raw": f"{name} {country}. {summary}. {analysis[:300]}",
+                    "metadata": {
+                        "lat": lat, "lng": lng,
+                        "location": name,
+                        "country": country,
+                        "key_points_count": 0
+                    }
+                })
             
             if len(items) >= max_items:
                 break

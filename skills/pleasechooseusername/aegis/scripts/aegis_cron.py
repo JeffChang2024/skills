@@ -197,6 +197,22 @@ def main():
     # HIGH/MEDIUM are collected silently for morning/evening briefings
     if critical > 0:
         critical_threats = scan_data.get("threats", {}).get("critical", [])
+        
+        # INCIDENT-LEVEL DEDUP: Filter to only genuinely NEW incidents
+        # Prevents spam when multiple key_points describe the same event
+        try:
+            from incident_tracker import filter_new_incidents
+            new_incidents = filter_new_incidents(critical_threats)
+            if not new_incidents:
+                print(f"[AEGIS] {critical} CRITICAL threats but all belong to known incidents — suppressing", file=sys.stderr)
+                # Still log but don't alert
+                print("HEARTBEAT_OK")
+                return
+            critical_threats = new_incidents
+            print(f"[AEGIS] {len(new_incidents)} NEW incidents out of {critical} CRITICAL threats", file=sys.stderr)
+        except ImportError:
+            print("[AEGIS] incident_tracker not available — falling back to cooldown only", file=sys.stderr)
+        
         corroborated = is_corroborated(critical_threats)
         source_count = len(set(t.get("source_id", "") for t in critical_threats))
 
@@ -206,14 +222,18 @@ def main():
         # Check cooldown — corroborated threats get shorter cooldown
         if should_alert(corroborated=corroborated) and token and channel:
             # Post a cold, factual CRITICAL ALERT to the public channel
-            subprocess.run(
-                [sys.executable, str(SCRIPTS_DIR / "aegis_channel.py"), "critical"],
-                input=json.dumps(scan_data),
-                text=True, timeout=30,
+            # Use the pre-saved last_scan.json as file arg (avoids stdin pipe issues)
+            scan_file = str(DATA_DIR / "last_scan.json")
+            result_post = subprocess.run(
+                [sys.executable, str(SCRIPTS_DIR / "aegis_channel.py"), "critical", scan_file],
+                capture_output=True, text=True, timeout=30,
                 env={**os.environ, "AEGIS_BOT_TOKEN": token, "AEGIS_CHANNEL_ID": channel}
             )
-            mark_alerted()
-            print(f"[AEGIS] Critical alert posted to channel.", file=sys.stderr)
+            if result_post.returncode == 0:
+                mark_alerted()
+                print(f"[AEGIS] Critical alert posted to channel.", file=sys.stderr)
+            else:
+                print(f"[AEGIS] Channel post failed (rc={result_post.returncode}): {result_post.stderr}", file=sys.stderr)
         else:
             print(f"[AEGIS] Cooldown active or no credentials — skipping channel post.", file=sys.stderr)
 
