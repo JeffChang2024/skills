@@ -3,9 +3,15 @@
   "slug": "cc-switch",
   "displayName": "Cc Switch",
   "latest": {
-    "version": "2.3.0",
-    "publishedAt": 1773447535618,
-    "commit": "https://github.com/openclaw/skills/commit/4a4f03476be0fb2037d45ae1968582ca1b37a0d6"
+    "version": "2.3.7",
+    "publishedAt": 1773665002091,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "2.3.0",
+      "publishedAt": 1773447535618,
+      "commit": "https://github.com/openclaw/skills/commit/4a4f03476be0fb2037d45ae1968582ca1b37a0d6"
+    }
+  ]
 }
