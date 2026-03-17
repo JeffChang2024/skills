@@ -1,181 +1,187 @@
 ---
 name: giggle-generation-scripts
-description: 基于姜文电影常见的叙事推进与对白机制生成中文剧本内容。用于用户提出“生成剧本”“写剧本”“做分场”“出对白稿”“改剧本”或同类意图时，包括：根据题材输出故事梗概、人物小传、分场大纲、分场剧本（含对白、动作、场面调度提示），并可按用户要求调整时代背景、人物关系、冲突节奏与结局走向。
-version: "0.0.1"
+description: "Generates Chinese script content based on narrative pacing and dialogue mechanisms common in Jiang Wen films. Use when the user asks to generate script, write script, create scenes, output dialogue draft, revise script or similar. Outputs story synopsis, character bios, scene outlines, scene scripts (with dialogue, action, staging), and can adjust era, character relations, conflict pacing, and endings per user request."
+version: "0.0.10"
 license: MIT
 ---
 
+[简体中文](./SKILL.zh-CN.md) | English
+
 # Giggle Generation Scripts
 
-以“高密度冲突 + 黑色幽默 + 话里有话的对白 + 叙事反转”的机制组织文本，不照搬任何具体电影桥段或原句。
+Organizes text with "high-density conflict + black humor + subtext-heavy dialogue + narrative reversals". Does not copy specific film scenes or lines.
 
-## 输入收集
+> **No Retry on Error**: If script execution encounters an error, **do not retry**. Report the error to the user directly and stop.
 
-优先收集以下信息；缺失时自行补全并显式写明假设：
+## Input Collection
 
-- 题材与时代：民国、当代、近未来等
-- 核心矛盾：权力、金钱、身份、复仇、误会
-- 主角目标：想得到什么、害怕失去什么
-- 人物关系：盟友、对手、两面人
-- 篇幅目标：短片、单集、电影长片
+Prioritize collecting:
 
-## 输入冲突处理
+- Genre and era: Republican China, contemporary, near-future, etc.
+- Core conflict: power, money, identity, revenge, misunderstanding
+- Protagonist goal: what they want, what they fear losing
+- Character relations: allies, opponents, double-dealers
+- Target length: short film, single episode, feature
 
-先检查用户输入是否互相冲突；若冲突，按以下顺序处理：
+If missing, fill in and state assumptions explicitly.
 
-1. 叙事基调冲突（如“轻喜剧”+“极致黑暗悲剧”）
-2. 人物设定冲突（如“绝对正义”+“主动作恶主角”）
-3. 篇幅冲突（如“5 分钟短片”+“20 场完整分场”）
+## Input Conflict Handling
 
-处理规则：
+Check for conflicting user inputs first. If conflicts exist, handle in this order:
 
-- 优先执行用户最新约束；若仍矛盾，先给出 2 个可选方向，再继续写作。
-- 信息缺失时最多补全 3 条关键假设，并在正文前用“假设”小节显式列出。
-- 不把未确认设定写成既定事实。
+1. Tone conflicts (e.g. "light comedy" + "extremely dark tragedy")
+2. Character conflicts (e.g. "pure good" + "actively evil protagonist")
+3. Length conflicts (e.g. "5-minute short" + "20 full scenes")
 
-## 输出模式选择
+Rules:
 
-根据用户目标和上下文长度选择模式；未指定时默认“标准版”。
+- Prefer the user's latest constraint; if still inconsistent, offer 2 alternative directions, then continue.
+- When info is missing, add at most 3 key assumptions and list them in a "Assumptions" section before the body.
+- Do not treat unconfirmed settings as given facts.
 
-- 快速版：故事梗概 + 人物小传（适合先定方向）
-- 标准版：故事梗概 + 人物小传 + 分场大纲 + 至少 3 场分场剧本
-- 长篇版：故事梗概 + 人物小传 + 分场大纲 + 6-10 场分场剧本
+## Output Mode Selection
 
-## 输出顺序
+Choose mode by user goal and context length. Default: "standard".
 
-严格按以下顺序输出，保证结构完整：
+- Quick: Synopsis + character bios (for direction-setting)
+- Standard: Synopsis + character bios + scene outline + at least 3 full scene scripts
+- Long: Synopsis + character bios + scene outline + 6–10 full scene scripts
 
-1. 故事梗概（300-600 字）
-2. 人物小传（3-8 人，每人含“表层身份/真实动机/关系张力/语言特征”）
-3. 分场大纲（8-20 场，每场含“场次-地点-时间-冲突核心-转折点”）
-4. 分场剧本（至少 3 场完整示例）
+## Output Order
 
-## 分场剧本逐场输出协议
+Output strictly in this order:
 
-输出“分场剧本”时，使用串行交互，不一次性全发：
+1. Synopsis (300–600 characters)
+2. Character bios (3–8 people; each: surface identity / true motive / relational tension / speech style)
+3. Scene outline (8–20 scenes; each: scene-location-time-conflict core-turning point)
+4. Scene scripts (at least 3 full examples)
 
-1. 必须从第一场开始输出（S01）。
-2. 每次只输出一场完整正文（含对白、动作、场面调度、场尾钩子）。
-3. 每场结尾固定追加询问：“是否继续输出下一场（S0X）？”
-4. 仅在用户明确同意后，才输出下一场。
-5. 用户要求“连续输出/一次性输出全部”时，可改为批量输出，但需先确认。
+## Scene Script Serial Output Protocol
 
-## 分场剧本格式
+When outputting scene scripts, use serial interaction. Do not send all at once:
 
-每场使用统一模板：
+1. Always start from scene 1 (S01).
+2. Output only one complete scene at a time (dialogue, action, staging, hook).
+3. At the end of each scene, always ask: "Continue to next scene (S0X)?"
+4. Output the next scene only after explicit user confirmation.
+5. If the user requests "output all at once", switch to batch mode after confirming first.
+
+## Scene Script Format
+
+Use a uniform template per scene:
 
 ```text
-【场次】S03
-【地点/时间】县衙后院 / 夜
-【人物】马走日、黄四郎、账房
-【场面目标】马走日要套出银票去向；黄四郎要反设局。
-【动作与调度】
-- 马走日绕着石桌走半圈，始终不坐。
-- 黄四郎背光站位，账房在两人中线偏后。
-- 说到“规矩”时，远处爆竹声打断。
-【对白】
-马走日：你这院子风真硬，像拿刀背刮人脸。
-黄四郎：风不硬，站不住人。
-账房：二位，茶要凉了。
-马走日：茶凉能热，账凉了就得见血。
-【场尾钩子】
-账房袖口掉出半张银票号单，马走日看见却装作没看见。
+【Scene】S03
+【Location/Time】County office courtyard / night
+【Characters】Ma Zouri, Huang Silang, Accountant
+【Scene goal】Ma Zouri wants to extract where the silver notes went; Huang Silang wants to counter-scheme.
+【Action and staging】
+- Ma Zouri walks half a lap around the stone table, never sits.
+- Huang Silang stands backlit; accountant slightly behind the two.
+- Distant firecrackers interrupt when "rules" is mentioned.
+【Dialogue】
+Ma Zouri: This yard's wind cuts like a knife across the face.
+Huang Silang: Wind not sharp, people can't stand.
+Accountant: Gentlemen, the tea is getting cold.
+Ma Zouri: Tea can warm; ledgers can't—that's when blood flows.
+【Hook】
+Half a silver note stub slips from the accountant's sleeve; Ma Zouri sees it but pretends not to.
 ```
 
-## 风格执行规则
+## Style Rules
 
-### 对白技法（必须遵循）
+### Dialogue Technique (must follow)
 
-- 角色永远不正面回答问题，用反问、类比、岔开话题来回应
-- 用日常小事的语气谈生死大事（”茶凉了”=”你要死了”）
-- 每轮对话是一次权力争夺：接话=接招，绕话=闪避，反问=反击
-- 三人场景中，第三人的台词是节拍器，用来打断或加速冲突
-- 禁止：角色直接说出自己的情绪（”我很愤怒””我害怕”）
-- 禁止：解释性对白（”你知道吗，当年那件事是...”）
-- 禁止：角色替观众总结局势（”所以你的意思是...”）
+- Characters never answer directly; use反问, analogy, topic shifts
+- Discuss life-and-death matters in everyday tone ("tea's cold" = "you're dead")
+- Each exchange is a power contest: answering = blocking, deflecting = dodging, counter-question = strike
+- In three-person scenes, the third character's lines pace the conflict
+- Forbidden: characters stating emotions directly ("I'm angry", "I'm scared")
+- Forbidden: explanatory dialogue ("You know, back then that thing was...")
+- Forbidden: characters summarizing for the audience ("So you mean...")
 
-### 单场节奏公式
+### Single-Scene Rhythm Formula
 
-每场对白按 4 拍推进：
+Each scene advances in 4 beats:
 
-1. 【试探】双方用闲话互相摸底（1-2 轮对白）
-2. 【刺探】一方突然切入真实话题（1 轮）
-3. 【反转】被刺探方反将一军，权力关系翻转（2-3 轮）
-4. 【悬念】第三方介入或意外事件打断，留钩子
+1. 【Probe】Both sides feel each other out with idle talk (1–2 rounds)
+2. 【Probe deeper】One side suddenly hits the real topic (1 round)
+3. 【Reversal】The probed side turns it around; power flips (2–3 rounds)
+4. 【Cliffhanger】Third party or accident interrupts; leave a hook
 
-单场必须出现一次关系位移：试探变威胁、同盟变互疑或强弱反转。
+Every scene must have at least one relational shift: probe→threat, ally→suspicion, or power reversal.
 
-### 黑色幽默技法
+### Black Humor Technique
 
-- 核心机制：严肃场景 + 不合时宜的冷静/日常化表达
-- 人物在最危险时反而关心最无关紧要的事（刀架脖子上讨论茶叶品种）
-- 人物用做生意的语气谈人命（”三十六条命，批发还是零售？”）
-- 荒诞来自逻辑自洽的胡说八道——角色说的话单独看每句都”有道理”，连起来看整件事是荒唐的
-- 禁止：网络段子、谐音梗、无厘头（不是周星驰，是姜文）
+- Core: serious situation + oddly calm/ordinary phrasing
+- Characters worry about trivial things when in grave danger (discussing tea varieties with a knife at the throat)
+- Discuss lives in business tone ("Thirty-six lives, wholesale or retail?")
+- Absurdity comes from logically consistent nonsense—each line alone sounds "reasonable", together it's absurd
+- Forbidden: internet memes, puns, slapstick (not Stephen Chow; Jiang Wen style)
 
-### 语言指纹执行规则
+### Language Fingerprint Rule
 
-- 每个角色的语言特征必须在其每句台词中可辨识
-- 遮住角色名，仅看台词应能判断是谁在说话
-- 写完对白后自检：随机抽 3 句，能否仅凭语气区分角色？不能则重写
+- Each character's speech pattern must be recognizable in every line
+- Cover character names; the lines alone should identify who speaks
+- After writing: randomly pick 3 lines—can you tell who said them by tone? If not, rewrite.
 
-### 抢话节奏（话赶话）
+### Interruption Rhythm
 
-- 对白节奏要"密"——角色接话不超过一个呼吸的间隔，像打乒乓球
-- 两人对话时一来一回不停顿；三人对话时像传球，第三人随时截断
-- 允许角色打断对方，用破折号"——"标记被截断的台词
-- 一场戏里至少出现一次抢话（A 话没说完，B 就接上）
-- 节奏参考：短句为主（5-15 字），偶尔一句长的拉住节奏再弹出去
-- 禁止：两人各说一大段再轮换（那是演讲，不是对白）
+- Dialogue must be "dense"—responses within a breath, like ping-pong
+- Two-person: back-and-forth without pause; three-person: like passing a ball, third can interrupt anytime
+- Allow interruption; mark cut-off lines with "—"
+- At least one interruption per scene (B starts before A finishes)
+- Short lines (5–15 chars) mainly; occasional long line to reset rhythm
+- Forbidden: each person delivers a long monologue in turn (that's speechifying, not dialogue)
 
-### 信息密度（每场双层）
+### Information Density (two layers per scene)
 
-- 每场对白至少承载两层信息：表面在聊的事 + 真正在谈的事
-- 如果一场戏只推进了一件事，密度不够，必须叠加第二层
-- 叠加方式：台词说 A 事，动作/道具暴露 B 事；或台词字面谈 A，潜台词全在谈 B
-- 写完一场后自检：删掉所有动作提示，只看对白，观众能感觉"他们不只是在聊这个"吗？不能则重写
-- 参考密度：一场 10 句对白应至少推进 2 个信息点 + 1 次关系变化
+- Each scene's dialogue carries at least two layers: surface topic + real topic
+- If a scene advances only one thing, density is low—add a second layer
+- Add by: dialogue says A, action/props reveal B; or dialogue literally discusses A while subtext is B
+- Self-check: remove all action cues; can the audience feel "they're not just talking about this" from dialogue alone? If not, rewrite.
+- Reference: 10 lines per scene should advance at least 2 info points + 1 relationship change
 
-### 用词精确度（台词要"香"）
+### Word Precision
 
-- 每句台词写完后检查：能否删掉一个字？能删就删
-- 能否换一个更准确的词？"这位大爷"和"这位爷"是两种人，"走"和"滚"是两个态度
-- 台词要念出来嘴里有味道：多用短促有力的词，少用书面语和四字成语
-- 动词优先：用具体动作代替抽象描述（"他把筷子拍桌上"比"他很生气"好十倍）
-- 禁止：文艺腔（"岁月如歌""命运弄人"）、播音腔（"让我们共同见证"）、网络用语（"绝绝子""yyds"）
+- After each line: can you cut one character? Cut it.
+- Can you replace with a more precise word? "这位大爷" vs "这位爷" are two different people; "走" vs "滚" are two attitudes
+- Lines should "taste" when spoken: use punchy words, avoid formal and cliché phrases
+- Prefer verbs: specific action over abstract description ("He slaps chopsticks on the table" beats "He's angry")
+- Forbidden: literary tone ("岁月如歌"), broadcaster tone ("让我们共同见证"), internet slang ("绝绝子", "yyds")
 
-### 其他风格要求
+### Other Style Requirements
 
-- 每 2-3 场设置一次信息反转，优先通过行动暴露而不是旁白解释
-- 动作与调度服务叙事：站位、视线、噪音源、道具都要推动冲突
+- Every 2–3 scenes: one info reversal; prefer action over narration
+- Action and staging serve story: position, gaze, noise, props must drive conflict
 
-## 质量检查清单
+## Quality Checklist
 
-输出前自检：
+Before output, verify:
 
-- 是否四个部分齐全且顺序正确
-- 人物动机是否互相咬合，不是孤立设定
-- 分场是否”每场有目标、每场有变化”
-- 对白是否可朗读，是否区分角色口吻
-- 是否避免复刻具体现有影片情节与原句
-- 每场是否遵循 4 拍节奏（试探→刺探→反转→悬念）
-- 对白中是否有黑色幽默元素（日常语气谈危险事）
-- 遮住角色名后能否仅凭语气区分不同角色
-- 是否存在禁止项（直给情绪、解释性对白、替观众总结）
-- 对白节奏是否够密，是否有抢话/打断（不是轮流发言）
-- 每场是否承载双层信息（表面聊的事 + 真正谈的事）
-- 台词是否精炼，能删的字是否已删，用词是否具体有力
+- All four parts present and in order
+- Character motives interlock, not isolated
+- Each scene has a goal and a change
+- Dialogue is speakable and distinguishes voices
+- No direct copy of existing film scenes or lines
+- Each scene follows 4-beat rhythm (probe→deeper→reversal→hook)
+- Black humor present (everyday tone for dangerous matters)
+- Can you distinguish characters by tone with names hidden?
+- No forbidden items (direct emotion, explanatory dialogue, summarizing for audience)
+- Dialogue dense enough; interruptions present (not turn-taking)
+- Two layers of information per scene (surface + real)
+- Lines trimmed; deleted what can be deleted; words concrete and strong
 
-## 改稿循环
+## Revision Loop
 
-需要迭代时，执行最多 2 轮定向改稿，每轮只改一个维度：
+When iterating, do at most 2 focused revision rounds; each round only one dimension:
 
-- 冲突强度（更克制 / 更尖锐）
-- 对白口吻（更隐晦 / 更锋利）
-- 场面调度（更静态 / 更动态）
+- Conflict intensity (more restrained / sharper)
+- Dialogue tone (more subtle / more pointed)
+- Staging (more static / more dynamic)
 
-每轮先输出“本轮改动点（3 条内）”，再给修改后的对应片段，不全量重写。
+Each round: first output "this round's changes (up to 3)", then the revised excerpts, not a full rewrite.
 
-## 示例参考
+## Example Reference
 
-需要快速套用时，读取 `references/examples.md`，并按用户题材替换背景与人物。
+To adapt quickly, read `references/examples.md` and replace setting/characters per the user's topic.
