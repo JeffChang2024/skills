@@ -1,0 +1,11 @@
+{
+  "owner": "iasgu",
+  "slug": "eia-knowledge-extractor",
+  "displayName": "环评知识库提炼",
+  "latest": {
+    "version": "2.3.0",
+    "publishedAt": 1773705246625,
+    "commit": null
+  },
+  "history": []
+}
