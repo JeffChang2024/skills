@@ -1,0 +1,11 @@
+{
+  "owner": "stephenkgli",
+  "slug": "rabbitmq-client-guide",
+  "displayName": "RabbitMQ client guide for Tencent Cloud TDMQ",
+  "latest": {
+    "version": "0.0.1",
+    "publishedAt": 1773648694320,
+    "commit": null
+  },
+  "history": []
+}
