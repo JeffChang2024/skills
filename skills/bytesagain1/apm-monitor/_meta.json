@@ -3,11 +3,16 @@
   "slug": "apm-monitor",
   "displayName": "Apm Monitor",
   "latest": {
-    "version": "1.0.2",
-    "publishedAt": 1773572379089,
-    "commit": "https://github.com/openclaw/skills/commit/33c3d25c28c190996a9b993e0e26e75fd1839154"
+    "version": "1.0.7",
+    "publishedAt": 1773664603308,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.2",
+      "publishedAt": 1773572379089,
+      "commit": "https://github.com/openclaw/skills/commit/33c3d25c28c190996a9b993e0e26e75fd1839154"
+    },
     {
       "version": "1.0.0",
       "publishedAt": 1773450695242,

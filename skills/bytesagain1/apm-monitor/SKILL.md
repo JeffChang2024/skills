@@ -1,6 +1,8 @@
 ---
+version: "2.0.0"
 name: Pinpoint
 description: "APM, (Application Performance Management) tool for large-scale distributed systems. apm-monitor, java, agent, apm, distributed-tracing, monitoring, performance. Use when you need apm-monitor capabilities. Triggers on: apm-monitor."
+author: BytesAgain
 ---
 
 # Pinpoint
@@ -23,7 +25,6 @@ Run any command: `apm-monitor <command> [args]`
 💬 Feedback & Feature Requests: https://bytesagain.com/feedback
 Powered by BytesAgain | bytesagain.com
 
-
 ## Examples
 
 ```bash
@@ -34,34 +35,17 @@ apm-monitor help
 apm-monitor run
 ```
 
-## How It Works
-
-Reads input, processes with built-in logic, outputs results.
-
-## Tips
-
 - Run `apm-monitor help` for commands
 - No API keys needed
-- Works offline
-
-
-## How It Works
-
-Reads input, processes with built-in logic, outputs structured results.
-
-## Tips
 
 - Run `apm-monitor help` for all commands
-- No API keys required
-- Works offline
-
-
-## How It Works
-
-Reads input, processes with built-in logic, outputs results. All data stays local.
-
-## Tips
 
 - Run `apm-monitor help` for all commands
-- No API keys required
-- Works offline
+
+## Output
+
+Results go to stdout. Save with `apm-monitor run > output.txt`.
+
+## Configuration
+
+Set `APM_MONITOR_DIR` to change data directory. Default: `~/.local/share/apm-monitor/`
