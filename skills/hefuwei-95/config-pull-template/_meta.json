@@ -1,0 +1,11 @@
+{
+  "owner": "hefuwei-95",
+  "slug": "config-pull-template",
+  "displayName": "配置拉取代码生成",
+  "latest": {
+    "version": "1.0.2",
+    "publishedAt": 1773644032298,
+    "commit": null
+  },
+  "history": []
+}
