@@ -1,0 +1,11 @@
+{
+  "owner": "minhoyoo-iotrust",
+  "slug": "waiaas-wallet",
+  "displayName": "WAIaaS Wallet",
+  "latest": {
+    "version": "1.0.1",
+    "publishedAt": 1773676190738,
+    "commit": null
+  },
+  "history": []
+}
