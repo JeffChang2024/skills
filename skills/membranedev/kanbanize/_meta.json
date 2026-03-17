@@ -1,0 +1,11 @@
+{
+  "owner": "membranedev",
+  "slug": "kanbanize",
+  "displayName": "Kanbanize",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773637346790,
+    "commit": null
+  },
+  "history": []
+}
