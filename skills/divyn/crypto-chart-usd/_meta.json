@@ -1,0 +1,11 @@
+{
+  "owner": "divyn",
+  "slug": "crypto-chart-usd",
+  "displayName": "Crypto charting with USD pricing (1s)",
+  "latest": {
+    "version": "1.0.2",
+    "publishedAt": 1773669663407,
+    "commit": null
+  },
+  "history": []
+}
