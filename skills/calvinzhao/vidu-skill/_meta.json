@@ -1,11 +1,17 @@
 {
   "owner": "calvinzhao",
   "slug": "vidu-skill",
-  "displayName": "Official video generation. Image to video / Text to video / Reference to video / Text to image / Reference to image / Video edit / Image edit",
+  "displayName": "Vidu official video generation. Image to video / Text to video / Reference to video / Text to image / Reference to image / Video edit / Image edit",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1773454459760,
-    "commit": "https://github.com/openclaw/skills/commit/4212e677730ebfcbf067b621b5685b40f380bebb"
+    "version": "1.0.1",
+    "publishedAt": 1773568162293,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1773454459760,
+      "commit": "https://github.com/openclaw/skills/commit/4212e677730ebfcbf067b621b5685b40f380bebb"
+    }
+  ]
 }
