@@ -3,9 +3,15 @@
   "slug": "ocmemog-installer",
   "displayName": "ocmemog Installer",
   "latest": {
-    "version": "0.1.0",
-    "publishedAt": 1773667834855,
-    "commit": "https://github.com/openclaw/skills/commit/41303f7a88e66f9382ee9d69d2d1a0f81cdc20c6"
+    "version": "0.1.2",
+    "publishedAt": 1773668254073,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "0.1.0",
+      "publishedAt": 1773667834855,
+      "commit": "https://github.com/openclaw/skills/commit/41303f7a88e66f9382ee9d69d2d1a0f81cdc20c6"
+    }
+  ]
 }
