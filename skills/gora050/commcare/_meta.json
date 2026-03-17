@@ -1,0 +1,11 @@
+{
+  "owner": "gora050",
+  "slug": "commcare",
+  "displayName": "Commcare",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773615793064,
+    "commit": null
+  },
+  "history": []
+}
