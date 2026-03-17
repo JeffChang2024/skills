@@ -1,0 +1,8 @@
+vault/
+node_modules/
+dist/
+tests/
+
+*.enc
+vault-key
+adapters/custom/
