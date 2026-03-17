@@ -1,0 +1,44 @@
+name: chainstream-data
+version: 1.0.0
+author: chainstream
+description: "AI-native on-chain data infrastructure. Real-time trading data, token analytics, wallet PnL, market intelligence, KYT compliance, and WebSocket streaming across Solana, BSC, Base, Ethereum."
+permissions: [network]
+config:
+  api_key:
+    type: string
+    required: false
+    secret: true
+    description: "ChainStream API key (Bearer token). Not required if using x402 payment."
+  preferred_chain:
+    type: string
+    required: false
+    default: "sol"
+    description: "Default chain for queries: sol, bsc, base, eth"
+  response_format:
+    type: string
+    required: false
+    default: "concise"
+    description: "Default response format: concise, detailed, minimal"
+  x402_cdp_api_key_id:
+    type: string
+    required: false
+    secret: true
+    description: "Coinbase Developer Platform API Key ID for x402 wallet auth"
+  x402_cdp_api_key_secret:
+    type: string
+    required: false
+    secret: true
+    description: "Coinbase Developer Platform API Key Secret"
+  x402_network:
+    type: string
+    required: false
+    default: "eip155:8453"
+    description: "x402 payment network: eip155:8453 (Base), solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp (Solana)"
+  x402_plan:
+    type: string
+    required: false
+    default: "nano"
+    description: "x402 plan: nano ($1), micro ($5), starter ($20), growth ($50), pro ($150), business ($500)"
+entryPoint:
+  type: natural
+  path: SKILL.md
