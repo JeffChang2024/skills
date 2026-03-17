@@ -3,11 +3,16 @@
   "slug": "smtools-image-generation",
   "displayName": "SMTools Image Generation Skill",
   "latest": {
-    "version": "1.4.1",
-    "publishedAt": 1773525393606,
-    "commit": "https://github.com/openclaw/skills/commit/32ecc9354294f75e9832a58a6ad641e9510ab30a"
+    "version": "1.9.1",
+    "publishedAt": 1773554578539,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.4.1",
+      "publishedAt": 1773525393606,
+      "commit": "https://github.com/openclaw/skills/commit/32ecc9354294f75e9832a58a6ad641e9510ab30a"
+    },
     {
       "version": "1.3.1",
       "publishedAt": 1773524260000,

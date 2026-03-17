@@ -6,8 +6,9 @@ OpenClaw skill for generating images from text prompts using AI models.
 
 | Provider | Type | Models | Required key |
 |----------|------|--------|--------------|
-| **OpenRouter** (default) | Synchronous | `google/gemini-3.1-flash-image-preview`, `google/imagen-4`, `stabilityai/stable-diffusion-3` | `OPENROUTER_API_KEY` |
-| **Kie.ai** | Async (task-based) | `flux-ai`, `midjourney`, `google-4o-image`, `ghibli-ai` | `KIE_API_KEY` |
+| **OpenRouter** (default) | Synchronous | `google/gemini-3.1-flash-image-preview`, `openai/gpt-image-1`, `google/imagen-4`, `stabilityai/stable-diffusion-3` | `OPENROUTER_API_KEY` |
+| **Kie.ai** | Async (task-based) | `nano-banana-2`, `flux-ai`, `midjourney`, `google-4o-image`, `ghibli-ai` | `KIE_API_KEY` |
+| **YandexART** | Async (task-based) | `yandex-art/latest` | `YANDEX_IAM_TOKEN` + `YANDEX_FOLDER_ID` |
 
 ---
 
@@ -20,6 +21,14 @@ clawhub install smtools-image-generation
 ```
 
 That's it. OpenClaw will pick up the skill automatically.
+
+**Updating:**
+
+```bash
+clawhub update smtools-image-generation --force
+```
+
+> Use `--force` to ensure all files are overwritten. Without it some files may not be updated.
 
 ### Option B — manually from GitHub
 
@@ -80,7 +89,18 @@ OPENROUTER_API_KEY=sk-or-...   # main provider
 KIE_API_KEY=kie-...            # optional, for Kie models
 ```
 
-> **Tip:** If both keys are set, OpenRouter is used by default. To switch providers, either ask explicitly ("generate with Kie.ai") or change `default_provider` in `config.json`.
+### YandexART (optional, for Yandex Art models)
+
+1. Create a service account in [Yandex Cloud](https://cloud.yandex.ru)
+2. Get an IAM token and your folder ID
+3. Add them to `.env`:
+
+```env
+YANDEX_IAM_TOKEN=t1.9eue...
+YANDEX_FOLDER_ID=b1g...
+```
+
+> **Tip:** If multiple keys are set, OpenRouter is used by default. To switch providers, either ask explicitly ("generate with YandexART") or change `default_provider` in `config.json`.
 
 ---
 
@@ -103,6 +123,9 @@ bash scripts/run.sh -p "Cyberpunk cityscape" -m "google/imagen-4"
 
 # Use Kie.ai provider
 bash scripts/run.sh -p "Studio Ghibli forest" --provider kie -m ghibli-ai
+
+# Edit an existing image
+bash scripts/run.sh -p "Add a rainbow to the sky" -i output/img_20260315.png
 
 # Save to a custom path
 bash scripts/run.sh -p "A red fox" -o /tmp/fox.png
@@ -151,6 +174,8 @@ Environment variables take priority over `config.json`:
 |----------|-------------|
 | `OPENROUTER_API_KEY` | OpenRouter API key |
 | `KIE_API_KEY` | Kie.ai API key |
+| `YANDEX_IAM_TOKEN` | YandexART IAM token |
+| `YANDEX_FOLDER_ID` | Yandex Cloud folder ID |
 | `IMAGE_DEFAULT_PROVIDER` | Override default provider (`openrouter` or `kie`) |
 | `IMAGE_OUTPUT_DIR` | Override output directory |
 

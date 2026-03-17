@@ -1,10 +1,10 @@
 import base64
 import json
 import re
+import requests
+
 from datetime import datetime
 from pathlib import Path
-
-import requests
 
 from providers.base_provider import BaseImageProvider
 from config_manager import get_api_key, get_output_dir
@@ -40,7 +40,7 @@ class OpenRouterProvider(BaseImageProvider):
     def list_models(self) -> list:
         return DEFAULT_MODELS
 
-    def generate(self, prompt: str, model: str = None, output_path: str = None) -> dict:
+    def generate(self, prompt: str, model: str = None, output_path: str = None, input_image: str = None) -> dict:
         api_key = get_api_key("openrouter")
         model = model or self.default_model
 
@@ -49,10 +49,22 @@ class OpenRouterProvider(BaseImageProvider):
             "Content-Type": "application/json",
         }
 
+        # Build message content: text-only or image+text for editing
+        if input_image:
+            image_b64 = self._encode_image(input_image)
+            content = [
+                {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_b64}"}},
+                {"type": "text", "text": prompt},
+            ]
+        else:
+            content = prompt
+
         payload = {
             "model": model,
-            "messages": [{"role": "user", "content": prompt}],
-            "modalities": ["image"],
+            "messages": [
+                {"role": "user", "content": content}
+            ],
+            "modalities": ["image", "text"],
             "max_tokens": self.max_tokens,
         }
 
@@ -71,7 +83,8 @@ class OpenRouterProvider(BaseImageProvider):
                 "raw_response": json.dumps(data)[:500],
             }
 
-        # Determine output path
+        image_bytes = base64.b64decode(image_data)
+
         if output_path is None:
             output_dir = get_output_dir(self.config)
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -80,9 +93,6 @@ class OpenRouterProvider(BaseImageProvider):
             output_path = Path(output_path)
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
-
-        # Decode and save
-        image_bytes = base64.b64decode(image_data)
         with open(output_path, "wb") as f:
             f.write(image_bytes)
 
@@ -97,49 +107,64 @@ class OpenRouterProvider(BaseImageProvider):
             },
         }
 
+    @staticmethod
+    def _encode_image(path: str) -> str:
+        """Read an image file and return base64-encoded string."""
+        with open(path, "rb") as f:
+            return base64.b64encode(f.read()).decode()
+
     def _extract_image(self, data: dict) -> str:
         """Extract base64 image data from OpenRouter response.
 
-        Handles multiple response formats:
-        1. Structured content blocks with type "image_url"
-        2. Inline base64 data URLs in text content
+        Checks multiple locations where OpenRouter may place image data:
+        1. message.images[] — dedicated images array (documented format)
+        2. message.content (list) — structured content blocks
+        3. message.content (str) — inline base64 data URLs
         """
         choices = data.get("choices", [])
         if not choices:
             return None
 
         message = choices[0].get("message", {})
-        content = message.get("content")
 
+        # 1. Check message.images[] — primary documented format
+        images = message.get("images", [])
+        for img in images:
+            if isinstance(img, dict) and img.get("type") == "image_url":
+                url = img.get("image_url", {}).get("url", "")
+                b64 = self._parse_data_url(url)
+                if b64:
+                    return b64
+
+        # 2. Check message.content
+        content = message.get("content")
         if content is None:
             return None
 
         # Structured content blocks (list of dicts)
         if isinstance(content, list):
             for block in content:
-                if isinstance(block, dict):
-                    # type: image_url
-                    if block.get("type") == "image_url":
-                        url = block.get("image_url", {}).get("url", "")
-                        b64 = self._parse_data_url(url)
-                        if b64:
-                            return b64
-                    # type: image with base64
-                    if block.get("type") == "image":
-                        b64 = block.get("data") or block.get("base64")
-                        if b64:
-                            return b64
-                        url = block.get("url", "")
-                        b64 = self._parse_data_url(url)
-                        if b64:
-                            return b64
+                if not isinstance(block, dict):
+                    continue
+                if block.get("type") == "image_url":
+                    url = block.get("image_url", {}).get("url", "")
+                    b64 = self._parse_data_url(url)
+                    if b64:
+                        return b64
+                if block.get("type") == "image":
+                    b64 = block.get("data") or block.get("base64")
+                    if b64:
+                        return b64
+                    url = block.get("url", "")
+                    b64 = self._parse_data_url(url)
+                    if b64:
+                        return b64
 
-        # String content — look for inline data URL
+        # String content — inline data URL or markdown image
         if isinstance(content, str):
             b64 = self._parse_data_url(content)
             if b64:
                 return b64
-            # Try markdown image with data URL
             match = re.search(r"!\[.*?\]\((data:image/[^)]+)\)", content)
             if match:
                 return self._parse_data_url(match.group(1))

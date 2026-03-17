@@ -1,7 +1,7 @@
 ---
 name: smtools-image-generation
 description: >
-  Generate images from text prompts using AI models via OpenRouter or Kie.ai.
+  Generate images from text prompts using AI models via OpenRouter, Kie.ai, or YandexART.
   Use when the user asks to generate, create, draw, or illustrate an image.
 metadata:
   openclaw:
@@ -25,6 +25,7 @@ Activate when the user asks to:
 - Generate, create, draw, paint, illustrate, or render an image
 - Make a picture, artwork, photo, or illustration
 - Visualize something as an image
+- Edit, modify, or transform an existing image
 
 ## How to Use
 
@@ -41,8 +42,9 @@ Replace `SKILL_DIR` with the absolute path to this skill's root directory.
 | Flag | Description |
 |------|-------------|
 | `-p, --prompt` | Text prompt (required) |
-| `--provider` | `openrouter` (default) or `kie` |
+| `--provider` | `openrouter` (default), `kie`, or `yandexart` |
 | `-m, --model` | Model name (provider-specific) |
+| `-i, --input` | Input image for editing (path or URL) |
 | `-o, --output` | Output file path |
 | `-c, --config` | Path to config.json |
 | `--list-models` | List available models |
@@ -58,10 +60,26 @@ The script outputs JSON to stdout:
 
 After successful generation, show the user the image path and confirm the image was created.
 
+## Image Editing
+
+When the user wants to **edit, modify, or transform an existing image**, use the `-i` flag to pass the input image:
+
+```bash
+bash SKILL_DIR/scripts/run.sh -p "EDITING INSTRUCTION" -i /path/to/source/image.png
+```
+
+**How to decide:**
+- User says "draw/generate/create X" → generate from scratch (no `-i`)
+- User says "edit/change/modify this image" or references an existing image file → use `-i` with the path to that image
+- User provides an image path and an editing instruction → use `-i`
+
+The editing prompt should describe **what to change**, e.g. "Add sunglasses", "Make the background blue", "Remove the text".
+
 ## Provider Selection
 
-- **OpenRouter** (default): Fast, synchronous. Models: `google/gemini-3.1-flash-image-preview`, `google/imagen-4`, `stabilityai/stable-diffusion-3`. Requires `OPENROUTER_API_KEY`.
-- **Kie.ai**: Async task-based. Models: `flux-ai`, `midjourney`, `google-4o-image`, `ghibli-ai`. Requires `KIE_API_KEY`. Use when the user explicitly requests Kie.ai or a Kie-specific model.
+- **OpenRouter** (default): Fast, synchronous. Models: `google/gemini-3.1-flash-image-preview`, `openai/gpt-image-1`, `google/imagen-4`, `stabilityai/stable-diffusion-3`. Requires `OPENROUTER_API_KEY`.
+- **Kie.ai**: Async task-based. Models: `nano-banana-2`, `flux-ai`, `midjourney`, `google-4o-image`, `ghibli-ai`. Requires `KIE_API_KEY`. Use when the user explicitly requests Kie.ai or a Kie-specific model.
+- **YandexART**: Async task-based. Models: `yandex-art/latest`. Requires `YANDEX_IAM_TOKEN` and `YANDEX_FOLDER_ID`. Use when the user explicitly requests YandexART or Yandex.
 
 ## Examples
 
@@ -78,6 +96,11 @@ bash SKILL_DIR/scripts/run.sh -p "Cyberpunk cityscape" -m "google/imagen-4"
 Kie.ai provider:
 ```bash
 bash SKILL_DIR/scripts/run.sh -p "Studio Ghibli forest" --provider kie -m ghibli-ai
+```
+
+Edit an existing image:
+```bash
+bash SKILL_DIR/scripts/run.sh -p "Add a rainbow to the sky" -i /path/to/photo.png
 ```
 
 Custom output path:
