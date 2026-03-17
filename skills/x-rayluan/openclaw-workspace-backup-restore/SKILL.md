@@ -1,6 +1,6 @@
 ---
 name: openclaw-backup-restore
-description: Backup, restore, validate, and GitHub-sync OpenClaw workspace state including SOUL.md, USER.md, AGENTS.md, IDENTITY.md, TOOLS.md, HEARTBEAT.md, BOOTSTRAP.md, and optional real openclaw.json backups. Includes built-in daily GitHub backup workflows, automatic git add/commit/push, and ready-to-use GitHub Actions / remote sync automation. Use when users ask for OpenClaw backup, restore, daily backup, off-machine backup, GitHub backup, rollback, recovery, or workspace state protection.
+description: This skill should be used when the user asks for OpenClaw backup, restore, rollback, validation, GitHub backup, off-machine backup, workspace recovery, or protection of OpenClaw state files and optional config backups.
 ---
 
 # OpenClaw Backup Restore
@@ -127,7 +127,7 @@ Each backup includes a `manifest.json`:
   "timestamp": "2026-03-05T00:51:30.123Z",
   "name": "pre-migration",
   "description": "Before major refactor",
-  "workspace": "/Users/m1/.openclaw/workspace-hunter",
+  "workspace": "/Users/m1/.openclaw/workspace-YOUR-AGENT",
   "files": {
     "SOUL.md": {
       "size": 1234,
@@ -182,10 +182,10 @@ Add to OpenClaw heartbeat or system cron:
 
 ```bash
 # Daily backup at 2 AM
-0 2 * * * cd /Users/m1/.openclaw/workspace-hunter/soul-backup-skill && node scripts/backup.mjs --name "daily-$(date +\%Y-\%m-\%d)"
+0 2 * * * cd /Users/m1/.openclaw/workspace-YOUR-AGENT/openclaw-backup-restore && node scripts/backup.mjs --name "daily-$(date +\%Y-\%m-\%d)"
 
 # Weekly backup on Sunday
-0 3 * * 0 cd /Users/m1/.openclaw/workspace-hunter/soul-backup-skill && node scripts/backup.mjs --name "weekly-$(date +\%Y-W\%V)"
+0 3 * * 0 cd /Users/m1/.openclaw/workspace-YOUR-AGENT/openclaw-backup-restore && node scripts/backup.mjs --name "weekly-$(date +\%Y-W\%V)"
 ```
 
 ### Pre-Deployment Hook
@@ -244,14 +244,14 @@ node scripts/restore.mjs --timestamp <last-good>
 
 ```bash
 # Recreate workspace directory
-mkdir -p /Users/m1/.openclaw/workspace-hunter
+mkdir -p /Users/m1/.openclaw/workspace-YOUR-AGENT
 
 # Clone backup skill
-cd /Users/m1/.openclaw/workspace-hunter
-git clone <backup-repo-url> soul-backup-skill
+cd /Users/m1/.openclaw/workspace-YOUR-AGENT
+git clone <backup-repo-url> openclaw-backup-restore
 
 # Restore latest backup
-cd soul-backup-skill
+cd openclaw-backup-restore
 node scripts/restore.mjs
 ```
 
@@ -302,3 +302,4 @@ node scripts/restore.mjs
 - [ ] Encrypted backups (GPG encryption)
 - [ ] Web UI for backup management
 - [ ] Slack/Telegram notifications on backup/restore
+ backup/restore

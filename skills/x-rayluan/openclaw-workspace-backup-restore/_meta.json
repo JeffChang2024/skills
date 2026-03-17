@@ -1,11 +1,17 @@
 {
   "owner": "x-rayluan",
   "slug": "openclaw-workspace-backup-restore",
-  "displayName": "OpenClaw Backup Restore",
+  "displayName": "OpenClaw Backup & Restore",
   "latest": {
-    "version": "1.5.2",
-    "publishedAt": 1773481117588,
-    "commit": "https://github.com/openclaw/skills/commit/bdd0d4956607474060bd5fe27a99a4bbb05c9c72"
+    "version": "1.5.4",
+    "publishedAt": 1773546253759,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.5.2",
+      "publishedAt": 1773481117588,
+      "commit": "https://github.com/openclaw/skills/commit/bdd0d4956607474060bd5fe27a99a4bbb05c9c72"
+    }
+  ]
 }
