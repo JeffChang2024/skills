@@ -1,0 +1,11 @@
+{
+  "owner": "tankeito",
+  "slug": "google-docs-operator",
+  "displayName": "Google Docs",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773642697411,
+    "commit": null
+  },
+  "history": []
+}
