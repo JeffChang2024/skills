@@ -1,0 +1,11 @@
+{
+  "owner": "qthans",
+  "slug": "pdf2markdown",
+  "displayName": "PDF to markdown converter",
+  "latest": {
+    "version": "0.1.0",
+    "publishedAt": 1773652341981,
+    "commit": null
+  },
+  "history": []
+}
