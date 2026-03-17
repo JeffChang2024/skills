@@ -3,9 +3,15 @@
   "slug": "gcal-manager",
   "displayName": "Gcal Manager",
   "latest": {
-    "version": "2.4.4",
-    "publishedAt": 1773661519596,
-    "commit": "https://github.com/openclaw/skills/commit/82082883689e8222e07a2006cdc59e1cceb329f6"
+    "version": "2.4.5",
+    "publishedAt": 1773663763440,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "2.4.4",
+      "publishedAt": 1773661519596,
+      "commit": "https://github.com/openclaw/skills/commit/82082883689e8222e07a2006cdc59e1cceb329f6"
+    }
+  ]
 }
