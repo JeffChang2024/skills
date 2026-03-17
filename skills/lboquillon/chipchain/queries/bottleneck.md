@@ -1,36 +1,42 @@
 # Bottleneck / Chokepoint Identification Workflow
 
+> Concentration Risks | Raw Material Risks | Investigation Method | Multilingual Queries (KO/JA/ZH-CN/ZH-TW) | Counterfactual Check | Output Format
+
 **Question pattern:** "What's the chokepoint in X supply chain?" / "Who's the single-source risk?"
 
-## Known Top-10 Global Chokepoints (all Japanese)
+## Suspected Concentration Risks (verify before citing)
 
-> **ALL share figures are APPROXIMATE estimates (~2023-2024 training data). Treat as directional, not precise. Verify with current SEMI, TechCET, or Yole data.**
+These segments are frequently cited in industry press as having high supplier
+concentration. All share figures are training-data estimates (~2023-2024) and
+should be verified through current SEMI, TechCET, or Yole data before including
+in any report. Use these as investigation starting points.
 
-| Rank | Company | Material/Equipment | Approx. Share (unverified) | Substitutability |
-|------|---------|-------------------|------------|-----------------|
-| 1 | Ajinomoto Fine-Techno | ABF film (FC-BGA substrate insulation) | ~100% | Near-zero |
-| 2 | Lasertec (6920.T) | EUV mask inspection equipment | ~100% | Near-zero |
-| 3 | NuFlare (Toshiba sub) | E-beam mask writers | ~90% | Very low |
-| 4 | DISCO (6146.T) | Dicing saws | ~80% | Low |
-| 5 | Shin-Etsu Chemical (4063.T) | Photomask blanks | ~70% | Low |
-| 6 | Toyo Gosei (4970.T) | Photoacid generators (PAGs) | ~60-70% | Low |
-| 7 | SCREEN Holdings (7735.T) | Wafer cleaning equipment | ~60% | Moderate |
-| 8 | HORIBA (6856.T) | Mass flow controllers | ~60% | Moderate |
-| 9 | Shin-Etsu + SUMCO | Silicon wafers (combined) | ~55% | Moderate |
-| 10 | Stella Chemifa + Morita | Electronic-grade HF (combined) | ~50-60% | Low |
+| Company | Material/Equipment | Suspected Position (verify) | Substitutability |
+|---------|-------------------|------------|-----------------|
+| Ajinomoto Fine-Techno | ABF film (FC-BGA substrate insulation) | Suspected near-monopoly | Near-zero |
+| Lasertec (6920.T) | EUV mask inspection equipment | Suspected near-monopoly | Near-zero |
+| NuFlare (Toshiba sub) | E-beam mask writers | Suspected near-monopoly | Very low |
+| DISCO (6146.T) | Dicing saws | Suspected dominant | Low |
+| Shin-Etsu Chemical (4063.T) | Photomask blanks | Suspected dominant | Low |
+| Toyo Gosei (4970.T) | Photoacid generators (PAGs) | Suspected dominant | Low |
+| SCREEN Holdings (7735.T) | Wafer cleaning equipment | Suspected dominant | Moderate |
+| HORIBA (6856.T) | Mass flow controllers | Suspected dominant | Moderate |
+| Shin-Etsu + SUMCO | Silicon wafers (combined) | Suspected combined dominance | Moderate |
+| Stella Chemifa + Morita | Electronic-grade HF (combined) | Suspected combined dominance | Low |
 
-## Raw Material Chokepoints (upstream)
+## Raw Material Concentration Risks (upstream, verify before citing)
 
-> **Share figures are approximate estimates. Verify with current USGS, ITC, or industry data.**
+These upstream dependencies are reported in industry and geological sources.
+Verify with current USGS, ITC, or industry data.
 
-| Material | Source (approx.) | Geography risk |
+| Material | Reported Source (verify) | Geography risk |
 |----------|--------|---------------|
-| Fluorspar (CaF2) | China ~60% of acid-grade | Feeds into HF, NF3, all fluorine chemistry |
-| Rare earths (Ce for CMP) | China ~60-70% processing | Ceria for CMP slurry |
-| High-purity quartz | Spruce Pine, NC (USA) — unique geological deposit | No substitute for CZ crucibles |
-| Tantalum (for sputtering targets) | DRC ~60% artisanal coltan | Conflict mineral |
-| Tungsten | China ~80% of mining | Sputtering targets, CVD |
-| Hafnium | CEZUS/Framatome (France) #1 | Nuclear industry byproduct — linked to nuclear fuel demand |
+| Fluorspar (CaF2) | China reportedly dominant in acid-grade supply | Feeds into HF, NF3, all fluorine chemistry |
+| Rare earths (Ce for CMP) | China reportedly dominant in processing | Ceria for CMP slurry |
+| High-purity quartz | Spruce Pine, NC (USA), unique geological deposit | No substitute for CZ crucibles |
+| Tantalum (for sputtering targets) | DRC reportedly dominant in artisanal coltan | Conflict mineral |
+| Tungsten | China reportedly dominant in mining | Sputtering targets, CVD |
+| Hafnium | CEZUS/Framatome (France) believed top supplier | Nuclear industry byproduct, linked to nuclear fuel demand |
 
 ## Investigation Method
 
@@ -83,6 +89,10 @@
 [材料名] 替代方案                → "[material] alternatives"
 [材料名] 供應鏈韌性              → "[material] supply chain resilience"
 ```
+
+## Counterfactual check on concentration claims
+
+Before reporting any concentration figure, run the [Counterfactual Consistency Check](counterfactual-check.md). The key question for bottleneck analysis: "What if a supplier exists that I haven't found because they don't publish in the languages I searched?" Also challenge single-source share figures. If your concentration claim comes from one analyst report, that's a lead, not a measurement.
 
 ## Output: Chokepoint Assessment
 

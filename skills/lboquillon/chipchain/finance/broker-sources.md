@@ -78,3 +78,4 @@ Best for: A-share semiconductor (SMIC, Naura, AMEC, Piotech), policy analysis.
 | **VLSI Research** | vlsiresearch.com | Paid | Equipment rankings, customer satisfaction |
 | **WikiChip** | wikichip.org | Free | Process node architecture database |
 | **SemiWiki** | semiwiki.com | Free | EDA, IP, industry commentary |
+| **Yano Research** 矢野経済研究所 | yanoresearch.com | Paid | Japanese market sizing reports (chemicals, materials, equipment segments) |

@@ -1,4 +1,5 @@
 # Market Sizing Workflow
+> Pipeline | Sizing Flow | Multilingual Queries | Step 5b: Counterfactual | Pitfalls | Output (Market Size, Share, Concentration, Growth, Gaps)
 
 **Question pattern:** "What's the market for X?" / "How big is the CMP slurry market?" / "What's the TAM for EUV pellicles?"
 
@@ -95,6 +96,9 @@ User Question: "What's the CMP slurry market breakdown?"
 
 ## Market Sizing Flow (Material Example)
 
+> **Note:** The figures below are illustrative methodology, not verified data.
+> They show how to structure a market sizing exercise, not actual confirmed numbers.
+
 ```
 Global CMP Slurry Market (~$2.5B est.)
     │
@@ -120,8 +124,8 @@ Global CMP Slurry Market (~$2.5B est.)
     │   └── US/EU ─────────────── ~15%
     │
     └── Upstream chokepoint
-        └── Colloidal silica → Fuso Chemical (4368.T) [CHOKEPOINT]
-        └── Ceria → China rare earth processing [CHOKEPOINT]
+        └── Colloidal silica → Fuso Chemical (4368.T) [VERIFY]
+        └── Ceria → China rare earth processing [VERIFY]
 ```
 
 ## Multilingual Search Queries
@@ -157,6 +161,10 @@ Global CMP Slurry Market (~$2.5B est.)
 半導體 [材料名] 市場 展望       → "semiconductor [material] market outlook"
 [材料名] 全球市場               → "[material] global market"
 ```
+
+## Step 5b: Counterfactual check on sizing
+
+When top-down (analyst reports) and bottom-up (summing company revenues) estimates diverge by >20%, run the [Counterfactual Consistency Check](counterfactual-check.md). Don't average the numbers. Surface the contradiction: which source uses what market definition? Does the analyst include adjacent segments? Are private companies creating a blind spot in the bottom-up sum? A documented disagreement is more useful than a false consensus.
 
 ## Common Pitfalls
 

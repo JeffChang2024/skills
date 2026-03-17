@@ -62,6 +62,10 @@ Read the relevant entities file. If the company is already cataloged, report wha
 [公司名] 供應鏈 定位              → "[company] supply chain positioning"
 ```
 
+## Step 3b: Counterfactual check on positioning
+
+Before mapping to taxonomy, run the [Counterfactual Consistency Check](counterfactual-check.md). The key question for reverse lookups: "If this company doesn't actually serve semiconductor fabs, what else could these signals mean?" A company filing CMP-related patents might sell to equipment makers, not fabs. A company exhibiting at SEMICON might be targeting display, solar, or LED customers.
+
 ## Step 4: Map to supply chain taxonomy
 
 Place the company in the semiconductor supply chain:

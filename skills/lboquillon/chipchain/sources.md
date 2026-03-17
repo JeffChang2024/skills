@@ -1,5 +1,11 @@
 # Data Sources & API Reference
 
+> Tier 1: Filing Sources (EDINET, Comtrade, OpenDART, e-Stat, KIPRIS, Lens.org) | Tier 2: Web Search | Tier 3: Financial Aggregators | Tier 4: Chemical/Trade DBs | Tier 5: Conference Exhibitors
+
+API endpoints, company codes, and database structures are subject to change.
+Test each key and endpoint before assuming data availability. If a source below
+doesn't work, fall back to WebSearch and note it in the search log.
+
 ## Tier 1 — Primary Filing Sources
 
 ### EDINET (Japan) — Web Search Only

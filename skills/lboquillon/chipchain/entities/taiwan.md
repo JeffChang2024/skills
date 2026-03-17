@@ -1,11 +1,13 @@
 # Taiwan Semiconductor Supply Chain Entities
 
-Taiwan is surprisingly thin in materials/chemicals — imports most from Japan/US/EU. Strengths are in substrates, wafers, OSAT, and equipment services.
+Every entry below is a lead to investigate, not a fact to cite. Your job is to verify,
+contradict, or discover what's missing. Taiwan is thin in materials/chemicals (imports
+most from Japan/US/EU) but strong in substrates, wafers, OSAT, and equipment services.
 
 ## Silicon Wafers
 | Company | Chinese | Ticker | Products | Notes |
 |---|---|---|---|---|
-| GlobalWafers | 環球晶圓 | 6488.TWO | Si wafers (#3 global), SiC, sapphire | |
+| GlobalWafers | 環球晶圓 | 6488.TWO | Si wafers (among top global suppliers), SiC, sapphire | |
 | Wafer Works | 合晶科技 | 6182.TWO | 150mm/200mm wafers, epi | |
 | SAS (Sino-American Silicon) | 中美矽晶 | 5483.TWO | Parent of GlobalWafers | |
 | Formosa Sumco | 台灣勝高 | — | 12" wafers (Formosa Plastics + SUMCO JV) | |
@@ -18,11 +20,11 @@ Taiwan is surprisingly thin in materials/chemicals — imports most from Japan/U
 ## IC Substrates & PCB (Taiwan strength)
 | Company | Chinese | Ticker | Products | Notes |
 |---|---|---|---|---|
-| **Unimicron** | 欣興電子 | 3037.TW | ABF substrates, HDI PCB (#1 global) | |
+| **Unimicron** | 欣興電子 | 3037.TW | ABF substrates, HDI PCB (believed top global supplier) | |
 | Nan Ya PCB | 南亞電路板 | 8046.TW | IC substrates, PCB | |
 | Kinsus Interconnect | 景碩科技 | 3189.TW | FC-BGA substrates (ASE group) | |
 | Compeq Manufacturing | 華通電腦 | 2313.TW | IC substrates, HDI PCB | |
-| Zhen Ding Technology | 臻鼎科技 | 4958.TW | HDI PCB, FPC (#1 PCB global) | |
+| Zhen Ding Technology | 臻鼎科技 | 4958.TW | HDI PCB, FPC (believed top global PCB supplier) | |
 
 ## Materials & Chemicals
 | Company | Chinese | Ticker | Products | Notes |
@@ -46,7 +48,7 @@ Taiwan is surprisingly thin in materials/chemicals — imports most from Japan/U
 ## OSAT & Packaging
 | Company | Chinese | Ticker | Products | Notes |
 |---|---|---|---|---|
-| ASE Group | 日月光投控 | 3711.TW | OSAT #1 global | |
+| ASE Group | 日月光投控 | 3711.TW | Believed top global OSAT | |
 | ChipMOS | 南茂科技 | 8150.TW | Test & packaging (drivers, memory) | |
 | Chipbond | 頎邦科技 | 6147.TWO | Driver IC packaging (COF) | |
 | King Yuan Electronics | 京元電子 | 2449.TW | Testing services | |

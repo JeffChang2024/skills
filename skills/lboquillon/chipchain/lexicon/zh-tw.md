@@ -1,4 +1,5 @@
 # Traditional Chinese Semiconductor Terminology (繁體中文 — Taiwan)
+> Translation Traps | Must-Know Terms | Policy Terms | MOPS Filing Search | Search Patterns | Key Companies | Media Sources
 
 ## Critical Translation Traps
 
@@ -90,9 +91,9 @@ CoWoS 產能
 
 | Company | Ticker | Products |
 |---|---|---|
-| 環球晶圓 (GlobalWafers) | 6488.TWO | Silicon wafers (#3 global) |
+| 環球晶圓 (GlobalWafers) | 6488.TWO | Silicon wafers (among top global suppliers) |
 | 家登精密 (Gudeng Precision) | 3680.TWO | EUV reticle pods |
-| 欣興電子 (Unimicron) | 3037.TW | IC substrates (#1 global) |
+| 欣興電子 (Unimicron) | 3037.TW | IC substrates (believed top global) |
 | 崇越科技 (Topco Scientific) | 5434.TW | Materials distribution |
 | 中美矽晶 (SAS) | 5483.TWO | Parent of GlobalWafers |
 | 旺矽科技 (MPI) | 6223.TWO | Probe stations |

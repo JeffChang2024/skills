@@ -35,6 +35,7 @@
 | Passed qualification | **通过客户验证** | |
 | Entered supply chain | **进入XX供应链** | |
 | First domestic [product] | **首个国产...** | |
+| Advanced packaging | **先进封装** | CoWoS / InFO / hybrid bonding |
 
 ## Filing Search Terms (cninfo.com.cn)
 

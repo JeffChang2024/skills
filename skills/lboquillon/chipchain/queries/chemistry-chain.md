@@ -1,4 +1,5 @@
 # Chemistry Chain Tracing Workflow
+> Pipeline | Step 1: Starting Chemical | Step 2: CAS Lookup | Step 3: Tier-1 (Formulators) | Step 4: Tier-2 (Raw Materials) | Step 5: Tier-3 (Mining) | Step 6: Chokepoints | Step 6b: Counterfactual | Step 7: Patent Validation | Pitfalls | Output
 
 **Question pattern:** "Trace [chemical X] from fab to mine" / "What's upstream of [material Y]?" / "Where does [precursor Z] come from?"
 
@@ -339,6 +340,10 @@ At each tier in the traced chain, assess concentration risk.
 ```
 
 Cross-reference with [queries/bottleneck.md](bottleneck.md) for deeper chokepoint assessment and [queries/change-detection.md](change-detection.md) for localization progress.
+
+## Step 6b: Counterfactual check on chokepoints
+
+Before validating with patents, run the [Counterfactual Consistency Check](counterfactual-check.md) on concentration claims. Challenge "Top-1 share >50%" if the figure comes from training knowledge or a single source. The key counterfactual for chokepoints: "What if a facility or supplier exists that I haven't found because they don't publish in the languages I searched?" Also check whether "qualified suppliers ≤3" means truly 3 worldwide, or 3 that you found.
 
 ## Step 7: Patent Validation
 

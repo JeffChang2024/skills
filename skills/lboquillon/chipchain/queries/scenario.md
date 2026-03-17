@@ -73,6 +73,10 @@ Search for past disruptions as reference:
 
 ## Step 5: Output scenario assessment
 
+## Counterfactual check on precedents
+
+Before presenting the scenario assessment, run the [Counterfactual Consistency Check](counterfactual-check.md). Historical parallels are seductive. Ask: "What has changed since my precedent that would make the outcome different this time?" If your scenario is "Japan restricts HF again," remember Korea spent 5 years building domestic HF capacity since 2019. The same trigger can produce a completely different outcome.
+
 ```
 Scenario: [description]
 Affected materials: [list]

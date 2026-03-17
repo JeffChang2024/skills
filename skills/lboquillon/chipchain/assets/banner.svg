@@ -73,7 +73,7 @@
     <g transform="translate(-245, 0)">
       <rect x="-42" y="-15" width="84" height="30" rx="5" fill="#1e1b4b" stroke="#6366f1" stroke-opacity="0.4" stroke-width="1"/>
       <text x="0" y="1" text-anchor="middle" dominant-baseline="middle" fill="#a5b4fc" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" letter-spacing="1">SEARCH</text>
-      <text x="0" y="28" text-anchor="middle" fill="#6b7280" font-family="system-ui, -apple-system, sans-serif" font-size="8">4 languages</text>
+      <text x="0" y="28" text-anchor="middle" fill="#6b7280" font-family="system-ui, -apple-system, sans-serif" font-size="8">5 languages</text>
     </g>
 
     <!-- Arrow -->
@@ -83,7 +83,7 @@
     <g transform="translate(-105, 0)">
       <rect x="-38" y="-15" width="76" height="30" rx="5" fill="#1e1b4b" stroke="#6366f1" stroke-opacity="0.4" stroke-width="1"/>
       <text x="0" y="1" text-anchor="middle" dominant-baseline="middle" fill="#a5b4fc" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" letter-spacing="1">VERIFY</text>
-      <text x="0" y="28" text-anchor="middle" fill="#6b7280" font-family="system-ui, -apple-system, sans-serif" font-size="8">source-first</text>
+      <text x="0" y="28" text-anchor="middle" fill="#6b7280" font-family="system-ui, -apple-system, sans-serif" font-size="8">registry-first</text>
     </g>
 
     <!-- Arrow -->
@@ -111,13 +111,13 @@
   <text x="450" y="162" text-anchor="middle" fill="#f8fafc" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="48" font-weight="700" letter-spacing="-1">chip<tspan fill="url(#accent)">Chain</tspan></text>
 
   <!-- Tagline -->
-  <text x="450" y="195" text-anchor="middle" fill="#9ca3af" font-family="system-ui, -apple-system, sans-serif" font-size="15" font-weight="400" letter-spacing="0.5">Trace the chain. From mine to fab. In four languages.</text>
+  <text x="450" y="195" text-anchor="middle" fill="#9ca3af" font-family="system-ui, -apple-system, sans-serif" font-size="15" font-weight="400" letter-spacing="0.5">Trace the chain. From mine to fab. In five languages.</text>
 
   <!-- Methodology pills -->
   <g transform="translate(450, 228)">
     <g transform="translate(-180, 0)">
       <rect x="-55" y="-11" width="110" height="22" rx="11" fill="#1e1b4b" stroke="#4f46e5" stroke-opacity="0.3" stroke-width="1"/>
-      <text x="0" y="1" text-anchor="middle" dominant-baseline="middle" fill="#818cf8" font-family="system-ui, sans-serif" font-size="10">source-first citing</text>
+      <text x="0" y="1" text-anchor="middle" dominant-baseline="middle" fill="#818cf8" font-family="system-ui, sans-serif" font-size="10">registry-first citing</text>
     </g>
     <g transform="translate(-35, 0)">
       <rect x="-55" y="-11" width="110" height="22" rx="11" fill="#1e1b4b" stroke="#4f46e5" stroke-opacity="0.3" stroke-width="1"/>

@@ -1,9 +1,14 @@
 # Semiconductor Material Chemistry Chains
 
+> 1. Photoresist | 2. Hafnium Precursor | 3. High-Purity HF | 4. NF3 | 5. Silicon Wafer | 6. CMP Slurry | 7. Sputtering Target (Cu) | 8. Tungsten / Molybdenum | CAS Numbers
+
 Trace-back from fab to mine for critical materials. Use this to understand tier-2 and tier-3 dependencies.
 
-> **ALL market share figures in this file are APPROXIMATE estimates (~2023-2024 training data).**
-> **They have NOT been verified against current analyst reports. Treat as directional, not precise.**
+Every chain, company name, and share figure below is a lead, not a verified map. The chain
+structures show what the landscape might look like. Your investigation should verify these
+connections, find where they're wrong, and discover nodes or suppliers that aren't listed.
+Share figures are training-data estimates (~2023-2024). [VERIFY] tags mark concentration
+claims that are worth investigating but not worth citing without fresh evidence.
 
 ## 1. Photoresist Chain
 
@@ -11,7 +16,7 @@ Trace-back from fab to mine for critical materials. Use this to understand tier-
 EUV/ArF resist (at fab)
 ├── Resist formulators: JSR, TOK (4186.T), Shin-Etsu (4063.T), Sumitomo Chemical, Fujifilm, DuPont
 │   ├── Photoacid generators (PAGs)
-│   │   └── Toyo Gosei (4970.T) — ~60-70% global share [CHOKEPOINT]
+│   │   └── Toyo Gosei (4970.T) — suspected dominant [VERIFY]
 │   │   └── San-Apro, Heraeus (smaller)
 │   ├── Resist polymer resins/monomers
 │   │   └── Osaka Organic Chemical (4187.T) — acrylic/methacrylic monomers
@@ -21,7 +26,7 @@ EUV/ArF resist (at fab)
 │       └── Tokuyama (4043.T), Daicel, Dow, LyondellBasell
 │           └── Propylene oxide → petrochemical crackers (commodity)
 ```
-**Chokepoints:** Toyo Gosei PAG monopoly. >90% of resist formulation in Japan.
+**Investigate:** Toyo Gosei PAG concentration. Japan reportedly dominates resist formulation.
 
 ## 2. Hafnium Precursor Chain (High-k Gate Dielectric)
 
@@ -32,7 +37,7 @@ HfO2 film via ALD (at fab)
 │       ├── Hafnium tetrachloride (HfCl4)
 │       │   └── ATI Allegheny (US), CEZUS/Framatome (France), Materion (US)
 │       │       ├── Hafnium metal / HfO2
-│       │       │   └── CEZUS/Orano (France) — world's largest [CHOKEPOINT]
+│       │       │   └── CEZUS/Orano (France) — reported largest [VERIFY]
 │       │       │   └── ATI/Wah Chang (Albany, OR, USA)
 │       │       │   └── State Nuclear Baotou (China)
 │       │       │       ├── Hf/Zr SEPARATION — only ~4-5 facilities worldwide
@@ -44,30 +49,30 @@ HfO2 film via ALD (at fab)
 │       │       │           └── Rio Tinto (Richards Bay, South Africa)
 │       │       │           └── Kenmare Resources (Mozambique, LSE: KMR)
 ```
-**Chokepoints:** CEZUS/Framatome (France) dominates Hf production. Hf supply linked to nuclear fuel industry.
+**Investigate:** CEZUS/Framatome reported Hf production dominance. Hf supply linked to nuclear fuel industry (Zr/Hf separation coupling).
 
 ## 3. High-Purity HF Chain
 
 ```
 Electronic-grade HF (UHPA, <1ppb metals, at fab)
 ├── Ultra-purification (multi-stage distillation)
-│   └── Stella Chemifa (4109.T, Japan) — #1 globally [CHOKEPOINT]
-│   └── Morita Chemical (Japan, private) [CHOKEPOINT]
+│   └── Stella Chemifa (4109.T, Japan) — believed top globally [VERIFY]
+│   └── Morita Chemical (Japan, private) [VERIFY]
 │   └── Daikin (6367.T), Solvay (Belgium), Honeywell (US), Do-Fluoride (002407.SZ, China)
 │       ├── Technical-grade anhydrous HF
 │       │   └── Mexichem/Orbia (Mexico), Honeywell, Solvay, Juhua Group (China), Dongyue Group (China, 0189.HK)
 │       │       └── Fluorspar (CaF2) mining — acid-grade >97%
-│       │           └── China ~60% of global supply [CHOKEPOINT]
+│       │           └── China reportedly dominant in global supply [VERIFY]
 │       │           └── Mexico (Orbia operations)
 │       │           └── South Africa, Vietnam, Kenya
 ```
-**Chokepoints:** Stella Chemifa purification. China fluorspar dominance. Central to 2019 Japan-Korea dispute.
+**Investigate:** Stella Chemifa reported purification dominance. China reported fluorspar dominance. Central to 2019 Japan-Korea dispute (historically confirmed).
 
 ## 4. NF3 (Chamber Cleaning Gas) Chain
 
 ```
 NF3 gas (at fab)
-├── SK Specialty/SK Materials (Korea) — ~40% global share [CHOKEPOINT]
+├── SK Specialty/SK Materials (Korea) — suspected major global position [VERIFY]
 ├── Kanto Denka Kogyo (4047.T, Japan)
 ├── Hyosung Chemical (298000.KS, Korea)
 ├── Central Glass (4044.T, Japan), Mitsui Chemicals (Japan), Air Products (US), Linde
@@ -81,8 +86,8 @@ NF3 gas (at fab)
 
 ```
 300mm polished/epitaxial wafer (at fab)
-├── Shin-Etsu Handotai/SEH (Japan, parent 4063.T) — ~30% share
-├── SUMCO (3436.T, Japan) — ~25% share
+├── Shin-Etsu Handotai/SEH (Japan, parent 4063.T) — suspected major position
+├── SUMCO (3436.T, Japan) — suspected major position
 ├── Siltronic (WAF.DE, Germany)
 ├── SK Siltron (Korea, SK subsidiary)
 ├── GlobalWafers (6488.TWO, Taiwan)
@@ -97,16 +102,16 @@ NF3 gas (at fab)
 │   │   │       │   └── Metallurgical-grade silicon (MG-Si)
 │   │   │       │       └── Carbothermic reduction of quartz
 │   │   │       │       └── Elkem (Norway/China), Ferroglobe (Spain/US), Chinese producers
-│   │   │       │       └── China ~70% of MG-Si
+│   │   │       │       └── China suspected dominant in MG-Si
 │   │   │       └── Quartz / silica sand
-│   │   │           └── Spruce Pine, NC (USA) — highest purity globally, ~70-90% of world HPQ supply [CHOKEPOINT]
+│   │   │           └── Spruce Pine, NC (USA) — reported highest purity globally, suspected dominant to near-monopoly in world HPQ supply [VERIFY]
 │   │   │           └── Sibelco ($200M expansion to double capacity + $500M "Expansion 2" for 2024-2027)
 │   │   │           └── The Quartz Corp (Imerys/Norsk Mineral JV)
 │   │   └── Quartz crucibles (for CZ pulling)
-│   │       └── Ferrotec (6890.T, Japan) — ~30-40% share
+│   │       └── Ferrotec (6890.T, Japan) — suspected major position
 │   │       └── Shin-Etsu Quartz (Japan)
 ```
-**Chokepoints:** Spruce Pine, NC quartz (unique geology). Shin-Etsu+SUMCO ~55% of 300mm wafers. Wacker+Hemlock+Tokuyama control semiconductor-grade poly.
+**Investigate:** Spruce Pine quartz concentration (unique geology claim). Shin-Etsu+SUMCO suspected combined dominance in 300mm wafers. Wacker+Hemlock+Tokuyama reported to control semiconductor-grade poly.
 
 ## 6. CMP Slurry Chain
 
@@ -117,12 +122,12 @@ CMP slurry (at fab)
 ├── AGC (5201.T, Japan)
 ├── Anji Microelectronics (688019.SS, China)
 │   ├── Colloidal silica nanoparticles (for oxide CMP)
-│   │   └── Fuso Chemical (4368.T, Japan) — dominant [CHOKEPOINT]
+│   │   └── Fuso Chemical (4368.T, Japan) — reported dominant [VERIFY]
 │   │   └── Evonik (Germany), Nippon Shokubai (Japan)
 │   └── Ceria (CeO2) nanoparticles (for STI CMP)
 │       └── Solvay/Rhodia (Belgium)
 │       └── Rare earth separation
-│           └── China Northern Rare Earth (600111.SS) — China ~60-70% of RE processing [CHOKEPOINT]
+│           └── China Northern Rare Earth (600111.SS) — China reportedly dominant in RE processing [VERIFY]
 │           └── Lynas (Australia, ASX: LYC), MP Materials (US, NYSE: MP)
 │           └── Ore: bastnasite, monazite, ion-adsorption clays
 │               └── China (Bayan Obo), USA (Mountain Pass), Australia (Mt Weld)
@@ -132,22 +137,40 @@ CMP slurry (at fab)
 
 ```
 Ultra-high-purity Cu target (6N+, at fab)
-├── JX Advanced Metals (5016.T, TSE Prime since March 2025; ENEOS retains ~49.9%) — #1 globally [CHOKEPOINT]
+├── JX Advanced Metals (5016.T, TSE Prime since March 2025; ENEOS retains ~49.9%) — believed top globally [VERIFY]
 ├── Mitsubishi Materials (5711.T, Japan)
 ├── Honeywell (US), Linde Electronics
 │   ├── 6N copper electrolytic refining
 │   │   └── JX Advanced Metals, Mitsubishi Materials, Sumitomo Metal Mining
 │   └── LME-grade copper cathode
 │       └── Codelco (Chile), Freeport-McMoRan (US), BHP (Australia), Glencore
-│       └── Copper ore mining: Chile (~27%), Peru, DRC, Zambia
+│       └── Copper ore mining: Chile (largest producer), Peru, DRC, Zambia, Argentina (emerging)
 
 Tantalum target chain:
 ├── JX Advanced Metals, H.C. Starck/Masan HT (Germany/Vietnam), Plansee (Austria)
 │   └── Ta metal processing
 │       └── Global Advanced Metals (Australia), Ningxia Orient Tantalum (China)
-│       └── Coltan/tantalite ore: DRC ~60% artisanal [CONFLICT MINERAL]
+│       └── Coltan/tantalite ore: DRC reportedly dominant in artisanal supply [CONFLICT MINERAL]
 │       └── Also: tin slag (Malaysia/Thailand secondary source)
 ```
+
+## 8. Tungsten / Molybdenum Interconnect Transition
+
+```
+WF6 → CVD tungsten fill (contact/via, current mainstream)
+├── Linde (US/Germany), SK Specialty (Korea), Guangdong Huate (688268.SS, China)
+│   └── Tungsten hexafluoride from W metal + F2
+│       └── China suspected dominant in tungsten supply [VERIFY]
+│       └── Almonty Industries (Sangdong mine, Korea, producing Dec 2025) — largest non-China project
+│       └── Pure Tungsten (Ssangjon mine, Korea, first concentrate Jun 2026)
+
+Mo precursor → ALD/CVD molybdenum (emerging replacement at sub-2nm nodes)
+├── Air Liquide (Korea Mo precursor plant, inaugurated 2025) — first dedicated facility
+│   └── Molybdenum metal/compounds
+│       └── China suspected dominant in Mo mine production [VERIFY]
+│       └── Chile (Codelco), USA (Freeport), Peru (copper mining byproduct)
+```
+**Investigate:** If Mo deposition reaches HVM at sub-2nm nodes, WF6 demand growth slows. Watch Air Liquide Korea capacity and TSMC/Samsung process announcements.
 
 ## Key CAS Numbers for Chemical Database Searches
 

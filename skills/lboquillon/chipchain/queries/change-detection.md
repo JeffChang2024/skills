@@ -63,3 +63,7 @@
 [材料名] 供應鏈 重組              → "[material] supply chain restructuring"
 [公司名] 新供應商 導入            → "[company] new supplier introduction"
 ```
+
+## Counterfactual check on causality
+
+Before attributing a supply chain change to a specific cause, run the [Counterfactual Consistency Check](counterfactual-check.md). The key question: "Would this change have happened anyway, regardless of the trigger I'm attributing it to?" Example: Soulbrain gaining Korean HF market share after 2019 could be the 소부장 policy working, or it could be Samsung expanding capacity and needing more HF from any supplier. Separate correlation from causation.

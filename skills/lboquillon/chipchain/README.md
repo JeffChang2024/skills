@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/banner.svg" alt="chipchain — Trace the chain. From mine to fab. In four languages." width="100%">
+  <img src="assets/banner.svg" alt="chipchain — Trace the chain. From mine to fab. In five languages." width="100%">
 </p>
 
 <p align="center">
@@ -10,26 +10,15 @@
 </p>
 
 # chipchain
-
-> *The most opaque supply chain on earth, decoded.*
-
-A multilingual AI research skill that investigates semiconductor supplier relationships, material chokepoints, and market structure across Korea, Japan, Taiwan, and China. It searches regulatory filings in Korean, queries patent databases in Japanese, reads IPO prospectuses in Chinese, and triangulates findings across multiple independent sources before making a single claim. No guessing. No hallucinations. Just sources.
-
-**One question. Four languages. Dozens of sources. 80 seconds.**
-
-Built for [Claude Code](https://claude.ai/code) and [OpenClaw](https://openclaw.ai). Compatible with the [Agent Skills](https://agentskills.io) open standard. Also available on [ClawHub](https://clawhub.ai/lboquillon/chipchain).
-
-## Who This Is For
-
-Equity analysts researching semiconductor supplier relationships for TSMC, Samsung, SK Hynix, and their tier-2 material vendors. Policy researchers tracking export controls, supply chain chokepoints, and localization drives across East Asia. Procurement and supply chain teams mapping material dependencies beyond tier-1, where the real concentration risks hide. OSINT researchers who need to search Korean DART filings, Japanese EDINET reports, Chinese IPO prospectuses, and Taiwanese MOPS disclosures in the original language. Anyone who has tried to Google Translate semiconductor industry terms and gotten useless results.
+> *The most opaque supply chain on earth, decoded. Without hallucinating.*
 
 ## Table of Contents
 
-- [Who This Is For](#who-this-is-for)
 - [Why This Exists](#why-this-exists)
 - [What It Produces](#what-it-produces)
-- [Google Translate Will Fail You Here](#google-translate-will-fail-you-here)
 - [How It Stays Honest](#how-it-stays-honest)
+- [The Orchestration](#the-orchestration)
+- [Multilingual Search](#multilingual-search)
 - [What's Inside](#whats-inside)
 - [Query Types](#query-types)
 - [Installation](#installation)
@@ -40,15 +29,13 @@ Equity analysts researching semiconductor supplier relationships for TSMC, Samsu
 
 ## Why This Exists
 
-Everyone knows TSMC, ASML, Samsung. Ask a harder question:
+LLMs are confidently wrong about supply chains. They fabricate supplier relationships, invent filing references, and present training data as freshly researched fact. An investor acting on a hallucinated supplier relationship can lose real money. A policy analyst citing a fabricated filing reference destroys their credibility permanently. A hallucination in supply chain intelligence costs actual money, not just an embarrassing chatbot screenshot.
 
-> *"Who supplies the hafnium precursor chemicals that go into SK Hynix's high-k dielectric deposition process?"*
+The problem goes deeper when you use multiple agents. Sub-agents find real sources with real URLs, then lose them during narrative synthesis. The parent agent assembles a report and drops every URL because full links read as noise in prose. Three different prompt-based fixes failed to solve this. The solution required structural constraints on how agents communicate: sub-agents return XML with URLs as attributes (structurally inseparable), and the parent builds a numbered Source Registry before writing a single word of prose. By the time creative writing starts, the evidence is already committed.
 
-And you've fallen off the English-language internet entirely.
+On top of the orchestration challenge, about 80% of semiconductor supply chain information lives behind language barriers. The answer to "who supplies hafnium precursors to SK Hynix" lives in a [DART filing](https://dart.fss.or.kr) in Korean, under the section header `주요 거래처`. Or in a Japanese [EDINET annual report](https://disclosure2.edinet-fsa.go.jp), in the `主要仕入先` section. Or in a Chinese STAR Market IPO prospectus on [cninfo](https://cninfo.com.cn), under `前五名供应商采购额`. Google Translate won't give you the right search terms for any of these.
 
-That answer lives in a [DART filing](https://dart.fss.or.kr) in Korean, under the section header `주요 거래처`. Or in a Japanese company's [EDINET annual report](https://disclosure2.edinet-fsa.go.jp), in the `主要仕入先` section. Or in a Chinese STAR Market IPO prospectus on [cninfo](https://cninfo.com.cn), in the `前五名供应商采购额` disclosure. Or mentioned once in an [ET News](https://etnews.com) article that used the term `프리커서`, which is the actual industry loanword for "precursor" in Korean semiconductor press. Google Translate would give you `전구체`, and that would return completely different search results.
-
-**chipchain knows where to look, what to search for, and which term to use in which language.** Your analyst doesn't speak Korean, Japanese, and Chinese. This one does.
+`chipchain` is a structured research methodology that makes every claim auditable. It knows where to look, what to search for in each language, and how to keep agents honest through structural constraints rather than hopeful prompting.
 
 ---
 
@@ -88,110 +75,72 @@ Full scenario analysis. Multiple agents. Trade data, corporate filings, defense 
 
 ---
 
-## Google Translate Will Fail You Here
-
-English-language research covers maybe 20% of the semiconductor supply chain. The rest lives behind language barriers that machine translation can't cross, because machine translation has no idea how semiconductor engineers actually talk.
-
-### The Problem
-
-If you Google Translate "etch" into Korean, you get `에칭`. Korean semiconductor engineers and industry press use `식각`, a Sino-Korean term. Search for `에칭` on ET News and you get noise. Search for `식각` and you get every article about Samsung's etch process development.
-
-If you Google Translate "supplier" into Japanese, you might get `サプライヤー`. EDINET financial filings, the documents that legally disclose who supplies whom, use `仕入先`. Miss that term, miss the data.
-
-If you're researching photoresists in Chinese, you need to know that mainland China says `光刻胶` while Taiwan says `光阻`. Completely different words. Search the wrong one and you're looking at the wrong country's supply chain.
-
-### What This Skill Knows
-
-**280+ industry-specific term mappings** across Korean, Japanese, Simplified Chinese, and Traditional Chinese. These are the actual terms used in regulatory filings, industry press, patent documents, and corporate disclosures.
-
-#### Korean (한국어): Where Textbook Korean Falls Apart
-
-| What Google gives you | What the industry actually uses | Why it matters |
-|---|---|---|
-| 에칭 (etching) | **식각** | Every ET News article, every DART filing uses 식각 |
-| 디포지션 (deposition) | **증착** | Universal in Korean semiconductor press |
-| 익스포저 (exposure) | **노광** | The standard lithography term |
-| 재료 (material) | **소재** | In supply chain context, 소재 is dominant |
-| 회사 (company) | **업체** | Industry press default |
-
-Plus terms that have no English equivalent:
-- **소부장** (소재+부품+장비): the abbreviation for "materials/parts/equipment" that shows up in every Korean semiconductor policy document since 2019
-- **국산화**: "localization/domestication," THE search term for tracking Korea's push to replace Japanese suppliers
-- **탈일본**: literally "de-Japan," the 2019-2020 buzzword for import substitution
-
-#### Japanese (日本語): The Mixed-Script Maze
-
-Japanese semiconductor language uses a distinctive mix of kanji, katakana, and raw English acronyms. The pattern is specific:
-
-| Category | What's used | Example |
-|---|---|---|
-| Process acronyms | English | ALD, CVD, CMP, EUV (never translated) |
-| Traditional chemistry | Kanji | フッ酸 (HF), 過酸化水素 (H₂O₂) |
-| Newer concepts | Katakana | フォトレジスト, エッチング |
-| Business/filing terms | Kanji | 仕入先 (supplier), 歩留まり (yield) |
-
-Critical spelling trap: **Silicon wafer = ウェーハ**, not ウエハー. Both Shin-Etsu and SUMCO use ウェーハ. Search with the wrong spelling and you get zero results.
-
-EDINET filings use `主要仕入先` (major suppliers) to reveal supplier relationships. Industry press uses the katakana loanword `サプライヤー`. Different term, different context, different search strategy.
-
-#### Chinese: Same Industry, Two Dictionaries
-
-Eleven critical terms are completely different words between mainland China and Taiwan:
-
-| Concept | Mainland (简体) | Taiwan (繁體) | Impact |
-|---|---|---|---|
-| Silicon | **硅** (gui) | **矽** (xi) | Cascades through hundreds of compound terms |
-| Chip | **芯片** | **晶片** | Different word entirely |
-| Photoresist | **光刻胶** | **光阻** | Different word entirely |
-| Lithography | **光刻** | **微影** | Different word entirely |
-| Etch | **刻蚀** | **蝕刻** | Same characters, reversed order |
-| Epitaxial | **外延** | **磊晶** | Different word |
-| Plasma | **等离子体** | **電漿** | Different word |
-| Nanometer | **纳米** | **奈米** | Different word |
-| Process node | **工艺** | **製程** | Different word |
-| Integrated circuit | **集成电路** | **積體電路** | Different word |
-| IP core | **IP核** | **矽智財** | Completely different concept framing |
-
-China-specific policy vocabulary unlocks an entire research dimension:
-- **卡脖子** (qia bozi, "strangled at the neck"): the ubiquitous metaphor for technology chokepoints. Search `卡脖子 半导体` and you find every Chinese article about semiconductor supply chain vulnerabilities
-- **国产替代**: "domestic substitution," tracks China's progress replacing foreign suppliers
-- **大基金**: "Big Fund," the national semiconductor investment vehicle
-
-### Where to Find Supplier Disclosures, by Country
-
-| Country | Filing System | Section that reveals suppliers |
-|---|---|---|
-| Korea | DART (dart.fss.or.kr) | `주요 거래처` (major trading partners), `원재료 매입 현황` (raw material purchases) |
-| Japan | EDINET | `主要仕入先` (major suppliers), `主要販売先` (major customers >10% revenue) |
-| Taiwan | MOPS (mops.twse.com.tw) | `主要供應商` (major suppliers), `前十大供應商` (top-10 suppliers) |
-| China | cninfo (cninfo.com.cn) | `前五名供应商采购额` (top-5 supplier procurement amounts) |
-
-Chinese STAR Market IPO prospectuses (`招股说明书`) disclose top-5 suppliers **by name with dollar amounts**. This is the richest public source for Chinese semiconductor supply chain mapping, and almost nobody outside China knows it exists.
-
----
-
 ## How It Stays Honest
 
-Semiconductor supply chain intelligence is useless if it's wrong. A confident fabrication is worse than no answer. An investor acting on a hallucinated supplier relationship can lose real money. A policy analyst citing a fabricated filing reference destroys their credibility.
+Semiconductor supply chain intelligence is useless if it's wrong. A confident fabrication is worse than no answer. The default behavior of an LLM asked about supply chains is to hallucinate plausibly, and `chipchain` is designed to make that structurally difficult.
 
-### Why This Needs Its Own Protocol
+### Search First, Know Later
 
-LLMs hallucinate. They fabricate plausible supplier relationships, invent filing references, and present training knowledge as freshly researched fact. The most dangerous hallucination isn't the obviously wrong one. It's the one that sounds exactly right because there's no source you can check.
+Rule Zero. When `chipchain` receives a question, it searches before it speaks. It does not consult its memory for a draft answer and then look for sources to confirm it. It goes to the databases, the filings, the press, the patent registries, and builds the answer from what it actually finds. If a search comes back empty, that is reported as a result, not papered over with a plausible guess.
+
+### Registry-First Citation
+
+The most important structural constraint: **build the Source Registry before writing any prose.**
+
+Sub-agents return structured XML with URLs as attributes and verbatim evidence quotes (in the original language). The parent extracts them into a numbered registry with evidence, then writes prose using only `[1]` `[2]` markers. Two strict phases:
+
+```markdown
+## Source Registry (Phase 1, mechanical, output first)
+[1] 피치원미디어 2024-03-15 — https://platum.kr/...
+    Evidence: "솔브레인은 삼성전자 평택 불산 주요 공급사로 선정"
+[2] Nikkei 2024-02 — https://nikkei.com/...
+    Evidence: "ステラケミファは2019年以前の主要供給元だった"
+
+## Findings (Phase 2, creative, numbers only)
+Soulbrain is Samsung's primary HF supplier [1].
+Stella Chemifa was the pre-2019 incumbent [2].
+```
+
+If a claim has no registry number, you don't have evidence. The claim doesn't belong in the report. Writing the registry first means the agent cannot state a conclusion and then go looking for something to back it up. The evidence is already committed to the output before prose begins.
+
+### Counterfactual Falsification
+
+Every strong claim runs through three questions before it ships:
+
+1. **"If this were FALSE, how would I explain my evidence?"** Walk through each piece of evidence and construct a plausible alternative. If the alternative is equally plausible, downgrade the confidence.
+2. **"What would I search to disprove this?"** Construct a falsifier from four angles: **numerator** (is the entity's position different?), **denominator/scope** (is the market defined differently?), **visibility** (are there players my data can't see?), and **temporal** (when was this measured?). Every falsifier must name a specific source to check and a threshold that would change the conclusion. "A competitor could show comparable revenue" is a bad falsifier. "If ECHA lists >3 manufacturers for CAS 7664-39-3 at electronic grade, the near-monopoly claim is false" is a good one.
+3. **"Do my sources actually agree?"** Surface contradictions instead of averaging them away.
+
+The protocol also detects circular sourcing: multiple sources that all cite the same original estimate, creating the illusion of independent confirmation. Red flags: suspiciously round numbers, all sources clustering within 6 months, all sources giving the exact same figure.
+
+### "Making ≠ Supplying"
+
+The single most common hallucination in supply chain analysis:
+
+> "Company X makes hafnium precursors" ≠ "Company X supplies hafnium precursors to SK Hynix"
+
+Manufacturing a material and supplying it to a specific customer require completely different evidence. A company's product catalog proves they make something. A DART filing listing them as `주요 거래처` proves a commercial relationship. These are different grades of evidence and `chipchain` treats them differently.
 
 ### Six-Level Confidence System
 
-Every finding is graded by **how it was obtained**, with source date:
+Every finding is graded by **how it was obtained**, not by how plausible it sounds:
 
-| Level | What it means | Example |
-|---|---|---|
-| **CONFIRMED (YYYY)** | Source accessed THIS session, with year | "DART filing 2024, section 주요 거래처 names Company X" |
-| **STRONG INFERENCE** | 2+ independent signals, THIS session | "Patent co-filing + supplier award + revenue geography" |
-| **MODERATE INFERENCE** | 1 indirect signal, THIS session | "Conference co-authorship only" |
-| **SPECULATIVE** | Logical deduction | "Only 3 companies globally produce this" |
-| **FROM SKILL DATABASE** | Entity files, not verified today | "entities/korea.md lists Company X" |
-| **FROM TRAINING KNOWLEDGE** | LLM memory, lowest reliability | "I recall Company Y is in this space" |
+| Level | What it means |
+|---|---|
+| **CONFIRMED (YYYY)** | Source accessed THIS session, with year |
+| **STRONG INFERENCE** | 2+ independent signals, THIS session |
+| **MODERATE INFERENCE** | 1 indirect signal, THIS session |
+| **SPECULATIVE** | Logical deduction from market structure |
+| **FROM SKILL DATABASE** | Entity files, not verified today |
+| **FROM TRAINING KNOWLEDGE** | LLM memory, lowest reliability |
 
-**CONFIRMED (2025 source)** has higher trust than **CONFIRMED (2020 source)**. The year qualifier prevents stale data from masquerading as fresh intelligence.
+### Evidence Type Caps
+
+The confidence system is complemented by an **evidence type taxonomy** that caps
+how high any finding can climb. Capability evidence alone (they make the material)
+can never exceed SPECULATIVE, no matter how many sources confirm it. Only a named
+commercial relationship, actually accessed, reaches CONFIRMED. See
+[evidence-guide.md](evidence-guide.md) for the full scoring rubric.
 
 ### Six Hard Rules
 
@@ -204,124 +153,99 @@ Every finding is graded by **how it was obtained**, with source date:
 | 5 | **NEVER round-trip training knowledge through skill files** | Reading your own database doesn't verify anything. |
 | 6 | **NEVER claim to have searched something you didn't** | Failed searches are information. Report them. |
 
-### "Making ≠ Supplying"
+### Mandatory Search Log + Gaps
 
-The single most common hallucination in supply chain analysis:
+Every report includes a full log of what was searched, in what language, and what came back, including failed searches. And every report ends with "What I Could Not Verify": specific gaps, failed searches, and actionable next steps. A `chipchain` report with five gaps and clear next steps is more actionable than a hallucinated report with zero gaps and no way to verify anything in it.
 
-> "Company X makes hafnium precursors" ≠ "Company X supplies hafnium precursors to SK Hynix"
+---
 
-Manufacturing a material and supplying it to a specific customer require completely different evidence. The skill enforces this distinction at every step.
+## The Orchestration
 
-### Source-First Citation
+Multi-agent research systems lose information at every handoff. `chipchain` went through three failed approaches before finding one that works.
 
-The most important structural anti-hallucination rule: **write the source tag BEFORE the claim, not after.**
+### The Problem: URLs Die in Transit
 
-```markdown
-## Wrong (post-hoc — easy to fabricate)
-Soulbrain is Samsung's primary HF supplier [CONFIRMED]
+Sub-agents run WebSearch, find real URLs, and compose a response. During narrative synthesis, URLs get dropped because good prose doesn't include raw links. The parent agent then synthesizes sub-agent responses into a report, losing more detail. The user sees source names with no clickable links.
 
-## Right (source-first — forces evidence before claim)
-[FOUND: 피치원미디어 2024-03-15] → Soulbrain is Samsung's primary HF supplier
+Prompt-based fixes ("include URLs in your response," "end with a Sources list") failed across all tests. Sub-agents enter a narrative writing mode where URLs are metadata noise.
+
+### The Fix: XML Pipe + Numbered Registry
+
+Two structural changes working together:
+
+**Sub-agents return XML, not prose.** The URL is an XML attribute, structurally inseparable from the finding. Each finding carries a verbatim evidence quote (in the source language) alongside the sub-agent's interpretation. The Agent tool returns this verbatim. No temp files, no filesystem, no permissions.
+
+```xml
+<findings>
+  <found url="https://etnews.com/..." source="ET News 2025-01">
+    <evidence>SK트리켐은 하프늄 전구체 공급업체로 선정</evidence>
+    <claim>SK Trichem named as HF precursor supplier</claim>
+  </found>
+  <missed query="하프늄 프리커서 공급업체" lang="KO"/>
+</findings>
 ```
 
-If you can't write the `[SOURCE]` tag, you don't have evidence. The claim doesn't belong in the report.
+**The parent builds the registry first (Phase 1), then writes prose (Phase 2).** Phase 1 is mechanical extraction: parse XML tags, assign numbers, output the Source Registry with evidence quotes. Phase 2 is creative: write the narrative using only `[1]` `[2]` markers. By the time prose begins, every URL and the evidence behind it are already committed to the output. The evidence quotes also let the parent catch sub-agents that overinterpret their sources.
 
-### Mandatory Search Log
+**Why the evidence layer matters.** Anthropic's [interpretability research](https://www.anthropic.com/research/tracing-thoughts-language-model) found that Claude has a default "refuse to answer" circuit that gets suppressed when it recognizes something familiar, and that it sometimes engages in "motivated reasoning," working backwards from a desired answer to justify it. In a supply chain context, this means the model can attach a real URL to a hallucinated claim about what that URL contains. The evidence field breaks this by forcing sub-agents to extract a verbatim quote (often in Korean, Japanese, or Chinese) before interpreting it. Fabricating a quote in the original language is much harder than fabricating an English interpretation, and the parent can check whether the claim actually follows from the evidence.
 
-Every report includes a full log of what was searched, in what language, and what came back — including failed searches. This makes the investigation auditable and prevents the agent from claiming searches it never performed.
+### Anti-Anchoring
 
-```markdown
-| # | Query | Language | Source | Result |
-|---|---|---|---|---|
-| 1 | "삼성전자 불산 공급업체" | KO | ET News | 3 relevant articles |
-| 2 | "ステラケミファ 主要販売先" | JA | WebSearch | Paywalled, snippet only |
-| 3 | DART 솔브레인 사업보고서 | KO | OpenDART | Filing not accessible |
-```
+Entity files contain qualitative descriptors ("suspected dominant," "major," "significant") instead of unverified percentages. This was a deliberate fix after live testing showed that numbers like "~70% global share" anchored the agent toward confirmation rather than genuine investigation. Live testing confirmed the fix works: with qualitative descriptors, the agent searches independently, surfaces contradictions, and finds competitors the entity files don't list.
 
-A researcher who shows their work — including dead ends — is more useful than one who only presents conclusions.
+### Geography Follows the Entity
 
-### In Practice
+The agent checks where an entity actually operates before choosing languages, not just where it's headquartered. TSMC Fab2 is a Japan question, not a Taiwan question. Samsung Austin is a US question. If any finding during research reveals a new country, the agent loads that lexicon and spawns a sub-agent in that language.
 
-From the HF supplier investigation:
-- `[FOUND: 피치원미디어, BusinessKorea, ZDNet Korea]` → Soulbrain: **CONFIRMED (2024 sources)** as Samsung's primary HF supplier
-- `[FOUND: Nikkei + revenue geography]` → Stella Chemifa pre-2019: **STRONG INFERENCE**, no direct Samsung confirmation found
-- 6 specific things it **could not verify**, honestly listed
-- 4 **actionable next steps**: specific DART queries, Comtrade HS codes, EDINET filing codes
+---
 
-No fabricated filing numbers. No invented URLs. No confident guesses dressed up as research.
+## Multilingual Search
+
+English-language research covers maybe 20% of the semiconductor supply chain. The rest lives behind language barriers that machine translation can't cross, because machine translation has no idea how semiconductor engineers actually talk.
+
+`chipchain` includes search terminology for Korean, Japanese, Simplified Chinese, Traditional Chinese, and German. The East Asian lexicons cover filing section headers, translation traps, and search patterns in depth. German is lighter, focused on the translation traps that trip up agents searching the Dresden/Bavaria semiconductor clusters and Bundesanzeiger filings.
+
+### Why Machine Translation Fails
+
+If you Google Translate "etch" into Korean, you get `에칭`. Korean semiconductor engineers use `식각`. Search for `에칭` on ET News and you get noise. Search for `식각` and you get every article about Samsung's etch process.
+
+Critical spelling trap in Japanese: silicon wafer = `ウェーハ`, not `ウエハー`. Both Shin-Etsu and SUMCO use `ウェーハ`. Wrong spelling, zero results.
+
+For Chinese, eleven critical terms are completely different words between mainland and Taiwan. `光刻胶` (mainland photoresist) vs `光阻` (Taiwan photoresist). Search the wrong one and you're looking at the wrong country's supply chain.
+
+### Where to Find Supplier Disclosures
+
+| Country | Filing System | Section that reveals suppliers |
+|---|---|---|
+| Korea | DART (dart.fss.or.kr) | `주요 거래처`, `원재료 매입 현황` |
+| Japan | EDINET | `主要仕入先`, `主要販売先` (>10% revenue) |
+| Taiwan | MOPS (mops.twse.com.tw) | `主要供應商`, `前十大供應商` |
+| China | cninfo (cninfo.com.cn) | `前五名供应商采购额` |
+
+Chinese STAR Market IPO prospectuses (`招股说明书`) disclose top-5 suppliers **by name with dollar amounts**. This is the richest public source for Chinese semiconductor supply chain mapping, and almost nobody outside China knows it exists.
 
 ---
 
 ## What's Inside
 
-### The Investigation Pipeline
-
-```
-User Question
-    │
-    ▼
-┌─────────────────────────────┐
-│  1. CLASSIFY                │  Supplier ID? Bottleneck? Scenario?
-│     Route to workflow       │  Change detection? Reverse lookup?
-└──────────┬──────────────────┘
-           ▼
-┌─────────────────────────────┐
-│  2. LOAD CONTEXT            │  Only files needed for THIS question
-│     Lexicon + Entities +    │  Korean question? → ko.md + korea.md
-│     Sources for the region  │  Japan materials? → ja.md + japan.md
-└──────────┬──────────────────┘
-           ▼
-┌─────────────────────────────┐
-│  3. MULTI-AGENT RESEARCH    │  Parallel sub-agents:
-│     3-4 languages           │  - Filing search (DART/EDINET/MOPS/cninfo)
-│     simultaneously          │  - Industry press (ET News/DigiTimes/JiWei)
-│                             │  - Patent/academic co-filing
-│                             │  - Trade data (Comtrade/e-Stat)
-└──────────┬──────────────────┘
-           ▼
-┌─────────────────────────────┐
-│  4. TRIANGULATE             │  Patent co-filing + revenue geography +
-│     Multiple signals        │  supplier award + conference co-authorship
-│     required                │  + trade data + chemical registrations
-└──────────┬──────────────────┘
-           ▼
-┌─────────────────────────────┐
-│  5. REPORT                  │  CONFIRMED → STRONG INFERENCE →
-│     Grade every claim       │  MODERATE → SPECULATIVE →
-│     Source everything       │  SKILL DATABASE → TRAINING KNOWLEDGE
-│     Flag every gap          │  + "What I Could Not Verify"
-└─────────────────────────────┘
-```
-
 ### Skill Contents
 
-- **200+ companies** across `entities/` files (Korea, Japan, Taiwan, China) with tickers, products, and native-script names. The invisible tier-2/tier-3 suppliers live here: Toyo Gosei (~60-70% of photoacid generators), Fuso Chemical (colloidal silica monopoly), and Ajinomoto Fine-Techno (~100% of ABF substrate film, a food company's subsidiary that every Intel/AMD/Nvidia chip depends on)
-- **7 chemistry chains** in `chemistry/precursor-chains.md` tracing materials from fab all the way down to the mine: photoresist, hafnium precursors, electronic-grade HF, NF₃, silicon wafers (all the way to Spruce Pine, NC quartz), CMP slurry, and sputtering targets. Chokepoints identified at every tier
-- **10 global chokepoints**, all Japanese, with approximate market share estimates (~2023-2024, labeled as unverified)
-- **7 investigative workflows** in `queries/`, each with multilingual search templates across all four languages. Includes an 8-step chemistry chain tracing methodology (`queries/chemistry-chain.md`) with CAS lookups and chemical registration DB searches, and a market sizing pipeline (`queries/market-sizing.md`) with top-down/bottom-up cross-checks
-- **HS codes** in `trade/hs-codes.md` for tracking bilateral semiconductor material flows (silicon wafers 3818, photoresists 3707, equipment 8486, HF 2811.11, fluorspar 2529.21)
-- **Patent co-filing analysis** guide in `academia/patents-guide.md` with CPC classification codes, co-assignee detection methodology, and guides to KIPRIS, J-PlatPat, CNIPA, Google Patents, Lens.org
-- **University-industry signals** in `academia/universities.md`: SKKU co-publications signal Samsung R&D, NYCU signals TSMC, Tohoku signals TEL/Kioxia
-- **Geopolitical context** in `geopolitical.md` covering export control regimes (US-China Oct 2022+, Japan July 2023, Japan-Korea 2019), localization drives (Korea 소부장, China 国产替代, Japan Rapidus/JASM)
-- **Free broker research aggregators** in `finance/broker-sources.md`: Naver Finance (Korea), EastMoney (China), Kabutan (Japan), MOPS (Taiwan)
-- **SEMICON exhibitor databases**, publicly searchable directories that categorize every supply chain participant by product type. The exhibitor list IS the supply chain map
+- **130+ companies** across `entities/` files (Korea, Japan, Taiwan, China) with tickers, products, and native-script names. Includes invisible tier-2/tier-3 suppliers: Toyo Gosei (photoacid generators), Fuso Chemical (colloidal silica), Ajinomoto Fine-Techno (ABF substrate film). All concentration claims are labeled as unverified hypotheses
+- **Multiple chemistry chains** in `chemistry/precursor-chains.md` tracing materials from fab to mine: photoresist, hafnium precursors, electronic-grade HF, NF₃, silicon wafers (all the way to Spruce Pine, NC quartz), CMP slurry, and sputtering targets. Chokepoints identified at every tier with CAS numbers
+- **Multiple investigative workflows** in `queries/`, including an unknown-supplier discovery methodology that searches by material/technology rather than company name, an 8-step chemistry chain tracer, a market sizing pipeline with top-down/bottom-up cross-checks, and an early signal detector that scans filings, qualification announcements, and capex for supply chain changes within the last 60 days
+- **Counterfactual falsification protocol** in `queries/counterfactual-check.md` with four angles of attack, circular sourcing detection, and executable falsifier construction
+- **Multilingual lexicons** with industry-specific terminology and regulatory filing section headers for each supported language
+- **HS codes** for tracking bilateral semiconductor material flows (silicon wafers, photoresists, equipment, HF, fluorspar)
+- **Patent co-filing analysis** guide with CPC codes, co-assignee detection, and links to KIPRIS, J-PlatPat, CNIPA, Google Patents, Lens.org
+- **University-industry signals**: SKKU co-publications signal Samsung R&D, NYCU signals TSMC, Tohoku signals TEL/Kioxia
+- **Geopolitical context** covering export controls (US-China Oct 2022+, Japan July 2023, Japan-Korea 2019), localization drives, and CHIPS Act subsidies
+- **Free broker research aggregators**: Naver Finance (Korea), EastMoney (China), Kabutan (Japan), MOPS (Taiwan)
 
-The skill queries APIs programmatically where possible (Comtrade, OpenDART, e-Stat, KIPRIS, Lens.org, PubChem) and falls back to WebSearch for sources without API access (EDINET, industry press, chemical registration databases). See `sources.md` for full details.
-
-The agent cross-pollinates findings across languages (a Japanese filing result feeds into Korean press searches), checkpoints with the user before going deep, and offers to execute recommended next steps rather than leaving them as static text.
+The skill queries APIs where possible (Comtrade, OpenDART, e-Stat, KIPRIS, Lens.org, PubChem) and falls back to WebSearch for sources without API access. See `sources.md` for details.
 
 ### Verification Log System
 
-Entity files (`entities/*.md`) now include a **Verification Log**, a running record of claims that have been confirmed through actual investigations. Entries start as unverified hypotheses from training knowledge. When an investigation confirms a claim with sources accessed in that session, it gets logged with the date, sources, and investigation name.
-
-Entity file trust accumulates over time. After the Samsung HF supplier investigation, Soulbrain's entry is now backed by 피치원미디어, BusinessKorea, ZDNet Korea, and 녹색경제신문, not just training knowledge.
-
-```markdown
-## Verification Log
-| Company | Claim Verified | Date | Sources | Investigation |
-|---|---|---|---|---|
-| Soulbrain | Samsung Pyeongtaek primary HF supplier (post-2019) | 2026-03-13 | 피치원미디어, BusinessKorea, ZDNet Korea | HF supplier ID |
-```
+Entity files include a **Verification Log**, a running record of claims confirmed through actual investigations. Entries start as unverified hypotheses from training knowledge. When an investigation confirms a claim with sources accessed in that session, it gets logged with the date, sources, and investigation name. Entity file trust accumulates over time.
 
 ---
 
@@ -334,8 +258,10 @@ Entity file trust accumulates over time. After the Samsung HF supplier investiga
 | **Change Detection** | "What shifted in Korea's photoresist supply?" | Before/after with localization progress tracking |
 | **Reverse Lookup** | "What does LK Chem actually do?" | Places unknown company in the supply chain taxonomy |
 | **Scenario Analysis** | "If China restricts fluorspar, what breaks?" | Full cascade with timeline and exposure matrix |
-| **Chemistry Chain** | "Trace hafnium from mine to fab" | 8-step tier-by-tier tracing with CAS lookups, chemical registration DBs, patent validation |
-| **Market Sizing** | "What's the CMP slurry market breakdown?" | Top-down analyst + bottom-up filings + trade data cross-check with concentration analysis |
+| **Chemistry Chain** | "Trace hafnium from mine to fab" | 8-step tier-by-tier tracing with CAS lookups |
+| **Market Sizing** | "What's the CMP slurry market breakdown?" | Top-down + bottom-up + trade data cross-check |
+| **Discovery** | "Who else makes PAGs?" | Inverted search: find unknown suppliers by material, not by name |
+| **Signal Detection** | "What's about to change in CMP slurry supply?" | Early signals from filings, qualifications, and capex in four languages |
 
 ---
 
@@ -374,7 +300,7 @@ claude  # start a new session
 ```powershell
 git clone https://github.com/lboquillon/chipchain.git
 New-Item -ItemType Directory -Path "$env:USERPROFILE\.claude\skills" -Force | Out-Null
-New-Item -ItemType SymbolicLink -Path "$env:USERPROFILE\.claude\skills\chipchain" -Target "$(Get-Location)\chip-chain"
+New-Item -ItemType SymbolicLink -Path "$env:USERPROFILE\.claude\skills\chipchain" -Target "$(Get-Location)\chipchain"
 claude  # start a new session
 ```
 
@@ -383,7 +309,7 @@ claude  # start a new session
 ```cmd
 git clone https://github.com/lboquillon/chipchain.git
 if not exist "%USERPROFILE%\.claude\skills" mkdir "%USERPROFILE%\.claude\skills"
-mklink /D "%USERPROFILE%\.claude\skills\chipchain" "%CD%\chip-chain"
+mklink /D "%USERPROFILE%\.claude\skills\chipchain" "%CD%\chipchain"
 claude
 ```
 
@@ -393,7 +319,7 @@ claude
 /chipchain Who supplies CMP slurry to TSMC?
 ```
 
-Or just ask naturally — the skill triggers on semiconductor supply chain questions automatically.
+Or just ask naturally, the skill triggers on semiconductor supply chain questions automatically.
 
 **Try these:**
 - `Who supplies photoacid generators for EUV resist?`
@@ -401,12 +327,22 @@ Or just ask naturally — the skill triggers on semiconductor supply chain quest
 - `Trace hafnium from mine to TSMC's fab`
 - `What's the CMP slurry market breakdown?`
 - `What does Toyo Gosei actually make and why does it matter?`
+- `Who else makes PAGs besides Toyo Gosei?`
+- `Any early signals in the CMP slurry supply chain?`
 
 ### OpenClaw
 
+If you already have OpenClaw installed:
+
 ```bash
-git clone https://github.com/lboquillon/chipchain.git \
-  ~/.openclaw/skills/chipchain
+git clone https://github.com/lboquillon/chipchain.git ~/.openclaw/skills/chipchain
+openclaw gateway restart
+```
+
+Or install from ClawHub:
+
+```bash
+clawhub install chipchain
 ```
 
 ---
@@ -454,17 +390,15 @@ MIT
 
 ---
 
-*The semiconductor industry doesn't have a data problem. It has a language problem, a filing-format problem, and a "knowing where to look" problem. chipchain solves all three.*
-
 *Built by [Leonardo Boquillon](https://leoinai.substack.com). Contributions welcome.*
 
 ---
 
 ## Related Projects
 
-chipchain is part of a broader semiconductor supply chain intelligence effort built around [Investmap](https://investmap.cc):
+`chipchain` is part of a broader semiconductor supply chain intelligence effort built around [Investmap](https://investmap.cc):
 
-- **[Investmap Supply Chain Network](https://investmap.cc/network)** — Interactive network graph tracing supplier relationships between semiconductor companies. Visualize who supplies what to whom across the entire chain.
-- **[How Chips Are Made](https://investmap.cc/steps)** — Step-by-step visual guide to the semiconductor manufacturing process, from wafer fabrication to packaging and test.
-- **[Company Directory](https://investmap.cc/companies)** — Searchable directory of semiconductor supply chain companies with products, tickers, and supply chain positioning.
-- **[Leo in AI (Substack)](https://leoinai.substack.com)** — Writing about AI, semiconductor supply chains, and the tools being built to make them transparent.
+- **[Investmap Supply Chain Network](https://investmap.cc/network)**: Interactive network graph tracing supplier relationships between semiconductor companies. Visualize who supplies what to whom across the entire chain.
+- **[How Chips Are Made](https://investmap.cc/steps)**: Step-by-step visual guide to the semiconductor manufacturing process, from wafer fabrication to packaging and test.
+- **[Company Directory](https://investmap.cc/companies)**: Searchable directory of semiconductor supply chain companies with products, tickers, and supply chain positioning.
+- **[Leo in AI (Substack)](https://leoinai.substack.com)**: Writing about AI, semiconductor supply chains, and the tools being built to make them transparent.

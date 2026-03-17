@@ -1,6 +1,8 @@
 # Korean Semiconductor Supply Chain Entities
 
-All tickers NEED VERIFICATION against current exchange data.
+Every entry below is a lead to investigate, not a fact to cite. Your job is to verify,
+contradict, or discover what's missing. Look for companies and relationships that aren't
+listed here.
 
 ## Precursor Chemicals (ALD/CVD)
 | Company | Korean | Ticker | Products | Confidence |
@@ -14,7 +16,7 @@ All tickers NEED VERIFICATION against current exchange data.
 ## Specialty Gases
 | Company | Korean | Ticker | Products | Confidence |
 |---|---|---|---|---|
-| SK Specialty | SK스페셜티 | Part of SK Inc. (034730.KS) | NF3 (approx. ~40% global, unverified), WF6, SiH4 | HIGH |
+| SK Specialty | SK스페셜티 | Part of SK Inc. (034730.KS) | NF3 (suspected major global position, verify), WF6, SiH4 | HIGH |
 | Foosung | 후성 | 093370.KS | NF3, WF6, BF3, fluorine gases | HIGH |
 | Hyosung Chemical | 효성화학 | 298000.KS | NF3, specialty gases | HIGH |
 | ENF Technology | 이엔에프테크놀로지 | 102710.KQ | Ultra-pure gases, HF | HIGH |
@@ -38,7 +40,7 @@ All tickers NEED VERIFICATION against current exchange data.
 |---|---|---|---|---|
 | SK Siltron | SK실트론 | SK Inc. subsidiary | 200mm/300mm wafers, SiC | HIGH |
 
-## Equipment (Selected — see raw-research for full list of 30+)
+## Equipment (Selected)
 | Company | Korean | Ticker | Products | Confidence |
 |---|---|---|---|---|
 | WONIK IPS | 원익IPS | 240810.KQ | CVD, ALD, diffusion furnaces | HIGH |

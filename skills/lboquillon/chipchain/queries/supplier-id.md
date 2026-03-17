@@ -1,5 +1,7 @@
 # Supplier Identification Workflow
 
+> Steps 1-7: Entity DB check → Multilingual queries (KO/JA/ZH-CN/ZH-TW) → Filing search → Industry press → Triangulation → Counterfactual → Report
+
 **Question pattern:** "Who supplies X material to Y company?"
 
 ## Step 1: Identify the material and target company
@@ -91,6 +93,10 @@ If direct confirmation isn't found:
 5. **Trade data:** Query UN Comtrade for bilateral material flows at HS code level
 6. **Chemical registrations:** Search ECHA by CAS number to find registered manufacturers
 7. **SEMICON exhibitor lists:** Check if supplier exhibits in the relevant product category
+
+## Step 6b: Counterfactual check
+
+Before assigning confidence levels, run the [Counterfactual Consistency Check](counterfactual-check.md) on every claim graded STRONG INFERENCE or higher. The most common false positive in supplier identification is confusing "makes this material" with "supplies this material to this specific fab." If the alternative explanation is equally plausible, downgrade to MODERATE INFERENCE and note the falsifier.
 
 ## Step 7: Report findings with confidence levels
 

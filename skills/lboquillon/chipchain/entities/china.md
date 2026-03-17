@@ -1,6 +1,9 @@
 # Chinese Semiconductor Supply Chain Entities
 
-China is building domestic supply chain from scratch. STAR Market IPO prospectuses are the richest public source for supplier details.
+Every entry below is a lead to investigate, not a fact to cite. Your job is to verify,
+contradict, or discover what's missing. China's supply chain is evolving fast, so entries
+here may be outdated. STAR Market IPO prospectuses are the richest public source for
+supplier details.
 
 ## Equipment (China's most advanced domestic efforts)
 | Company | Chinese | Ticker | Products | Notes |
@@ -9,11 +12,12 @@ China is building domestic supply chain from scratch. STAR Market IPO prospectus
 | **AMEC** | 中微公司 | 688012.SS | CCP/ICP etch, MOCVD | Some TSMC qualification claimed |
 | **Piotech** | 拓荆科技 | 688072.SS | CVD, ALD (critical for advanced nodes) | |
 | ACM Research | 盛美上海 | ACMR / 688082.SS | Wet cleaning, electroplating | US-listed + STAR dual |
-| Kingsemi | 芯源微电子 | 688037.SS | Coater/developer (track) | Competing vs TEL ~90% share |
+| Kingsemi | 芯源微电子 | 688037.SS | Coater/developer (track) | Competing vs TEL (reportedly dominant, verify) |
 | HYC Technology | 华海清科 | 688120.SS | CMP equipment | |
 | Changchuan Technology | 长川科技 | 300604.SZ | Test equipment (ATE) | |
 | SMEE | 上海微电子装备 | **PRIVATE** | DUV lithography (SSA600 ~90nm shipped in small numbers; SSA800 28nm prototype, not production-qualified). Spun off packaging litho to AMIES in early 2025. Key optics remain import-dependent | THE most strategic Chinese equip company |
-| AMIES Technology | 上海微装 (SMEE spin-off) | **PRIVATE** | Packaging/back-end lithography steppers. 500+ units shipped, ~90% of Chinese domestic packaging litho market. First 350nm stepper (AST6200) shipped Nov 2025 | China's only litho self-sufficiency segment |
+| AMIES Technology | 上海微装 (SMEE spin-off) | **PRIVATE** | Packaging/back-end lithography steppers. 500+ units shipped, suspected near-monopoly of Chinese domestic packaging litho market. First 350nm stepper (AST6200) shipped Nov 2025 | China's only litho self-sufficiency segment |
+| SiCarrier / Yuliangsheng | 裕量盛 (SiCarrier affiliate) | **PRIVATE** | DUV immersion lithography (claims 28nm). 30+ tools shown at SEMICON China 2025. Huawei-linked. Yuliangsheng began immersion DUV testing at SMIC Sept 2025 | Separate from SMEE. Investigate actual production qualification status |
 | Jingsheng Mechanical | 晶盛机电 | 300316.SZ | Crystal growth (CZ pullers) | |
 
 ## Silicon Wafers
@@ -40,7 +44,7 @@ China is building domestic supply chain from scratch. STAR Market IPO prospectus
 | Nanjing Special Gas | 南京特种气体 | 688377.SS (Nanjing Develop Advanced Manufacturing) | Electronic specialty gases | |
 | Crystal Clear Electronic | 晶瑞电子材料 | 300655.SZ | i-line resist, wet chemicals | |
 
-## Photoresist (China's biggest gap — Japan >90%)
+## Photoresist (early stage, heavy import dependency)
 | Company | Chinese | Ticker | Products | Notes |
 |---|---|---|---|---|
 | Nata Opto-electronic | 南大光电 | 300346.SZ | ArF resist (developing), MO sources | Critical localization target |
@@ -50,15 +54,15 @@ China is building domestic supply chain from scratch. STAR Market IPO prospectus
 ## Sputtering Targets
 | Company | Chinese | Ticker | Products | Notes |
 |---|---|---|---|---|
-| KFMI (Jiangfeng) | 宁波江丰电子 | 300666.SZ | Ti, Ta, Cu, Al targets (China's #1) | |
+| KFMI (Jiangfeng) | 宁波江丰电子 | 300666.SZ | Ti, Ta, Cu, Al targets (believed top Chinese supplier) | |
 | GRIKIN (Youyan) | 有研新材 | 600206.SS | Targets, high-purity metals | |
 
 ## OSAT
 | Company | Chinese | Ticker | Products | Notes |
 |---|---|---|---|---|
-| JCET Group | 长电科技 | 600584.SS | China's #1 OSAT (acquired STATS ChipPAC) | Big Fund invested |
+| JCET Group | 长电科技 | 600584.SS | Believed largest Chinese OSAT (acquired STATS ChipPAC) | Big Fund invested |
 | Tongfu Micro | 通富微电 | 002156.SZ | OSAT (AMD JV) | |
-| Huatian Technology | 华天科技 | 002185.SZ | OSAT #3 in China | |
+| Huatian Technology | 华天科技 | 002185.SZ | Among top Chinese OSAT suppliers | |
 
 ## Other Notable
 | Company | Chinese | Ticker | Products | Notes |

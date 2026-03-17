@@ -1,6 +1,11 @@
 # Geopolitical & Export Control Context
 
-## Active Export Control Regimes
+Export control regimes change frequently. Everything below reflects conditions as
+of early 2026. Before citing any regulation or initiative, verify current status
+through official sources (US BIS, Japanese METI, EU regulations). Localization
+progress in particular evolves fast and should be investigated, not assumed.
+
+## Active Export Control Regimes (verify current status)
 
 ### US Controls on China (Oct 2022, updated Oct 2023, 2024)
 - **Entity List:** SMIC, YMTC, Cambricon, and others restricted from receiving US-origin technology
