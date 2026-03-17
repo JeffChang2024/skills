@@ -1,13 +1,18 @@
 {
   "owner": "luduoxin",
   "slug": "shanghai-luohu",
-  "displayName": "Shanghai Luohu",
+  "displayName": "上海落户公示查询 (Shanghai Luohu)",
   "latest": {
-    "version": "1.2.0",
-    "publishedAt": 1773642583160,
-    "commit": "https://github.com/openclaw/skills/commit/5ae2a68b26892f552b944aa81a052580c4576b56"
+    "version": "1.2.1",
+    "publishedAt": 1773643123437,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.2.0",
+      "publishedAt": 1773642583160,
+      "commit": "https://github.com/openclaw/skills/commit/5ae2a68b26892f552b944aa81a052580c4576b56"
+    },
     {
       "version": "1.0.0",
       "publishedAt": 1773633132932,
