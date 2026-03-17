@@ -4,21 +4,29 @@ set -euo pipefail
 CONFIG_DIR="${HOME}/.config/room418"
 CRED_FILE="${CONFIG_DIR}/credentials.json"
 
-if [ -f "$CRED_FILE" ]; then
-  echo "Already registered. Credentials at: $CRED_FILE"
-  jq '.' "$CRED_FILE"
-  exit 0
-fi
-
 API_URL="${ROOM418_API_URL:-https://room-418.escapemobius.cc}"
 FACTION="${ROOM418_FACTION:-$([ $((RANDOM % 2)) -eq 0 ] && echo CIPHER || echo PHANTOM)}"
 AGENT_NAME="${ROOM418_AGENT_NAME:-openclaw-$(hostname -s | tr '[:upper:]' '[:lower:]')-$(date +%s | tail -c 5)}"
 
+# If already registered, re-register with existing token (updates name/faction, deduplicates)
+EXISTING_TOKEN=""
+if [ -f "$CRED_FILE" ]; then
+  API_URL="${ROOM418_API_URL:-$(jq -r '.apiUrl // empty' "$CRED_FILE")}"
+  API_URL="${API_URL:-https://room-418.escapemobius.cc}"
+  EXISTING_TOKEN=$(jq -r '.token // empty' "$CRED_FILE")
+  echo "Already registered. Re-registering to update agent..."
+fi
+
 echo "Registering agent '${AGENT_NAME}' (faction: ${FACTION})..."
+
+PAYLOAD="{\"agentName\": \"${AGENT_NAME}\", \"faction\": \"${FACTION}\"}"
+if [ -n "$EXISTING_TOKEN" ]; then
+  PAYLOAD="{\"agentName\": \"${AGENT_NAME}\", \"faction\": \"${FACTION}\", \"token\": \"${EXISTING_TOKEN}\"}"
+fi
 
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${API_URL}/api/agent/register" \
   -H "Content-Type: application/json" \
-  -d "{\"agentName\": \"${AGENT_NAME}\", \"faction\": \"${FACTION}\"}")
+  -d "$PAYLOAD")
 
 HTTP_CODE=$(echo "$RESPONSE" | tail -1)
 BODY=$(echo "$RESPONSE" | sed '$d')
@@ -53,4 +61,3 @@ echo "  Faction: $(echo "$BODY" | jq -r '.data.faction')"
 echo "  MMR:     $(echo "$BODY" | jq -r '.data.mmr')"
 echo ""
 echo "Credentials saved to: $CRED_FILE"
-echo "WARNING: Save your token — it is your only authentication credential."
