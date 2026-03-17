@@ -89,7 +89,7 @@ python3 get_template.py --page=1 --num=10
 根据用户Markdown内容获取一个PPT下载链接的脚本。
 
 ### API 信息
-- **URL**: `https://ppt-api.7niuai.com/openclaw/generate_by_content`
+- **URL**: `https://ppt-api.7niuai.com/openclaw/generate_ppt_by_content`
 - **方式**: POST
 - **Content-Type**: `application/json`
 
@@ -105,7 +105,7 @@ python3 get_template.py --page=1 --num=10
 | status | int | 是 | 状态码0：成功，非 0 表示失败 | 0 |
 | msg | string | 是 | 状态描述 | "success" |
 | data | object | 是 | 数据 | |
-| data.view_url | string | 是 | 生成的PPT连接 | "https://ppt.7niuai.com/preview-in-ai/ed0bdb7485..." |
+| data.view_url | string | 是 | 生成的PPT连接 | "https://jcppt.com/preview-in-ai/ed0bdb7485..." |
 
 ### 请求示例
 ```bash
@@ -125,7 +125,7 @@ curl --location 'https://ppt-api.7niuai.com/openclaw/generate_by_content' \
     "msg": "success",
     "time": "2026-03-06 15:10:51",
     "data": {
-        "view_url": "https://ppt.7niuai.com/preview-in-ai/ed0bdb7485..."
+        "view_url": "https://jcppt.com/preview-in-ai/ed0bdb7485..."
     }
 }
 ```

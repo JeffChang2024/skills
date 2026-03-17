@@ -1,11 +1,11 @@
 # aippt-即触AI
-即触AI的官网是 **[官网](https://www.7niuai.com  "官网")**, 欢迎访问。
+即触AI的官网是 **[官网](https://www.jcppt.com  "官网")**, 欢迎访问。
 AIPPT 是用于自动化动化生成PPT的工具
 
 ## 配置AIPPT_ACCESS_TOKEN
 > 使用前 aippt，您需要先配置 AIPPT_ACCESS_TOKEN，以下是获取和配置 AIPPT_ACCESS_TOKEN 的步骤：
 - **AIPPT_ACCESS_TOKEN 获取方式:** 
-1. 登录官网：[官网](https://www.7niuai.com  "官网")
+1. 登录官网：[官网](https://www.jcppt.com  "官网")
 2. 点击头像，选择“个人中心”。
 3. 个人中心页面，找到 ACCESS_TOKEN 并复制。
 

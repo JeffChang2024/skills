@@ -8,7 +8,7 @@ import requests
 import argparse
 
 def generate_by_content(access_token:str, tpl_id:str, content:str):
-    url = "https://ppt-api.7niuai.com/openclaw/generate_by_content"
+    url = "https://ppt-api.7niuai.com/openclaw/generate_ppt_by_content"
 
     headers = {
         "token": access_token,
