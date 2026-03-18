@@ -1,0 +1,11 @@
+{
+  "owner": "swipth",
+  "slug": "news-agent",
+  "displayName": "news-agent-skills",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773738580243,
+    "commit": null
+  },
+  "history": []
+}
