@@ -1,0 +1,11 @@
+{
+  "owner": "linauror",
+  "slug": "baidupcs-go",
+  "displayName": "baidupcs-go - 百度网盘命令行工具",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773825081074,
+    "commit": null
+  },
+  "history": []
+}
