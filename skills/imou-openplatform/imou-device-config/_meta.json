@@ -1,0 +1,11 @@
+{
+  "owner": "imou-openplatform",
+  "slug": "imou-device-config",
+  "displayName": "Imou Open Device Config",
+  "latest": {
+    "version": "1.0.1",
+    "publishedAt": 1773833818428,
+    "commit": null
+  },
+  "history": []
+}
