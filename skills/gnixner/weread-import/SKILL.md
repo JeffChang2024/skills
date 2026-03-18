@@ -5,46 +5,35 @@ description: Export WeRead highlights and notes into Markdown files, usually int
 
 # weread-import
 
-This skill now carries its own CLI entrypoint in `scripts/weread-import.mjs` and runs through `scripts/run.sh`.
+通过 `scripts/run.sh` 运行 CLI。首次执行时会自动安装依赖。
 
-## First run
+## 默认策略
 
-Install the bundled runtime dependency once inside `scripts/`:
+1. 优先使用 `--mode api`。
+2. 有 Chrome 远程调试会话时，优先使用 `--cookie-from browser`。
+3. 修改模板、合并逻辑或 frontmatter 后，先输出到临时目录验证。
+4. 验证通过后，再对真实目录执行。
+5. 目的是重新渲染或验证时，加上 `--force` 跳过增量检查。
 
-```bash
-cd scripts
-npm install
-```
+详细命令模板见 `references/workflows.md`。
 
-Then run the skill via `./scripts/run.sh`.
-
-## Default path
-
-1. Prefer `--mode api`.
-2. Prefer `--cookie-from browser` when a Chrome remote debugging session is available.
-3. Prefer validating in a temporary output directory first when changing template / merge / frontmatter behavior.
-4. After validation, re-run against the real output directory.
-5. Use `--force` when the goal is re-render / verification instead of incremental skip.
-
-For concrete command templates, read `references/workflows.md`.
-
-## Recommended command shapes
+## 推荐命令
 
 ```bash
-# Single book
+# 导入单本书
 bash ./scripts/run.sh --book "自卑与超越" --mode api --cookie-from browser --output "/path/to/Reading"
 
-# All books
+# 导入全部书
 bash ./scripts/run.sh --all --mode api --cookie-from browser --output "/path/to/Reading"
 
-# Re-render existing file
+# 强制重新渲染
 bash ./scripts/run.sh --book "自卑与超越" --mode api --cookie-from browser --output "/path/to/Reading" --force
 
-# Override frontmatter tags
+# 覆盖 frontmatter tags
 bash ./scripts/run.sh --book "自卑与超越" --mode api --cookie-from browser --output "/path/to/Reading" --tags "reading/weread,book"
 ```
 
-## Parameters worth exposing
+## 可用参数
 
 - `--all`
 - `--book <title>`
@@ -56,22 +45,20 @@ bash ./scripts/run.sh --book "自卑与超越" --mode api --cookie-from browser 
 - `--force`
 - `--tags <a,b,c>`
 
-## Operational notes
+## 运行须知
 
-- Browser-cookie flow depends on a live Chrome remote debugging session, usually `http://127.0.0.1:9222`.
-- Merge stats support added / updated / retained / deleted.
-- Deleted items are archived under `## 已删除` instead of being dropped.
-- Frontmatter is enabled;正文不再重复 `## 元信息`.
-- If the WeRead API returns a business error such as login timeout, the CLI now fails loudly instead of silently exporting empty results.
-- The skill is self-contained at the script level, but still expects the runtime environment to provide Node.js and the required Playwright dependency.
+- 浏览器 cookie 提取依赖运行中的 Chrome 远程调试会话（默认 `http://127.0.0.1:9222`）。
+- 合并统计支持新增 / 更新 / 保留 / 删除四种分类。
+- 被删除的条目会归档到 `## 已删除`，而非直接丢弃。
+- 元信息由 YAML frontmatter 承载，正文中不重复。
+- API 返回业务错误（如登录过期）时会直接报错，不会静默导出空结果。
+- Skill 在脚本层面自包含，但运行环境需提供 Node.js 和 Playwright。
 
-## Resources
+## 资源
 
 ### scripts/
-- `scripts/run.sh`: main execution entrypoint for the skill
-- `scripts/weread-import.mjs`: bundled CLI implementation
-- `scripts/open-chrome-debug.sh`: helper for launching Chrome with remote debugging
-- `scripts/package.json`: local runtime dependency definition for the skill
+- `scripts/run.sh`：Skill 执行入口（首次自动安装依赖）
+- `scripts/open-chrome-debug.sh`：启动 Chrome 远程调试的辅助脚本
 
 ### references/
-- `references/workflows.md`: recommended command patterns, validation flow, and common failure handling.
+- `references/workflows.md`：推荐工作流、验证流程与常见问题处理

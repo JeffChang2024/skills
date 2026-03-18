@@ -1,41 +1,32 @@
-# weread-import workflows
+# weread-import 工作流
 
-## 0. 首次安装依赖
+## 1. 首次导入
 
-```bash
-cd scripts
-npm install
-```
-
-## 1. 首次导入到真实目录
-
-适用：用户已经确定输出目录，想把微信读书笔记导入到 Obsidian / Reading。
-
-推荐命令：
+适用场景：已确定输出目录，将微信读书笔记导入到 Obsidian 或其他目录。
 
 ```bash
 bash ./scripts/run.sh --book "自卑与超越" --mode api --cookie-from browser --output "/path/to/Reading"
 ```
 
-## 2. 先临时验证，再落真实目录
+## 2. 临时验证后再写入正式目录
 
-适用：刚改完模板、merge、frontmatter、tags，想先确认输出结构。
+适用场景：修改了模板、合并逻辑、frontmatter 或 tags，需要先确认输出格式。
 
-先跑临时目录：
+先输出到临时目录：
 
 ```bash
 bash ./scripts/run.sh --book "自卑与超越" --mode api --cookie-from browser --output /tmp/weread-verify --force
 ```
 
-确认没问题后，再跑真实目录：
+确认无误后，写入正式目录：
 
 ```bash
 bash ./scripts/run.sh --book "自卑与超越" --mode api --cookie-from browser --output "/path/to/Reading" --force
 ```
 
-## 3. 重渲染已有文件
+## 3. 重新渲染已有文件
 
-适用：模板变了、frontmatter 变了、tags 变了、删除归档逻辑变了。
+适用场景：模板、frontmatter、tags 或删除归档逻辑发生变化后，需要重新生成。
 
 ```bash
 bash ./scripts/run.sh --book "自卑与超越" --mode api --cookie-from browser --output "/path/to/Reading" --force
@@ -43,28 +34,30 @@ bash ./scripts/run.sh --book "自卑与超越" --mode api --cookie-from browser 
 
 ## 4. 自定义 frontmatter tags
 
+通过命令行参数：
+
 ```bash
 bash ./scripts/run.sh --book "自卑与超越" --mode api --cookie-from browser --output "/path/to/Reading" --tags "reading/weread,book"
 ```
 
-或：
+或通过环境变量：
 
 ```bash
 WEREAD_TAGS="reading/weread,book" bash ./scripts/run.sh --book "自卑与超越" --mode api --cookie-from browser --output "/path/to/Reading"
 ```
 
-## 5. 常见故障
+## 5. 常见问题
 
-### 登录超时 / 业务错误
+### 登录过期 / 业务错误
 
-现象：CLI 报错，提示业务错误、登录超时、或浏览器里没有可用 cookie。
+表现：CLI 报错，提示业务错误、登录过期或浏览器中无可用 cookie。
 
-处理：
-1. 确认 Chrome 远程调试实例还在
-2. 确认该实例里已经登录微信读书
-3. 再重跑 `--cookie-from browser`
-4. 必要时改用 `--cookie '...'`
+处理步骤：
+1. 确认 Chrome 远程调试实例仍在运行
+2. 确认该实例中已登录微信读书
+3. 重新执行 `--cookie-from browser`
+4. 若仍失败，改用 `--cookie '...'` 手动传入
 
-### 想先验证不想污染真实笔记
+### 避免影响正式笔记
 
-优先输出到 `/tmp/...`，确认结构后再重跑真实目录。
+先输出到 `/tmp/...` 临时目录验证，确认格式无误后再写入正式目录。
