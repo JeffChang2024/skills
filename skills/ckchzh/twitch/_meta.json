@@ -1,0 +1,11 @@
+{
+  "owner": "ckchzh",
+  "slug": "twitch",
+  "displayName": "Twitch",
+  "latest": {
+    "version": "2.0.0",
+    "publishedAt": 1773795032294,
+    "commit": null
+  },
+  "history": []
+}
