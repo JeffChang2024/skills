@@ -1,0 +1,11 @@
+{
+  "owner": "tangsuann",
+  "slug": "etf-trading-backtest",
+  "displayName": "ETF模拟交易回测系统",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773762311598,
+    "commit": null
+  },
+  "history": []
+}
