@@ -1,0 +1,11 @@
+{
+  "owner": "haooyi",
+  "slug": "openclaw-sec-audit",
+  "displayName": "Openclaw Security Audit",
+  "latest": {
+    "version": "0.1.0",
+    "publishedAt": 1773766285622,
+    "commit": null
+  },
+  "history": []
+}
