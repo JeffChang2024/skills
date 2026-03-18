@@ -1,0 +1,11 @@
+{
+  "owner": "roojenkins",
+  "slug": "uplo-clinical",
+  "displayName": "Uplo Clinical",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773809961339,
+    "commit": null
+  },
+  "history": []
+}
