@@ -1,0 +1,11 @@
+{
+  "owner": "xuelin314-bot",
+  "slug": "k3s-deploy",
+  "displayName": "K3s Kubernetes Deploy",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773732272443,
+    "commit": null
+  },
+  "history": []
+}
