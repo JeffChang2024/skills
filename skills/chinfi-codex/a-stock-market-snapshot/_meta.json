@@ -1,0 +1,11 @@
+{
+  "owner": "chinfi-codex",
+  "slug": "a-stock-market-snapshot",
+  "displayName": "A股每日复盘",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773809368280,
+    "commit": null
+  },
+  "history": []
+}
