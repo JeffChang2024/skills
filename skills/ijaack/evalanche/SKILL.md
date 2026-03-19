@@ -2,16 +2,23 @@
 name: evalanche
 description: >
   Multi-EVM agent wallet SDK with onchain identity (ERC-8004), payment rails (x402),
-  cross-chain bridging (Li.Fi), and destination gas funding (Gas.zip).
+  cross-chain liquidity (Li.Fi bridging + DEX aggregation + DeFi Composer), destination gas funding (Gas.zip),
+  perpetual futures trading (dYdX v4), and DeFi operations (liquid staking + EIP-4626 vaults).
   Supports 21+ EVM chains: Ethereum, Base, Arbitrum, Optimism, Polygon, BSC, Avalanche, and more.
   Agents generate and manage their own keys — no human input required.
   Use when: booting an autonomous agent wallet on any EVM chain, sending tokens, calling contracts,
   resolving agent identity, checking reputation, making x402 payment-gated API calls,
-  bridging tokens cross-chain (Li.Fi), funding gas on destination chains (Gas.zip),
+  bridging tokens cross-chain (Li.Fi), same-chain DEX swaps (31+ aggregators via Li.Fi),
+  one-click DeFi operations (Composer: bridge + deposit into Morpho/Aave/Pendle/Lido/etc),
+  tracking cross-chain transfer status, discovering tokens and prices across chains,
+  querying gas prices, finding available bridges and DEX aggregators,
+  funding gas on destination chains (Gas.zip),
   cross-chain transfers (Avalanche C↔X↔P), delegating stake, querying validators, signing messages,
-  creating subnets, managing L1 validators, adding validators with BLS keys, querying node info.
+  creating subnets, managing L1 validators, adding validators with BLS keys, querying node info,
+  trading perpetual futures on dYdX v4 (100+ markets), searching for perp markets across venues,
+  staking/unstaking sAVAX via Benqi, depositing/withdrawing from EIP-4626 vaults (yoUSD, Morpho, Aave, etc).
   Don't use when: managing ENS (use moltbook scripts).
-  Network: yes (EVM RPCs via Routescan + public fallbacks). Cost: gas fees per transaction.
+  Network: yes (EVM RPCs via Routescan + public fallbacks, dYdX Cosmos chain). Cost: gas fees per transaction.
 metadata:
   {
     "openclaw":
@@ -72,7 +79,7 @@ metadata:
 
 # Evalanche — Multi-EVM Agent Wallet
 
-Headless wallet SDK with ERC-8004 identity, x402 payments, Li.Fi bridging, and Gas.zip gas funding. Works on 21+ EVM chains. Works as CLI tools or MCP server.
+Headless wallet SDK with ERC-8004 identity, x402 payments, Li.Fi cross-chain liquidity (bridging + DEX aggregation + DeFi Composer), Gas.zip gas funding, dYdX v4 perpetuals, contract interaction helpers (approve-and-call + UUPS upgrade), and DeFi operations (liquid staking + EIP-4626 vaults). Works on 21+ EVM chains. 91 MCP tools. Works as CLI or MCP server.
 
 **Source:** https://github.com/iJaack/evalanche
 **License:** MIT
@@ -179,13 +186,34 @@ AVALANCHE_NETWORK=base evalanche-mcp
 | `arena_token_info` | Get token info (fees, curve params) by address |
 | `arena_buy_cost` | Calculate $ARENA cost for a given buy amount (read-only) |
 
-### Bridging
+### Contract Interaction Helpers (v0.9.0)
+| Tool | Description |
+|------|-------------|
+| `approve_and_call` | Approve ERC-20 spending, then execute a follow-up contract call |
+| `upgrade_proxy` | Upgrade a UUPS proxy via `upgradeToAndCall` |
+
+### Bridging & Cross-Chain
 | Tool | Description |
 |------|-------------|
 | `get_bridge_quote` | Get cross-chain bridge quote (Li.Fi) |
 | `get_bridge_routes` | Get all bridge route options |
 | `bridge_tokens` | Bridge tokens between chains |
+| `check_bridge_status` | Poll cross-chain transfer status (PENDING/DONE/FAILED) |
 | `fund_destination_gas` | Fund gas via Gas.zip |
+
+### Li.Fi Liquidity SDK (v0.8.0)
+| Tool | Description |
+|------|-------------|
+| `lifi_swap_quote` | Get same-chain DEX swap quote (31+ aggregators) |
+| `lifi_swap` | Execute same-chain DEX swap |
+| `lifi_get_tokens` | List tokens with prices on specified chains |
+| `lifi_get_token` | Get specific token info (symbol, decimals, priceUSD) |
+| `lifi_get_chains` | List all Li.Fi supported chains |
+| `lifi_get_tools` | List available bridges and DEX aggregators |
+| `lifi_gas_prices` | Get gas prices across all chains |
+| `lifi_gas_suggestion` | Get gas suggestion for a specific chain |
+| `lifi_get_connections` | Discover possible transfer paths between chains |
+| `lifi_compose` | Cross-chain DeFi Composer (bridge + deposit into Morpho/Aave/Pendle/Lido/etc in one tx) |
 
 ### Platform CLI (requires `platform-cli` binary — `go install github.com/ava-labs/platform-cli@latest`)
 | Tool | Description |
@@ -200,6 +228,20 @@ AVALANCHE_NETWORK=base evalanche-mcp
 | `l1_disable_validator` | Disable an L1 validator |
 | `node_info` | Get NodeID + BLS keys from running node |
 | `pchain_send` | Send AVAX on P-Chain (P→P) |
+
+### dYdX v4 Perpetuals (v0.7.0 — requires mnemonic)
+| Tool | Description |
+|------|-------------|
+| `dydx_get_markets` | List all dYdX perpetual markets with prices/leverage |
+| `dydx_has_market` | Check if a specific perp market exists (e.g. AKT-USD) |
+| `dydx_get_balance` | Get USDC equity on dYdX subaccount |
+| `dydx_get_positions` | Get all open perpetual positions |
+| `dydx_place_market_order` | Place a market order (BUY/SELL) |
+| `dydx_place_limit_order` | Place a limit order |
+| `dydx_cancel_order` | Cancel an open order |
+| `dydx_close_position` | Close position with reduce-only market order |
+| `dydx_get_orders` | List orders (optionally filter by status) |
+| `find_perp_market` | Search for a market across all connected perp venues |
 
 ## Programmatic Usage
 
@@ -229,6 +271,40 @@ agent.bridgeTokens({
 "
 ```
 
+### Same-chain DEX swap (ETH → USDC on Base)
+```bash
+node -e "
+const { Evalanche } = require('evalanche');
+const agent = new Evalanche({ privateKey: process.env.AGENT_PRIVATE_KEY, network: 'base' });
+agent.swap({
+  fromChainId: 8453, toChainId: 8453,
+  fromToken: '0x0000000000000000000000000000000000000000',
+  toToken: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+  fromAmount: '0.05', fromAddress: agent.address,
+}).then(r => console.log('swap tx:', r.txHash));
+"
+```
+
+### Track bridge transfer status
+```bash
+node -e "
+const { Evalanche } = require('evalanche');
+const agent = new Evalanche({ privateKey: process.env.AGENT_PRIVATE_KEY, network: 'ethereum' });
+agent.checkBridgeStatus({ txHash: '0x...', fromChainId: 1, toChainId: 8453 })
+  .then(s => console.log(s.status, s.substatus));
+"
+```
+
+### Token discovery
+```bash
+node -e "
+const { Evalanche } = require('evalanche');
+const agent = new Evalanche({ privateKey: process.env.AGENT_PRIVATE_KEY, network: 'base' });
+agent.getToken(8453, '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913')
+  .then(t => console.log(t.symbol, t.priceUSD));
+"
+```
+
 ### Cross-chain transfer on Avalanche (requires mnemonic)
 ```bash
 node -e "
@@ -246,9 +322,13 @@ agent.transfer({ from: 'C', to: 'P', amount: '25' })
 - Agent ID → tokenURI, owner, reputation score (0-100), trust level
 - Trust levels: **high** (≥75), **medium** (≥40), **low** (<40)
 
-### Li.Fi Bridging
-- Aggregated bridge routes across all major bridges (Across, Stargate, Hop, etc.)
-- Supports native tokens and ERC-20s across all chains
+### Li.Fi Cross-Chain Liquidity (v0.8.0)
+- **Bridging:** Aggregated routes across 27+ bridges (Across, Stargate, Hop, etc.)
+- **DEX Aggregation:** Same-chain swaps via 31+ DEX aggregators (1inch, Paraswap, Jupiter, etc.)
+- **DeFi Composer:** One-tx cross-chain DeFi (bridge + deposit into Morpho, Aave V3, Euler, Pendle, Lido wstETH, EtherFi, etc.)
+- **Status Tracking:** Poll transfer status (PENDING → DONE/FAILED with substatus)
+- **Token Discovery:** List/lookup tokens with prices across all chains
+- **Gas Pricing:** Gas prices and suggestions per chain
 - Uses Li.Fi REST API (no SDK dependency needed)
 
 ### Gas.zip
@@ -269,3 +349,32 @@ agent.transfer({ from: 'C', to: 'P', amount: '25' })
 |----------|---------|-------|
 | Identity Registry | `0x8004A169FB4a3325136EB29fA0ceB6D2e539a432` | AVAX C-Chain (43114) |
 | Reputation Registry | `0x8004BAa17C55a88189AE136b182e5fdA19dE9b63` | AVAX C-Chain (43114) |
+| sAVAX (Benqi) | `0x2b2C81e08f1Af8835a78Bb2A90AE924ACE0eA4bE` | AVAX C-Chain (43114) |
+| yoUSD Vault | `0x0000000f2eb9f69274678c76222b35eec7588a65` | Base (8453) |
+
+### DeFi — Liquid Staking & EIP-4626 Vaults (v1.2.0)
+
+```javascript
+const { agent } = await Evalanche.boot({ network: 'avalanche' });
+const { staking, vaults } = agent.defi();
+
+// sAVAX unstake (instant if pool available, delayed otherwise)
+const q = await staking.sAvaxUnstakeQuote('5');
+// { avaxOut, isInstant, poolBalance, minOutput }
+await staking.sAvaxUnstakeInstant('5');   // redeemInstant on Benqi
+await staking.sAvaxUnstakeDelayed('5');   // requestRedeem (no pool needed)
+
+// Stake AVAX → sAVAX
+await staking.sAvaxStake('10', 50);  // 50bps slippage
+
+// EIP-4626 vault deposit (any chain)
+const YOUSD = '0x0000000f2eb9f69274678c76222b35eec7588a65';
+const baseAgent = new Evalanche({ privateKey: '0x...', network: 'base' });
+const { vaults: baseVaults } = baseAgent.defi();
+await baseVaults.deposit(YOUSD, '1000', 'base');   // approve + deposit
+await baseVaults.withdraw(YOUSD, '998', 'base');    // redeem shares
+```
+
+**MCP tools (defi):**
+`savax_stake_quote`, `savax_stake`, `savax_unstake_quote`, `savax_unstake`,
+`vault_info`, `vault_deposit_quote`, `vault_deposit`, `vault_withdraw_quote`, `vault_withdraw`
