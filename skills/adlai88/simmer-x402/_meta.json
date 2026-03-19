@@ -3,11 +3,16 @@
   "slug": "simmer-x402",
   "displayName": "Simmer X402",
   "latest": {
-    "version": "1.0.4",
-    "publishedAt": 1772506406805,
-    "commit": "https://github.com/openclaw/skills/commit/b8bdc5c325be7b6644c0956672219573cff2f113"
+    "version": "1.0.5",
+    "publishedAt": 1773660736766,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.4",
+      "publishedAt": 1772506406805,
+      "commit": "https://github.com/openclaw/skills/commit/b8bdc5c325be7b6644c0956672219573cff2f113"
+    },
     {
       "version": "1.0.3",
       "publishedAt": 1772187863903,
