@@ -15,11 +15,13 @@ Trigger this skill for requests about creating presentation files:
 - Export presentation content into a shareable slide link
 
 Trigger keywords:
+
 - Chinese prompts about making slides or presentations
 - English: slides, PPT, presentation deck, generate presentation
 - Explicit commands: `/felo-slides`, "use felo slides"
 
 Do NOT use this skill for:
+
 - Real-time information lookup (use `felo-search`)
 - Questions about local codebase files
 - Pure text tasks that do not require slide generation
@@ -35,11 +37,13 @@ Do NOT use this skill for:
 ### 2. Configure environment variable
 
 Linux/macOS:
+
 ```bash
 export FELO_API_KEY="your-api-key-here"
 ```
 
 Windows PowerShell:
+
 ```powershell
 $env:FELO_API_KEY="your-api-key-here"
 ```
@@ -71,8 +75,22 @@ node felo-slides/scripts/run_ppt_task.mjs \
   --timeout 60
 ```
 
+To apply a specific theme, first list available themes with `felo ppt-themes`, then pass the theme ID:
+
+```bash
+node felo-slides/scripts/run_ppt_task.mjs \
+  --query "USER_PROMPT_HERE" \
+  --theme "THEME_ID_HERE" \
+  --interval 10 \
+  --max-wait 1800 \
+  --timeout 60
+```
+
 Script behavior:
+
 - Creates task via `POST https://openapi.felo.ai/v2/ppts`
+- Supports optional `--theme <id>` to apply a PPT theme (sends `ppt_config.ai_theme_id`)
+- Supports optional `--task-id <id>` to resume polling an existing task (skips creation)
 - Polls via `GET https://openapi.felo.ai/v2/tasks/{task_id}/historical`
 - Treats `COMPLETED`/`SUCCESS` as success terminal (case-insensitive)
 - Treats `FAILED`/`ERROR` as failure terminal
@@ -91,16 +109,19 @@ node felo-slides/scripts/run_ppt_task.mjs \
 ```
 
 This outputs structured JSON including:
+
 - `task_id`
 - `task_status`
 - `ppt_url`
 - `live_doc_url`
 - `livedoc_short_id`
 - `ppt_business_id`
+- `error_message`
 
 ### Step 4: Return structured result
 
 On success, return:
+
 - `ppt_url` immediately (script default output, fallback `live_doc_url`)
 - if `--json` is used, also include `task_id`, terminal status, and optional metadata
 
@@ -110,12 +131,14 @@ Use this response structure:
 
 ```markdown
 ## PPT Generation Result
+
 - Task ID: <task_id>
 - Status: <status>
 - PPT URL: <ppt_url>
 - Live Doc URL: <live_doc_url or N/A>
 
 ## Notes
+
 - livedoc_short_id: <value or N/A>
 - ppt_business_id: <value or N/A>
 ```
@@ -124,6 +147,7 @@ Error format:
 
 ```markdown
 ## PPT Generation Failed
+
 - Error Type: <error code or category>
 - Message: <readable message>
 - Suggested Action: <next step>
@@ -132,13 +156,23 @@ Error format:
 ## Error Handling
 
 Known API error codes:
+
 - `INVALID_API_KEY` (401): key invalid or revoked
 - `PPT_TASK_CREATE_FAILED` (502): create task downstream failed
 - `PPT_TASK_QUERY_FAILED` (502): query task downstream failed
 
 Timeout handling:
+
 - If timeout reached, return last known status and instruct user to retry later
 - Include `task_id` so user can query again
+- **IMPORTANT**: To resume a timed-out task, use `--task-id` instead of `--query` to avoid creating a duplicate PPT:
+
+```bash
+node felo-slides/scripts/run_ppt_task.mjs \
+  --task-id "TASK_ID_HERE" \
+  --interval 10 \
+  --max-wait 1800
+```
 
 ## Important Notes
 
@@ -151,4 +185,3 @@ Timeout handling:
 
 - [Felo PPT Task API](https://openapi.felo.ai/docs/api-reference/v2/ppt-tasks.html)
 - [Felo Open Platform](https://openapi.felo.ai/docs/)
-
