@@ -1,20 +1,20 @@
 ---
 name: wisediag-medocr
-description: "PDF OCR — Convert PDF to Markdown with high-accuracy OCR, table recognition and text extraction. Usage: Upload a PDF and say Use WiseOCR to OCR this."
+description: "PDF & Image OCR — Convert a single PDF or image to Markdown with high-accuracy OCR, table recognition and text extraction. Usage: Upload a file and say Use WiseOCR to OCR this."
 registry:
   homepage: https://github.com/wisediag/WiseOCR
   author: wisediag
-  credentials:
-    required: true
-    env_vars:
-      - WISEDIAG_API_KEY
+env_vars:
+  - WISEDIAG_API_KEY
+credentials:
+  required: true
 ---
 
 # ⚠️ Privacy Warning
 
 **IMPORTANT - READ BEFORE INSTALLING:**
 
-This tool **uploads your files to WiseDiag's cloud servers** for OCR processing.
+This tool **uploads your file to WiseDiag's cloud servers** for OCR processing.
 
 **Do NOT use with sensitive or confidential documents** unless:
 - You trust WiseDiag's data handling policies
@@ -26,14 +26,15 @@ This tool **uploads your files to WiseDiag's cloud servers** for OCR processing.
 
 # WiseOCR (OpenClaw Skill, powered by WiseDiag)
 
-A high-accuracy OCR tool that converts PDF files into Markdown format.
+A high-accuracy OCR tool that converts a **single PDF or image file** into Markdown format.
 
 ![License](https://img.shields.io/badge/License-MIT-blue.svg)
-![Python](https://img.shields.io/badge/Python-3.8+-green.svg)
+![Python](https://img.shields.io/badge/Python-3.10+-green.svg)
 
 ## Features
 
-- PDF to Markdown conversion with high accuracy
+- **PDF and image support**: jpg, jpeg, png, webp, gif, bmp, tiff
+- **Single file processing**: one PDF or image per command
 - Table recognition and structured formatting
 - Multi-column layout support
 - Automatic file saving with input filename
@@ -65,8 +66,11 @@ source ~/.zshrc
 ```bash
 cd scripts
 
-# Basic usage
-python3 wiseocr.py -i "/path/to/uploaded_file.pdf"
+# PDF
+python3 wiseocr.py -i "/path/to/report.pdf"
+
+# Image
+python3 wiseocr.py -i "/path/to/scan.png"
 
 # If the input file has been copied or renamed, use -n to preserve the original filename
 python3 wiseocr.py -i "/tmp/ocr_input.pdf" -n "my_report"
@@ -84,8 +88,8 @@ The Markdown result is saved to `~/.openclaw/workspace/WiseOCR/{name}.md` automa
 
 | Flag | Description |
 |------|-------------|
-| `-i, --input` | Input PDF file path (required) |
-| `-n, --name` | Original filename without extension for output (recommended when input file is renamed/copied) |
+| `-i, --input` | Input file: PDF or image — single file path (required) |
+| `-n, --name` | Output filename stem (recommended when input file is renamed/copied) |
 | `-o, --output` | Output directory (default: ~/.openclaw/workspace/WiseOCR) |
 | `--dpi` | PDF rendering DPI, 72-600 (default: 200) |
 

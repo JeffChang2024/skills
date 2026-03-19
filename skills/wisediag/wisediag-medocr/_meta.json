@@ -3,11 +3,16 @@
   "slug": "wisediag-medocr",
   "displayName": "WiseDiag MedOCR",
   "latest": {
-    "version": "1.0.21",
-    "publishedAt": 1772412713070,
-    "commit": "https://github.com/openclaw/skills/commit/7ab85986af5a8c89bc49d1221777f2e44f8301ec"
+    "version": "1.0.25",
+    "publishedAt": 1773916417420,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.21",
+      "publishedAt": 1772412713070,
+      "commit": "https://github.com/openclaw/skills/commit/7ab85986af5a8c89bc49d1221777f2e44f8301ec"
+    },
     {
       "version": "1.0.18",
       "publishedAt": 1772338978239,

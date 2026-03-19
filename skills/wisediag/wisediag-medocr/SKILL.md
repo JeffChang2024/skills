@@ -1,20 +1,20 @@
 ---
 name: wisediag-medocr
-description: "PDF OCR — Convert PDF to Markdown via WiseDiag cloud API. Supports table recognition, multi-column layouts, and high-accuracy text extraction. Usage: Upload a PDF and say Use WiseOCR to OCR this."
+description: "PDF & Image OCR — Convert a single PDF or image to Markdown via WiseDiag cloud API. Supports table recognition, multi-column layouts, and high-accuracy text extraction. Usage: Upload a file and say Use WiseOCR to OCR this."
 registry:
   homepage: https://github.com/wisediag/WiseOCR
   author: wisediag
-  credentials:
-    required: true
-    env_vars:
-      - WISEDIAG_API_KEY
+env_vars:
+  - WISEDIAG_API_KEY
+credentials:
+  required: true
 ---
 
 # ⚠️ Privacy Warning
 
 **IMPORTANT - READ BEFORE INSTALLING:**
 
-This skill **uploads your files to WiseDiag's cloud servers** for OCR processing.
+This skill **uploads your file to WiseDiag's cloud servers** for OCR processing.
 
 **Do NOT use with sensitive or confidential documents** unless:
 - You trust WiseDiag's data handling policies
@@ -26,7 +26,9 @@ This skill **uploads your files to WiseDiag's cloud servers** for OCR processing
 
 # WiseOCR Skill (powered by WiseDiag)
 
-A high-accuracy OCR tool that converts PDF files into Markdown format. After processing, the Markdown result is automatically saved to disk — no additional saving is needed.
+A high-accuracy OCR tool that converts a **single PDF or image file** into Markdown format. After processing, the Markdown result is automatically saved to disk — no additional saving is needed.
+
+Supported formats: PDF, jpg, jpeg, png, webp, gif, bmp, tiff.
 
 ## Installation
 
@@ -44,7 +46,7 @@ The API key MUST be set as an environment variable. The script reads it automati
 export WISEDIAG_API_KEY=your_api_key
 ```
 
-## How to Process a PDF (Step-by-Step)
+## How to Process a File (Step-by-Step)
 
 **NEVER call any API or HTTP endpoint directly. ONLY use the script below.**
 
@@ -54,11 +56,16 @@ Step 1: Set the API key (if not already set):
 export WISEDIAG_API_KEY=your_api_key
 ```
 
-Step 2: Run the script with the input PDF file:
+Step 2: Run the script with the input file:
 
 ```bash
 cd scripts
+
+# Single PDF
 python3 wiseocr.py -i "/path/to/input_filename.pdf"
+
+# Single image
+python3 wiseocr.py -i "/path/to/scan.png"
 ```
 
 **IMPORTANT:** If the input file has been copied or renamed (e.g. to a temp path), always pass `-n` with the original filename (without extension) so the output file is named correctly:
@@ -74,8 +81,8 @@ The Markdown result is saved to `~/.openclaw/workspace/WiseOCR/{name}.md` automa
 
 | Flag | Description |
 |------|-------------|
-| `-i, --input` | Input PDF file path (required) |
-| `-n, --name` | Original filename without extension for output (recommended when input file is renamed/copied) |
+| `-i, --input` | Input file: PDF or image — single file path (required) |
+| `-n, --name` | Output filename stem (recommended when input file is renamed/copied) |
 | `-o, --output` | Output directory (default: ~/.openclaw/workspace/WiseOCR) |
 | `--dpi` | PDF rendering DPI, 72-600 (default: 200) |
 
