@@ -187,7 +187,7 @@ async def do_recover(
     if should_replace_existing and old_unique_id and old_unique_id != identity.unique_id:
         prune_unreferenced_credential_dir(old_unique_id)
 
-    print("Handle recovered successfully:")
+    print("Handle recovered successfully:", file=sys.stderr)
     print(
         json.dumps(
             {
@@ -214,7 +214,11 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(description="Recover a Handle with phone OTP")
     parser.add_argument("--handle", required=True, type=str, help="Handle local-part")
-    parser.add_argument("--phone", required=True, type=str, help="Phone number")
+    parser.add_argument("--phone", required=True, type=str,
+                        help="Phone number in international format with country code "
+                             "(e.g., +8613800138000 for China, +14155552671 for US). "
+                             "China local 11-digit numbers are auto-prefixed with +86. "
+                             "Non-mainland China numbers MUST include the country code to receive SMS.")
     parser.add_argument("--otp-code", type=str, default=None, help="OTP code")
     parser.add_argument(
         "--credential",
