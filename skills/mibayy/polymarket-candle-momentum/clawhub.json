@@ -1,0 +1,17 @@
+{
+  "emoji": "\ud83d\udd6f\ufe0f",
+  "requires": {
+    "pip": [
+      "simmer-sdk",
+      "requests"
+    ],
+    "env": [
+      "SIMMER_API_KEY"
+    ]
+  },
+  "cron": "*/5 * * * *",
+  "automaton": {
+    "managed": false,
+    "entrypoint": "candle_momentum.py"
+  }
+}
