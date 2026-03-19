@@ -1,13 +1,18 @@
 {
   "owner": "phutt-bwai",
   "slug": "zonein",
-  "displayName": "Zonein: Whale hunting for trading agents on Hyperliquid & Polymarket",
+  "displayName": "Zonein: Trading OS for smarter Hyperliquid & Polymarket Agent - Smart Money Signals, Backtesting, Autonomous Execution & Self Learning.",
   "latest": {
-    "version": "2.1.9",
-    "publishedAt": 1773499454548,
-    "commit": "https://github.com/openclaw/skills/commit/3ce064513e65c78a99e6e85f050cf9884dede6d2"
+    "version": "2.3.5",
+    "publishedAt": 1773877101664,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.1.9",
+      "publishedAt": 1773499454548,
+      "commit": "https://github.com/openclaw/skills/commit/3ce064513e65c78a99e6e85f050cf9884dede6d2"
+    },
     {
       "version": "2.1.6",
       "publishedAt": 1773301546381,

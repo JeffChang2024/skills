@@ -139,6 +139,15 @@ def get_api_key():
     return key
 
 
+def _parse_json_arg(value: str, param_name: str):
+    """Parse a JSON string from CLI argument. Exits with clean error on invalid JSON."""
+    try:
+        return json.loads(value)
+    except (json.JSONDecodeError, TypeError) as e:
+        print(json.dumps({"error": f"Invalid JSON for {param_name}", "detail": str(e)}))
+        sys.exit(1)
+
+
 def _require_confirm(args, action_desc: str):
     """Programmatic confirmation gate for financial commands.
     Refuses to execute unless --confirm is explicitly passed.
@@ -362,20 +371,63 @@ def cmd_agent_create(args):
     if args.min_consensus:
         body.setdefault("trading_preferences", {})["min_smart_money_consensus"] = args.min_consensus
     if args.strength_thresholds:
-        body["strength_thresholds"] = json.loads(args.strength_thresholds)
+        body["strength_thresholds"] = _parse_json_arg(args.strength_thresholds, "--strength-thresholds")
     if args.timeframe_weights:
-        body["timeframe_weights"] = json.loads(args.timeframe_weights)
+        body["timeframe_weights"] = _parse_json_arg(args.timeframe_weights, "--timeframe-weights")
     if args.signal_weights:
-        body["signal_weights"] = json.loads(args.signal_weights)
+        body["signal_weights"] = _parse_json_arg(args.signal_weights, "--signal-weights")
     if args.trigger_conditions:
-        body["trigger_conditions"] = json.loads(args.trigger_conditions)
+        body["trigger_conditions"] = _parse_json_arg(args.trigger_conditions, "--trigger-conditions")
     if args.trading_risk:
-        body["trading_risk"] = json.loads(args.trading_risk)
+        body["trading_risk"] = _parse_json_arg(args.trading_risk, "--trading-risk")
     if args.prompt_config:
-        body["prompt_config"] = json.loads(args.prompt_config)
+        body["prompt_config"] = _parse_json_arg(args.prompt_config, "--prompt-config")
     if args.withdrawal_addresses:
         body["withdrawal_addresses"] = [a.strip() for a in args.withdrawal_addresses.split(",")]
     data = api_post("/agents/", body)
+    # Extract and promote critical fields to top level for LLM safety.
+    agent_id = (data.get("agent") or {}).get("agent_id", "UNKNOWN")
+    vault = data.get("vault") or {}
+    deposit_address = vault.get("address", "NONE")
+    data["CRITICAL_AGENT_ID"] = agent_id
+    data["CRITICAL_DEPOSIT_ADDRESS"] = deposit_address
+
+    # Script-side verification: call deposit-info API to double-confirm address
+    # AND fetch enhanced deposit info (payment link, QR, Arbiscan).
+    verification = "SKIPPED"
+    deposit_info = {}
+    if deposit_address and deposit_address != "NONE" and agent_id != "UNKNOWN":
+        try:
+            verify_data = _do_request(f"/agents/{agent_id}/deposit-info", method="GET")
+            verified_address = (verify_data or {}).get("deposit_address", "")
+            if verified_address == deposit_address:
+                verification = f"VERIFIED_OK — deposit-info confirmed {deposit_address}"
+                deposit_info = {
+                    "payment_link": verify_data.get("payment_link", ""),
+                    "qr_code_url": verify_data.get("qr_code_url", ""),
+                    "verify_address_url": verify_data.get("verify_address_url", ""),
+                    "chain": verify_data.get("chain", "Arbitrum One"),
+                    "token": verify_data.get("token", "USDC"),
+                    "safety_warnings": verify_data.get("safety_warnings", []),
+                }
+            else:
+                verification = (
+                    f"MISMATCH — create returned {deposit_address} "
+                    f"but deposit-info returned {verified_address} — DO NOT USE"
+                )
+        except Exception:
+            verification = f"VERIFY_FAILED — could not reach deposit-info, use with caution: {deposit_address}"
+
+    data["ADDRESS_VERIFICATION"] = verification
+    if deposit_info:
+        data["DEPOSIT_INFO"] = deposit_info
+    data["CRITICAL_NOTICE"] = (
+        f"AGENT_ID={agent_id} | DEPOSIT_ADDRESS={deposit_address} | "
+        f"VERIFICATION={verification} | "
+        "You MUST copy these values EXACTLY from this output. "
+        "DO NOT generate or guess agent IDs or wallet addresses from memory. "
+        "Use DEPOSIT_INFO.payment_link or qr_code_url for safest deposit."
+    )
     _output(data)
 
 
@@ -395,7 +447,7 @@ def cmd_agent_update(args):
     if args.execution_mode:
         body["execution_mode"] = args.execution_mode
     if args.prompt_config:
-        body["prompt_config"] = json.loads(args.prompt_config)
+        body["prompt_config"] = _parse_json_arg(args.prompt_config, "--prompt-config")
     if args.trading_strategy:
         body.setdefault("prompt_config", {})["trading_strategy"] = args.trading_strategy
     if args.custom_rules:
@@ -403,15 +455,15 @@ def cmd_agent_update(args):
     if args.risk_management:
         body.setdefault("prompt_config", {})["risk_management"] = args.risk_management
     if args.trigger_conditions:
-        body["trigger_conditions"] = json.loads(args.trigger_conditions)
+        body["trigger_conditions"] = _parse_json_arg(args.trigger_conditions, "--trigger-conditions")
     if args.trading_risk:
-        body["trading_risk"] = json.loads(args.trading_risk)
+        body["trading_risk"] = _parse_json_arg(args.trading_risk, "--trading-risk")
     if args.signal_weights:
-        body["signal_weights"] = json.loads(args.signal_weights)
+        body["signal_weights"] = _parse_json_arg(args.signal_weights, "--signal-weights")
     if args.strength_thresholds:
-        body["strength_thresholds"] = json.loads(args.strength_thresholds)
+        body["strength_thresholds"] = _parse_json_arg(args.strength_thresholds, "--strength-thresholds")
     if args.timeframe_weights:
-        body["timeframe_weights"] = json.loads(args.timeframe_weights)
+        body["timeframe_weights"] = _parse_json_arg(args.timeframe_weights, "--timeframe-weights")
     if args.withdrawal_addresses:
         body["withdrawal_addresses"] = [a.strip() for a in args.withdrawal_addresses.split(",")]
     if not body:
@@ -530,6 +582,14 @@ def cmd_agent_open(args):
     }
     if args.leverage:
         body["leverage"] = args.leverage
+    if args.stop_loss is not None:
+        body["stop_loss"] = args.stop_loss
+    if args.take_profit is not None:
+        body["take_profit"] = args.take_profit
+    if args.order_type and args.order_type != "market":
+        body["order_type"] = args.order_type
+    if args.limit_price is not None:
+        body["limit_price"] = args.limit_price
     data = api_post(f"/agents/{args.agent_id}/orders", body)
     _output(data)
 
@@ -540,7 +600,6 @@ def cmd_agent_close(args):
     body = {
         "action": "close",
         "coin": args.coin,
-        "direction": "LONG",
     }
     data = api_post(f"/agents/{args.agent_id}/orders", body)
     _output(data)
@@ -714,7 +773,7 @@ def cmd_agent_plan_action(args):
     if args.notes:
         body["notes"] = args.notes
     if args.edits:
-        body["edits"] = json.loads(args.edits)
+        body["edits"] = _parse_json_arg(args.edits, "--edits")
     data = api_post(f"/agents/{args.agent_id}/plans/{args.plan_id}/action", body)
     _output(data)
 
@@ -750,12 +809,28 @@ def cmd_telegram_disable(args):
     _output(data)
 
 
+def cmd_hip3_dexs(args):
+    """List all HIP-3 DEXs."""
+    data = api_request("/dashboard/hip3/dexs")
+    _output(data)
+
+
+def cmd_hip3_assets(args):
+    """List assets for a HIP-3 DEX."""
+    data = api_request(f"/dashboard/hip3/assets/{args.dex}")
+    _output(data)
+
+
 def cmd_agent_signal(args):
     """Raw composite data for trading agents (SM + TA + Market in one call)."""
     params = {}
     if args.categories:
         params["categories"] = args.categories
-    data = api_request(f"/dashboard/agent-signal/perp/{args.symbol.upper()}", params)
+    sym = args.symbol
+    if ":" in sym:
+        data = api_request(f"/dashboard/agent-signal/hip3/{sym}", params)
+    else:
+        data = api_request(f"/dashboard/agent-signal/perp/{sym.upper()}", params)
     _output(data)
 
 
@@ -940,7 +1015,7 @@ def main():
     # --- Agent Create ---
     p = sub.add_parser("agent-create", help="Create a new trading agent")
     p.add_argument("--name", type=str, required=True, help="Agent name")
-    p.add_argument("--type", type=str, default="composite", help="Agent type: composite, momentum_hunter, stable_grower, precision_master, whale_follower, scalping_pro, swing_trader")
+    p.add_argument("--type", type=str, default="composite", help="Agent type: composite, momentum_hunter, stable_grower, precision_master, whale_follower, scalping_pro, swing_trader, hip3_whale_follower, hip3_diversified, hip3_conviction")
     p.add_argument("--assets", type=str, default=None, help="Comma-separated: BTC,ETH,SOL,HYPE")
     p.add_argument("--categories", type=str, default=None, help="Comma-separated SM categories")
     p.add_argument("--leverage", type=int, default=None, help="Max leverage (1-20)")
@@ -1073,24 +1148,28 @@ def main():
     # --- Agent Open (manual order) ---
     p = sub.add_parser("agent-open", help="Open a position (manual order)")
     p.add_argument("agent_id", type=str)
-    p.add_argument("--coin", type=str, required=True, help="BTC, ETH, SOL, HYPE")
+    p.add_argument("--coin", type=str, required=True, help="BTC, ETH, SOL, HYPE, or HIP-3 dex:COIN (e.g. xyz:TSLA)")
     p.add_argument("--direction", type=str, default="LONG", help="LONG or SHORT")
     p.add_argument("--size", type=float, required=True, help="Position size in USD")
     p.add_argument("--leverage", type=int, default=None, help="Leverage (1-20)")
+    p.add_argument("--stop-loss", type=float, default=None, help="Stop loss price")
+    p.add_argument("--take-profit", type=float, default=None, help="Take profit price")
+    p.add_argument("--order-type", type=str, default="market", help="market or limit")
+    p.add_argument("--limit-price", type=float, default=None, help="Limit price (for limit orders)")
     p.add_argument("--confirm", action="store_true", help=CONFIRM_HELP)
     p.set_defaults(func=cmd_agent_open)
 
     # --- Agent Close (manual order) ---
     p = sub.add_parser("agent-close", help="Close a position")
     p.add_argument("agent_id", type=str)
-    p.add_argument("--coin", type=str, required=True, help="BTC, ETH, SOL, HYPE")
+    p.add_argument("--coin", type=str, required=True, help="BTC, ETH, SOL, HYPE, or HIP-3 dex:COIN (e.g. xyz:TSLA)")
     p.add_argument("--confirm", action="store_true", help=CONFIRM_HELP)
     p.set_defaults(func=cmd_agent_close)
 
     # --- Agent Update SL/TP ---
     p = sub.add_parser("agent-update-sl-tp", help="Update stop-loss / take-profit for open position")
     p.add_argument("agent_id", type=str)
-    p.add_argument("--coin", type=str, required=True, help="BTC, ETH, SOL, HYPE")
+    p.add_argument("--coin", type=str, required=True, help="BTC, ETH, SOL, HYPE, or HIP-3 dex:COIN (e.g. xyz:TSLA)")
     p.add_argument("--stop-loss", type=float, default=None, help="New stop-loss price")
     p.add_argument("--take-profit", type=float, default=None, help="New take-profit price")
     p.add_argument("--confirm", action="store_true", help=CONFIRM_HELP)
@@ -1175,6 +1254,15 @@ def main():
     # --- Telegram Disable ---
     p = sub.add_parser("telegram-disable", help="Disable Telegram notifications + remove webhook")
     p.set_defaults(func=cmd_telegram_disable)
+
+    # --- HIP-3 DEXs ---
+    p = sub.add_parser("hip3-dexs", help="List all HIP-3 DEXs")
+    p.set_defaults(func=cmd_hip3_dexs)
+
+    # --- HIP-3 Assets ---
+    p = sub.add_parser("hip3-assets", help="List assets for a HIP-3 DEX")
+    p.add_argument("dex", type=str, help="DEX name: xyz, flx, vntl, hyna, km, cash")
+    p.set_defaults(func=cmd_hip3_assets)
 
     # --- Agent Signal (raw composite data) ---
     p = sub.add_parser("agent-signal", help="Raw composite data for trading agents (SM + TA + Market)")

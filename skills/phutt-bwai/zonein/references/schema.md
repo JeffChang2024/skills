@@ -179,6 +179,8 @@
     "provider": "deepseek",
     "model": "deepseek-v3-1-250821"
   },
+  "model_provider": "deepseek",
+  "model_name": "deepseek-v3-1-250821",
   "signal_weights": {"sm": 40, "ta": 35, "market": 25},
   "trading_risk": {
     "max_positions": 5,
@@ -230,7 +232,16 @@
     "BTC": {"min_strength_buy": 70, "min_strength_sell": 65},
     "ETH": {"min_strength_buy": 75, "min_strength_sell": 65}
   },
-  "timeframe_weights": {"24h": 0.5, "4h": 0.35, "1h": 0.15}
+  "timeframe_weights": {"24h": 0.5, "4h": 0.35, "1h": 0.15},
+  "dsl_config": {
+    "enabled": true,
+    "phase1_retrace": 0.3,
+    "phase1_absolute_floor_pct": 0.5,
+    "phase2_trigger_roe": 2.0,
+    "phase2_lock_pct": 0.5,
+    "phase3_trigger_roe": 5.0,
+    "phase3_trailing_pct": 0.3
+  }
 }
 ```
 
