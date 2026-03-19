@@ -1,0 +1,27 @@
+{
+  "id": "zke-trading",
+  "name": "ZKE Trading",
+  "version": "1.0.0",
+  "description": "ZKE Exchange tools for spot, futures and wallet operations via local Python SDK.",
+  "author": "ZKE Exchange",
+  "entry": "dist/index.js",
+  "skills": [
+    "skills/zke_trading"
+  ],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "tradingHome": {
+        "type": "string",
+        "description": "Absolute path to local zke-trading SDK directory",
+        "default": "/Users/openclaw/.zke-trading"
+      },
+      "pythonBin": {
+        "type": "string",
+        "description": "Python executable to use. Leave empty to auto-detect.",
+        "default": ""
+      }
+    },
+    "additionalProperties": false
+  }
+}
