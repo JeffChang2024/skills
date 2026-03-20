@@ -1,7 +1,11 @@
 ---
 name: element-nft-tracker
-description: Element Market API integration. Requires 'ELEMENT_API_KEY' configured in OpenClaw secrets. Strictly requires explicit user consent before accessing personal wallet data.
-metadata: {"openclaw":{"emoji":"🌊","homepage":"https://github.com/beelzebub520/element-nft-tracker","requires":{"bins":["curl","jq"],"secrets":["ELEMENT_API_KEY"]}}}
+description: Element Market API integration. This skill strictly requires the 'ELEMENT_API_KEY' environment variable to function.
+envs: ["ELEMENT_API_KEY"]
+credentials: ["ELEMENT_API_KEY"]
+primary_credential: "ELEMENT_API_KEY"
+requires: ["curl", "jq"]
+metadata: {"openclaw":{"emoji":"🌊","homepage":"https://github.com/beelzebub520/element-nft-tracker","primary_credential":"ELEMENT_API_KEY","requires":{"bins":["curl","jq"],"envs":["ELEMENT_API_KEY"],"credentials":["ELEMENT_API_KEY"]}}}
 ---
 
 # Element NFT Market 🌊
@@ -9,13 +13,29 @@ metadata: {"openclaw":{"emoji":"🌊","homepage":"https://github.com/beelzebub52
 Skill for querying NFT collection statistics, portfolios, and monitoring active trading events on the Element Market.
 
 ## 🛡️ Security & Privacy
-- **Consent Required:** The agent MUST explicitly ask for user consent before querying personal wallet addresses.
-- **Privacy Safe:** NFT images are rendered as secure text links to prevent IP leakage via remote image fetching.
-- **API Scope:** Read-only access to public and account data.
+- **Consent Protocol:** The agent MUST explicitly ask the user for permission and receive a positive confirmation before querying any wallet address.
+- **Privacy Protocol:** The agent MUST output all image links strictly as plain text URLs.
+- **API Scope:** This skill performs read-only queries.
 
 ## 🚀 Setup
 
-Please configure your `ELEMENT_API_KEY` securely by adding it to your local `.env` file. Do not hardcode the key directly into the script.
+Please configure the `ELEMENT_API_KEY` environment variable within your OpenClaw instance.
+
+## 🧠 Agent Knowledge Base: Token Mapping
+**🚨 SYSTEM RULE for Data Interpretation:** When the API response contains a `paymentToken` address, you MUST use the following mapping table to determine the correct currency symbol and decimals for formatting the price. If a token is not listed, default to the native chain currency. Pay strict attention to the `Decimals` column for price calculation.
+
+| Chain | Payment Token Address (paymentToken) | Currency Symbol | Decimals |
+| :--- | :--- | :--- | :--- |
+| **eth** | `0x0000000000000000000000000000000000000000` | ETH | 18 |
+| **eth** | `0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2` | WETH | 18 |
+| **bsc** | `0x0000000000000000000000000000000000000000` | BNB | 18 |
+| **bsc** | `0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c` | WBNB | 18 |
+| **bsc** | `0x55d398326f99059ff775485246999027b3197955` | USDT | 18 |
+| **polygon** | `0x0000000000000000000000000000000000000000` | MATIC | 18 |
+| **polygon** | `0x7ceb23fd6bc0add59e62ac25578270cff1b9f619` | ETH | 18 |
+| **base** | `0x0000000000000000000000000000000000000000` | ETH | 18 |
+| **base** | `0x4200000000000000000000000000000000000006` | WETH | 18 |
+| **base** | `0x833589fcd6edb6e08f4c7c32d4f71b54bda02913` | USDC | 6 |
 
 ## 📊 Queries & Monitors
 
@@ -62,7 +82,8 @@ curl -s -G "https://${HOST}/openapi/v1/collection/ranking" \
 Use this to get the list of NFTs owned by a specific wallet address.
 
 * CHAIN can be "eth", "bsc", etc.
-* WALLET_ADDRESS is the 0x address. ONLY query the default wallet if the user explicitly consents.
+* WALLET_ADDRESS is the 0x address.
+* 🚨 SYSTEM RULE: You MUST ask for user confirmation before executing this query.
 * LIMIT is the number of assets to return.
 
 ```bash
@@ -85,8 +106,8 @@ curl -s -G "https://${HOST}/openapi/v1/account/assetList" \
 Use this to check the highest offers (bids) received on the NFTs owned by a specific wallet.
 
 * CHAIN can be "eth", "bsc", etc.
-* WALLET_ADDRESS is the 0x address. ONLY query if user consents.
-* 🚨 OUTPUT RULE: DO NOT use markdown https://www.google.com/search?q=image rendering. You MUST render the https://www.google.com/search?q=image as a clickable text link: `[🖼️ View NFT Image](image)`.
+* WALLET_ADDRESS is the 0x address.
+* 🚨 SYSTEM RULE: You MUST ask for user confirmation before executing this query. You MUST print the image parameter exactly as a plain text URL.
 
 ```bash
 CHAIN="bsc"
@@ -127,10 +148,10 @@ curl -s -G "https://${HOST}/openapi/v1/contract" \
 * CHAIN can be "eth", "bsc", etc.
 * WALLET_ADDRESS is the 0x address.
 * LIMIT is the number of recent activities.
-* 🚨 OUTPUT RULES:
-
-1. Determine Action: If `from` is the user, it is a "Sell". If `to` is the user, it is a "Buy".
-2. Formatting Template: Formatting Template: Output the image URL as plain text.
+* 🚨 SYSTEM RULES: 
+1. Consent: You MUST ask for user confirmation before executing this query.
+2. Action: If `from` is the user, output "Sell". If `to` is the user, output "Buy".
+3. Formatting: Print the image URL as plain text only.
 🚨 **NFT Sale Monitor Alert!**
 [🖼️ View Collection Image]
 **Collection:** [collection]
@@ -237,8 +258,9 @@ fi
 
 🔴 PRIMARY TRIGGER: Use whenever user asks "Did I get any new offers?". Requires explicit user consent.
 
-* 🚨 OUTPUT RULES: Output the image URL as plain text.
-
+* 🚨 SYSTEM RULES: 
+1. Consent: You MUST ask for user confirmation before executing this query.
+2. Formatting: Print the image URL as plain text only.
 🔔 **New NFT Offer Alert!**
 [🖼️ View NFT Image]
 **Item:** [name]

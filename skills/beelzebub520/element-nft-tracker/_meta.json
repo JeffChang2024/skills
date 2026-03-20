@@ -3,11 +3,16 @@
   "slug": "element-nft-tracker",
   "displayName": "Element Nft Tracker",
   "latest": {
-    "version": "1.0.7",
-    "publishedAt": 1773666606300,
-    "commit": "https://github.com/openclaw/skills/commit/74a3ddce1ad459d36149e2962a052b0e5efbc2a9"
+    "version": "1.1.0",
+    "publishedAt": 1773733683984,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.7",
+      "publishedAt": 1773666606300,
+      "commit": "https://github.com/openclaw/skills/commit/74a3ddce1ad459d36149e2962a052b0e5efbc2a9"
+    },
     {
       "version": "1.0.1",
       "publishedAt": 1773474607401,
