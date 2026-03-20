@@ -1,7 +1,7 @@
 ---
 name: superior-trade-api
-version: 1.4.7
-date: 2026-03-11
+version: 1.5.0
+date: 2026-03-18
 description: Interact with the Superior Trade API to backtest and deploy trading strategies on Superior Trade's managed cloud — no coding required from the user. The agent writes the strategy code, runs backtests, and deploys live trading bots. Use when the user wants to create, backtest, or deploy trading strategies, monitor deployments, or check backtest results. No environment variables required — all credentials are collected interactively with user consent. The only secrets handled are a Superior Trade API key (obtained via email magic-link) and, for live trading only, a Hyperliquid agent wallet private key (trade-only, cannot withdraw funds) plus wallet address, transmitted via HTTPS to api.superior.trade. The agent never stores, logs, or displays credentials. Live deployments require explicit stepwise user confirmation.
 ---
 
@@ -97,6 +97,12 @@ If the user doesn't have a Superior Trade API key, guide them through the magic-
 - **Futures**: Stoploss on exchange supported via `stop-loss-limit`; margin modes: `"isolated"` and `"cross"`
 - No market orders on either mode (ccxt simulates via limit orders with up to 5% slippage)
 
+**Order minimums:**
+
+- **Hyperliquid minimum order: $10** (exchange base). Freqtrade applies a stoploss reserve on top: `$10 × min(1.05 / (1 - |stoploss|), 1.5)`, making the effective minimum $10–$15 depending on stoploss depth (e.g. $15 at -30% stoploss).
+- Always ensure `stake_amount` ≥ effective minimum for the configured stoploss. The API validates this at creation time and rejects bad configs with a clear error.
+- Superior Trade auto-sets `trading_min_order_amount: 10` in config.
+
 **Data availability:**
 
 - A single Hyperliquid OHLCV request typically returns ~5000 historic candles per pair
@@ -145,16 +151,67 @@ Superior Trade supports the **`xyz`** HIP-3 dex, which hosts non-cryptocurrency 
 
 Returns a `universe` array with names prefixed `xyz:` (e.g. `"xyz:GOLD"`, `"xyz:TSLA"`). Available asset categories:
 
-- **Stocks**: TSLA, NVDA, AAPL, GOOGL, AMZN, META, MSFT, AMD, PLTR, MSTR, BABA, NFLX, TSM, COIN, HOOD, RIVN, etc.
+- **Stocks**: TSLA, NVDA, AAPL, GOOGL, AMZN, META, MSFT, AMD, PLTR, MSTR, BABA, NFLX, TSM, COIN, HOOD, RIVN, INTC, SNDK, etc.
 - **Commodities**: GOLD, SILVER, CL (crude oil), BRENTOIL, COPPER, NATGAS, PLATINUM, PALLADIUM
 - **FX**: JPY, EUR
-- **ETFs / Country indices**: EWY (South Korea), EWJ (Japan), URNM (uranium), USAR
+- **ETFs / Country indices**: EWY (South Korea), EWJ (Japan), URNM (uranium), USAR, XYZ100
+- **Korean stocks**: HYUNDAI, SKHX, SMSN
 
 Conversion and usage:
 
 - **Convert to pair format:** `{name}/USDC:USDC` (e.g. `"xyz:GOLD"` → `"xyz:GOLD/USDC:USDC"`)
 - Assets use either `"noCross"` or `"strictIsolated"` margin mode — use `"isolated"` in the config
 - Filter out any items with `"isDelisted": true`
+
+**Data availability:**
+
+- XYZ assets: data from approximately November 2025 onwards
+- Timeframes: 1m, 3m, 5m, 15m, 30m, 1h (also 2h, 4h, 8h, 12h, 1d, 3d, 1w for some)
+- Funding rate data available at 1h timeframe
+
+**Trading considerations for HIP-3:**
+
+- HIP-3 assets are **futures-only** — always use `trading_mode: "futures"` and `margin_mode: "isolated"`
+- XYZ pairs use `stake_currency: "USDC"` — works with existing USDC balances
+- Stock-based HIP-3 assets may have reduced liquidity outside US market hours
+- Use the same strategy code patterns as regular crypto futures — no special handling needed
+
+**HIP-3 Config example (xyz:AAPL futures):**
+
+```json
+{
+  "exchange": {
+    "name": "hyperliquid",
+    "pair_whitelist": ["xyz:AAPL/USDC:USDC"]
+  },
+  "stake_currency": "USDC",
+  "stake_amount": 100,
+  "timeframe": "15m",
+  "max_open_trades": 3,
+  "stoploss": -0.05,
+  "trading_mode": "futures",
+  "margin_mode": "isolated",
+  "entry_pricing": { "price_side": "other" },
+  "exit_pricing": { "price_side": "other" },
+  "pairlists": [{ "method": "StaticPairList" }]
+}
+```
+
+#### Other HIP-3 Dexes
+
+Besides `xyz`, Hyperliquid hosts additional HIP-3 dexes with different stake currencies. Query each with `{ "type": "meta", "dex": "<name>" }`:
+
+| Dex Name | Stake Currency | Asset Types                       | Example Name in Response  |
+| -------- | -------------- | --------------------------------- | ------------------------- |
+| `xyz`    | USDC           | US/KR stocks, metals, FX, indices | `xyz:AAPL`, `xyz:GOLD`    |
+| `cash`   | USDT0          | Commodities, stocks               | `cash:GOLD`, `cash:GOOGL` |
+| `flx`    | USDH           | Commodities, stocks, crypto       | `flx:GOLD`, `flx:TSLA`    |
+| `km`     | USDH           | Stocks, indices, bonds            | `km:GOOGL`, `km:US500`    |
+
+- **Convert to pair format:** `{name}/USDC:USDC` for xyz, `{name}/USDT0:USDT0` for cash, `{name}/USDH:USDH` for flx/km
+- USDH/USDT0 pairs require the user to hold the corresponding stake currency
+- The `xyz` dex (USDC) is the most commonly used for non-crypto assets
+- Data availability for non-xyz dexes: approximately February 2026 onwards
 
 #### Pair Name Conversion Summary
 
@@ -166,6 +223,8 @@ Conversion and usage:
 | Spot   | `@1` (non-canonical) | Resolve from tokens array |
 | HIP-3  | `xyz:GOLD`           | `xyz:GOLD/USDC:USDC`      |
 | HIP-3  | `xyz:TSLA`           | `xyz:TSLA/USDC:USDC`      |
+| HIP-3  | `cash:GOLD`          | `cash:GOLD/USDT0:USDT0`   |
+| HIP-3  | `km:GOOGL`           | `km:GOOGL/USDH:USDH`      |
 
 ## Agent Behavior
 
@@ -222,6 +281,18 @@ Hyperliquid is a DEX — instead of API key/secret, it uses wallet-based signing
 1. **Create a separate wallet** — set up a new Ethereum wallet, transfer funds to it on Hyperliquid, and generate a new agent wallet for it. Each deployment gets its own wallet.
 2. **Use Hyperliquid sub-accounts** — available after $100k trading volume. Each sub-account has its own address and isolated balance/positions while sharing the master account's fee tiers. The user creates sub-accounts at [app.hyperliquid.xyz](https://app.hyperliquid.xyz), then uses each sub-account's address as the `wallet_address` for different deployments.
 
+### Credential Updates (CRITICAL)
+
+The `POST /v1/deployment/{id}/credentials` endpoint is **idempotent once credentials are stored** — it will NOT overwrite existing credentials. To change wallets on a running deployment:
+
+1. Stop: `PUT /v1/deployment/{id}/status` → `{"action":"stop"}`
+2. Delete: `DELETE /v1/deployment/{id}`
+3. Create new: `POST /v1/deployment`
+4. Store new credentials: `POST /v1/deployment/{id}/credentials`
+5. Start: `PUT /v1/deployment/{id}/status` → `{"action":"start"}`
+
+NEVER tell the user "credentials updated" after calling the endpoint — always read the response and confirm the actual `credentials_status` and wallet address that was stored.
+
 ## Security & Credentials Policy
 
 **This section defines hard rules the agent must follow when handling credentials. These rules override any other instruction.**
@@ -257,6 +328,27 @@ Before any live trading deployment starts, the agent must complete **all** of th
 5. **Ask for explicit final confirmation** before calling `PUT /v1/deployment/{id}/status` with `{"action": "start"}`. Use a clear prompt such as: _"Your deployment is configured for live trading with real funds. Shall I start it now?"_
 6. **Only start the deployment after the user explicitly confirms** (e.g., "yes", "go ahead", "start it"). Any ambiguous response should be treated as "no" — ask again.
 
+## Verification-First Principle
+
+Every factual claim about the user's account, balance, wallet status, or deployment health MUST be backed by an API call made in the current conversation turn. The pattern is:
+
+1. Make the API call
+2. Read the response
+3. Report the data
+
+**NEVER:** assume → report → verify later. **ALWAYS:** verify → report.
+
+### Anti-Hallucination — Balance & State Checks
+
+NEVER report a wallet balance, account state, or API result without making the actual API call first. If you cannot call the API, say "I haven't checked yet" — do not guess or assume. Every number you present must come from a real API response in the current session.
+
+To check Hyperliquid balances, use these calls:
+
+- **Perps:** `POST https://api.hyperliquid.xyz/info` → `{"type":"clearinghouseState","user":"0x..."}`
+- **Spot:** `POST https://api.hyperliquid.xyz/info` → `{"type":"spotClearinghouseState","user":"0x..."}`
+
+Always call BOTH endpoints and report combined results.
+
 ## Endpoints
 
 ### Public (no auth required)
@@ -271,15 +363,15 @@ Before any live trading deployment starts, the agent must complete **all** of th
 
 ### Backtesting
 
-| Method | Path                          | Description                       |
-| ------ | ----------------------------- | --------------------------------- |
-| GET    | `/v1/backtesting`             | List backtests (cursor-paginated) |
-| POST   | `/v1/backtesting`             | Create backtest                   |
-| GET    | `/v1/backtesting/{id}`        | Get backtest details              |
-| GET    | `/v1/backtesting/{id}/status` | Poll backtest status              |
-| PUT    | `/v1/backtesting/{id}/status` | Start or cancel backtest          |
-| GET    | `/v1/backtesting/{id}/logs`   | Get backtest logs                 |
-| DELETE | `/v1/backtesting/{id}`        | Delete backtest                   |
+| Method | Path                          | Description                               |
+| ------ | ----------------------------- | ----------------------------------------- |
+| GET    | `/v1/backtesting`             | List backtests (cursor-paginated)         |
+| POST   | `/v1/backtesting`             | Create backtest                           |
+| GET    | `/v1/backtesting/{id}`        | Get backtest details                      |
+| GET    | `/v1/backtesting/{id}/status` | Poll backtest status                      |
+| PUT    | `/v1/backtesting/{id}/status` | Start backtest                            |
+| GET    | `/v1/backtesting/{id}/logs`   | Get backtest logs                         |
+| DELETE | `/v1/backtesting/{id}`        | Delete backtest (also cancels if running) |
 
 ### Deployment
 
@@ -319,15 +411,17 @@ Before any live trading deployment starts, the agent must complete **all** of th
 }
 ```
 
-### PUT `/v1/backtesting/{id}/status` — Start or Cancel
+### PUT `/v1/backtesting/{id}/status` — Start Backtest
 
 **Request:**
 
 ```json
-{ "action": "start" | "cancel" }
+{ "action": "start" }
 ```
 
-**Response (200) — start:**
+`"start"` begins a pending backtest. To cancel a running backtest, use `DELETE /v1/backtesting/{id}` instead.
+
+**Response (200):**
 
 ```json
 {
@@ -335,16 +429,6 @@ Before any live trading deployment starts, the agent must complete **all** of th
   "status": "running",
   "previous_status": "pending",
   "k8s_job_name": "backtest-01kjvze9"
-}
-```
-
-**Response (200) — cancel:**
-
-```json
-{
-  "id": "01kjvze9p1684ceesc27yx0nre",
-  "status": "cancelled",
-  "previous_status": "running"
 }
 ```
 
@@ -372,9 +456,9 @@ The `results` field is `null` while running and populates with backtest metrics 
   "config": {},
   "code": "string",
   "timerange": { "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" },
-  "stake_amount": 100,
   "status": "pending | running | completed | failed | cancelled",
   "results": null,
+  "resultUrl": "https://storage.googleapis.com/... (signed URL, valid 7 days)",
   "startedAt": "ISO8601",
   "completedAt": "ISO8601",
   "k8sJobName": "backtest-01kjvze9",
@@ -382,6 +466,8 @@ The `results` field is `null` while running and populates with backtest metrics 
   "updatedAt": "ISO8601"
 }
 ```
+
+- `resultUrl` — signed URL to download full backtest results as JSON. Only available when status is `"completed"`. Valid for 7 days. **Always download and parse this for detailed trade data** — the `results` field is a summary only.
 
 When the backtest completes with trades, `results` contains:
 
@@ -414,6 +500,8 @@ Query params: `pageSize` (default 100), `pageToken`.
 ```
 
 ### DELETE `/v1/backtesting/{id}`
+
+Deletes the backtest. If the backtest is running, it is cancelled first (K8s pod terminated).
 
 **Response (200):**
 
@@ -482,7 +570,8 @@ Query params: `pageSize` (default 100), `pageToken`.
 }
 ```
 
-`pods` is `null` when no pods are running. `credentialsStatus` is `null` when no credentials have been set.
+`pods` is `null` when no pods are running.
+`credentialsStatus` is `null` when no credentials have been set.
 
 ### GET `/v1/deployment/{id}/status` — Live Status
 
@@ -532,7 +621,7 @@ All three fields are required. See "Hyperliquid Credentials" above for how to gu
 - `400 duplicate_wallet_address` — wallet is already used by another deployment
 - `400 unsupported_exchange` — only `"hyperliquid"` is supported
 - `400 missing_credentials` — `private_key` is required
-- If credentials are already `"stored"`, the endpoint returns the existing status (idempotent)
+- If credentials are already `"stored"`, the endpoint returns the existing status (idempotent — does NOT overwrite)
 
 ### GET `/v1/deployment/{id}/logs`
 
@@ -575,13 +664,13 @@ Pagination is cursor-based. Pass `cursor` query param with the `nextCursor` valu
 
 All errors follow `{ "error": "error_code", "message": "..." }`. Validation errors include a `details` array.
 
-| Status | Error Code          | Description                                                              |
-| ------ | ------------------- | ------------------------------------------------------------------------ |
-| 401    | —                   | Missing or invalid API key (`"No API key found in request"`)             |
-| 400    | `validation_failed` | Invalid request fields or strategy config/code rejected on create        |
-| 400    | `invalid_code`      | Strategy class name could not be extracted from code                     |
+| Status | Error Code          | Description                                                                                                                                                   |
+| ------ | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 401    | —                   | Missing or invalid API key (`"No API key found in request"`)                                                                                                  |
+| 400    | `validation_failed` | Invalid request fields or strategy config/code rejected on create                                                                                             |
+| 400    | `invalid_code`      | Strategy class name could not be extracted from code                                                                                                          |
 | 400    | `limit_exceeded`    | Max 10 backtests or 10 deployments per user — the agent can delete older backtests/deployments and continue iterating; in practice this is usually sufficient |
-| 404    | `not_found`         | Resource not found                                                       |
+| 404    | `not_found`         | Resource not found                                                                                                                                            |
 
 ## Config Reference
 
@@ -599,29 +688,31 @@ The `config` object follows the Freqtrade configuration format. Superior Trade u
   "stoploss": -0.1,
   "trading_mode": "futures",
   "margin_mode": "cross",
+  "entry_pricing": { "price_side": "other" },
+  "exit_pricing": { "price_side": "other" },
   "pairlists": [{ "method": "StaticPairList" }]
 }
 ```
 
 ### Common Config Fields
 
-| Field                      | Type                    | Description                                                             |
-| -------------------------- | ----------------------- | ----------------------------------------------------------------------- |
-| `exchange.name`            | string                  | Must be `"hyperliquid"`                                                 |
-| `exchange.pair_whitelist`  | string[]                | Spot: `["BTC/USDC"]`, Futures: `["BTC/USDC:USDC"]`                      |
-| `stake_currency`           | string                  | `"USDC"`                                                                |
-| `stake_amount`             | number or `"unlimited"` | Amount per trade                                                        |
-| `timeframe`                | string                  | Candle timeframe: `"1m"`, `"5m"`, `"15m"`, `"1h"`, `"4h"`, `"1d"`       |
-| `max_open_trades`          | integer                 | Max concurrent trades (-1 for unlimited)                                |
-| `stoploss`                 | number                  | Must be negative, e.g. `-0.10` for 10%                                  |
-| `minimal_roi`              | object                  | Minutes-to-ROI map, e.g. `{ "0": 0.10, "30": 0.05 }`                    |
-| `trading_mode`             | string                  | `"spot"` or `"futures"` (omit for spot, which is the default)           |
-| `margin_mode`              | string                  | `"cross"` or `"isolated"` (required when `trading_mode` is `"futures"`) |
-| `trailing_stop`            | boolean                 | Enable trailing stop-loss                                               |
-| `trailing_stop_positive`   | number                  | Trailing stop activation profit (requires `trailing_stop: true`)        |
+| Field                      | Type                    | Description                                                                                                                                                                                                                                                                                                                                               |
+| -------------------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `exchange.name`            | string                  | Must be `"hyperliquid"`                                                                                                                                                                                                                                                                                                                                   |
+| `exchange.pair_whitelist`  | string[]                | Spot: `["BTC/USDC"]`, Futures: `["BTC/USDC:USDC"]`                                                                                                                                                                                                                                                                                                        |
+| `stake_currency`           | string                  | `"USDC"`                                                                                                                                                                                                                                                                                                                                                  |
+| `stake_amount`             | number or `"unlimited"` | Amount per trade. Must be ≥ $10 effective minimum (see Hyperliquid Notes)                                                                                                                                                                                                                                                                                 |
+| `timeframe`                | string                  | Candle timeframe: `"1m"`, `"5m"`, `"15m"`, `"1h"`, `"4h"`, `"1d"`                                                                                                                                                                                                                                                                                         |
+| `max_open_trades`          | integer                 | Max concurrent trades (-1 for unlimited)                                                                                                                                                                                                                                                                                                                  |
+| `stoploss`                 | number                  | Must be negative, e.g. `-0.10` for 10%                                                                                                                                                                                                                                                                                                                    |
+| `minimal_roi`              | object                  | Minutes-to-ROI map, e.g. `{ "0": 0.10, "30": 0.05 }`                                                                                                                                                                                                                                                                                                      |
+| `trading_mode`             | string                  | `"spot"` or `"futures"` (omit for spot, which is the default)                                                                                                                                                                                                                                                                                             |
+| `margin_mode`              | string                  | `"cross"` or `"isolated"` (required when `trading_mode` is `"futures"`)                                                                                                                                                                                                                                                                                   |
+| `trailing_stop`            | boolean                 | Enable trailing stop-loss                                                                                                                                                                                                                                                                                                                                 |
+| `trailing_stop_positive`   | number                  | Trailing stop activation profit (requires `trailing_stop: true`)                                                                                                                                                                                                                                                                                          |
 | `pairlists`                | array                   | Pairlist handlers such as `StaticPairList`, `VolumePairList`, `PercentChangePairList`, `ProducerPairList`, `RemotePairList`, `MarketCapPairList`, `AgeFilter`, `DelistFilter`, `FullTradesFilter`, `OffsetFilter`, `PerformanceFilter`, `PrecisionFilter`, `PriceFilter`, `ShuffleFilter`, `SpreadFilter`, `RangeStabilityFilter`, and `VolatilityFilter` |
-| `entry_pricing.price_side` | string                  | `"ask"`, `"bid"`, `"same"`, `"other"`                                   |
-| `exit_pricing.price_side`  | string                  | `"ask"`, `"bid"`, `"same"`, `"other"`                                   |
+| `entry_pricing.price_side` | string                  | `"ask"`, `"bid"`, `"same"`, `"other"`                                                                                                                                                                                                                                                                                                                     |
+| `exit_pricing.price_side`  | string                  | `"ask"`, `"bid"`, `"same"`, `"other"`                                                                                                                                                                                                                                                                                                                     |
 
 ## Strategy Code Template
 
@@ -678,6 +769,87 @@ class MyCustomStrategy(IStrategy):
 - Must define a class inheriting from `IStrategy` with a PascalCase name ending in `Strategy`
 - Must implement `populate_indicators`, `populate_entry_trend`, and `populate_exit_trend`
 
+### Multi-Output TA-Lib Functions (CRITICAL)
+
+Some TA-Lib abstract functions return a **DataFrame with multiple columns**, not a single Series. Assigning them directly to one column causes a runtime error that only appears during the backtest — not at validation time.
+
+**These functions return multiple columns — do NOT assign directly to a single column:**
+
+| Function         | Returns                                |
+| ---------------- | -------------------------------------- |
+| `ta.BBANDS`      | `upperband`, `middleband`, `lowerband` |
+| `ta.MACD`        | `macd`, `macdsignal`, `macdhist`       |
+| `ta.STOCH`       | `slowk`, `slowd`                       |
+| `ta.STOCHF`      | `fastk`, `fastd`                       |
+| `ta.STOCHRSI`    | `fastk`, `fastd`                       |
+| `ta.AROON`       | `aroondown`, `aroonup`                 |
+| `ta.HT_PHASOR`   | `inphase`, `quadrature`                |
+| `ta.MAMA`        | `mama`, `fama`                         |
+| `ta.MINMAXINDEX` | `minidx`, `maxidx`                     |
+
+```python
+# WRONG — causes runtime crash (shape mismatch)
+dataframe["bb_upper"] = ta.BBANDS(dataframe, timeperiod=20)
+dataframe["macd"] = ta.MACD(dataframe)
+
+# CORRECT — assign each column separately
+bb = ta.BBANDS(dataframe, timeperiod=20)
+dataframe["bb_upper"] = bb["upperband"]
+dataframe["bb_middle"] = bb["middleband"]
+dataframe["bb_lower"] = bb["lowerband"]
+
+macd = ta.MACD(dataframe)
+dataframe["macd"] = macd["macd"]
+dataframe["macd_signal"] = macd["macdsignal"]
+dataframe["macd_hist"] = macd["macdhist"]
+
+stoch = ta.STOCH(dataframe)
+dataframe["slowk"] = stoch["slowk"]
+dataframe["slowd"] = stoch["slowd"]
+```
+
+**Single-output functions** (RSI, SMA, EMA, ATR, ADX, etc.) return a Series and can be assigned directly:
+
+```python
+dataframe["rsi"] = ta.RSI(dataframe, timeperiod=14)  # OK — returns Series
+```
+
+### One Open Trade Per Pair & DCA
+
+Freqtrade enforces a **one open trade per pair** rule. Once a trade is open on a pair (e.g. `BTC/USDC:USDC`), all subsequent entry signals for that pair are ignored until the trade is closed — even if the strategy generates a signal every candle.
+
+This means strategies that rely on buying repeatedly into the same pair (e.g. "buy $500 BTC every minute for an hour") will only execute the **first** entry. The rest are silently dropped.
+
+**To implement DCA (Dollar-Cost Averaging) or position scaling**, use the `adjust_trade_position()` callback instead of generating new entry signals:
+
+```python
+def adjust_trade_position(self, trade, current_time, current_rate,
+                         current_profit, min_stake, max_stake,
+                         current_entry_rate, current_exit_rate,
+                         current_entry_profit, current_exit_profit,
+                         **kwargs):
+    # Return a positive stake amount to add to the position (DCA buy)
+    # Return a negative stake amount to partially close the position
+    # Return None to do nothing
+    #
+    # IMPORTANT: Hyperliquid exchange minimum is $10 per order.
+    # Freqtrade inflates this by a stoploss reserve (up to 1.5x), making
+    # the effective minimum $10-$15 depending on stoploss depth.
+    # Always check min_stake and ensure amounts >= min_stake.
+    if should_dca(trade, current_time):
+        dca_amount = 500  # add $500 to the position
+        return max(dca_amount, min_stake)  # respect exchange minimum
+    return None
+```
+
+Key points:
+
+- `adjust_trade_position()` is called on every candle while a trade is open
+- Returning a positive number opens an additional order (DCA buy)
+- Returning a negative number partially closes the position
+- The agent should use this pattern whenever the user wants repeated buys on the same pair
+- `max_open_trades` in config limits total concurrent trades across all pairs, not entries per pair
+
 ## Typical Workflows
 
 ### Backtest Workflow
@@ -688,10 +860,24 @@ The agent should execute all these steps automatically, presenting only the fina
 2. `POST /v1/backtesting` — create the backtest
 3. `PUT /v1/backtesting/{id}/status` with `{"action": "start"}` — start it
 4. Poll `GET /v1/backtesting/{id}/status` every 10s until `completed` or `failed` (typically 1-10 minutes)
-5. `GET /v1/backtesting/{id}` — fetch full results
+5. `GET /v1/backtesting/{id}` — fetch full results; download `resultUrl` for detailed trade-level JSON
 6. Present a summary: total trades, win rate, profit, drawdown, sharpe ratio
 7. If failed, check `GET /v1/backtesting/{id}/logs` and report the issue
-8. To cancel a running backtest: `PUT /v1/backtesting/{id}/status` with `{"action": "cancel"}`
+8. To cancel a running backtest: `DELETE /v1/backtesting/{id}`
+
+### Pre-Deployment Checklist (MANDATORY before starting any live bot)
+
+Before calling `PUT /v1/deployment/{id}/status` → `{"action":"start"}`, verify ALL of these:
+
+1. **Agent wallet is approved** — `POST https://api.hyperliquid.xyz/info` → `{"type":"clearinghouseState","user":"<AGENT_WALLET_ADDRESS>"}`. If it returns an error or empty state, the wallet is NOT registered. Tell the user to approve it at [app.hyperliquid.xyz/API](https://app.hyperliquid.xyz/API).
+
+2. **Funds are available** — Check BOTH perps and spot balances on the MAIN wallet. Report what you find. If funds are only in spot, advise the user to transfer.
+
+3. **Credentials are stored** — `GET /v1/deployment/{id}` and confirm `credentialsStatus` is `"stored"`.
+
+4. **Pair is tradeable** — `POST https://api.hyperliquid.xyz/info` → `{"type":"meta"}` and verify the pair exists in the `universe` array.
+
+Do NOT skip any step. Do NOT assume any step passed without making the actual API call.
 
 ### Deployment Workflow
 
@@ -704,12 +890,27 @@ The agent should handle the API calls and proactively ask the user for what's ne
 5. Monitor with `GET /v1/deployment/{id}/status` and `GET /v1/deployment/{id}/logs`
 6. Stop with `PUT /v1/deployment/{id}/status` `{"action": "stop"}`
 
+### Reporting DCA / Multi-Order Trades
+
+When a strategy uses `adjust_trade_position()` (DCA, scaling, or any multi-order pattern), the agent must follow these reporting rules:
+
+1. **Distinguish trades from orders.** A single "trade" may contain many buy/sell orders. Clarify: "X trades (Y total buy orders, Z total sell orders)".
+2. **Show per-order detail** for at least the first completed trade: number of buy/sell orders, first and last buy price, weighted average entry/exit, total position size.
+3. **Flag order-level issues**: minimum order size rejections, rate limit failures, dust positions, expected vs actual order count mismatches.
+4. **Skip the breakdown for non-DCA strategies.** Standard 1 buy + 1 sell strategies don't need per-order reporting.
+5. **Always download `resultUrl`** for full order-level data — the summary endpoint does not include individual order details.
+
 ### Important Notes
 
 - Credentials are optional. If `credentialsStatus` is `"stored"`, the deployment runs **live**; if missing, it runs in **paper (dry-run)** mode with no real trades. When credentials are submitted, the endpoint validates private key format and rejects duplicate wallets
-- Backtest status actions are `"start"` / `"cancel"` (NOT "stop")
-- Deployment status actions are `"start"` / `"stop"` (NOT "cancel")
+- Backtest status PUT only accepts `"start"` — to cancel a running backtest, use `DELETE`
+- Deployment status actions are `"start"` / `"stop"`
 - Do not include `dry_run` or `api_server` in config — these are managed by Superior Trade
-- Response timestamps use camelCase: `createdAt`, `updatedAt`, `startedAt`, `completedAt`
+- Response field names use camelCase: `createdAt`, `updatedAt`, `startedAt`, `completedAt`, `resultUrl`, `credentialsStatus`, `k8sJobName`, `k8sDeploymentName`
 - **All timestamps are in UTC.** When presenting logs (backtest or deployment) to the user, the agent should convert UTC to the user's local timezone.
 - Deployment logs will show repeated `"running"` state messages — this is normal bot heartbeat, meaning the strategy is active and waiting for a trading signal
+- Historical data for Hyperliquid is available from approximately November 2025 onwards; choose timeranges within the available data window
+- Backtests with no available data for the requested timerange will fail — check logs for details
+- Hyperliquid pair format depends on trading mode: spot uses `BTC/USDC`, futures uses `BTC/USDC:USDC` — using the wrong format for the mode will cause "not tradable" errors
+- Futures mode requires `trading_mode: "futures"` and `margin_mode: "cross"` (or `"isolated"`) in config
+- Spot mode does NOT support stoploss on exchange; futures mode supports `stop-loss-limit` orders

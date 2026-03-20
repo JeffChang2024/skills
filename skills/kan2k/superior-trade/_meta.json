@@ -1,13 +1,18 @@
 {
   "owner": "kan2k",
   "slug": "superior-trade",
-  "displayName": "Superior Trade",
+  "displayName": "Superior Trade Api Skills",
   "latest": {
-    "version": "1.4.7",
-    "publishedAt": 1773241509246,
-    "commit": "https://github.com/openclaw/skills/commit/bc8f336842b0d517e387712e2ef60ee2d2ed230b"
+    "version": "1.5.0",
+    "publishedAt": 1773841055328,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.4.7",
+      "publishedAt": 1773241509246,
+      "commit": "https://github.com/openclaw/skills/commit/bc8f336842b0d517e387712e2ef60ee2d2ed230b"
+    },
     {
       "version": "1.4.6",
       "publishedAt": 1773240606095,
