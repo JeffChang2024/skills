@@ -3,11 +3,16 @@
   "slug": "privacy-policy",
   "displayName": "Privacy Policy",
   "latest": {
-    "version": "1.0.7",
-    "publishedAt": 1773666812779,
-    "commit": "https://github.com/openclaw/skills/commit/fe2a78aab07d9dd4dcc7c575cc9ba23c8f552082"
+    "version": "2.0.1",
+    "publishedAt": 1773773413890,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.7",
+      "publishedAt": 1773666812779,
+      "commit": "https://github.com/openclaw/skills/commit/fe2a78aab07d9dd4dcc7c575cc9ba23c8f552082"
+    },
     {
       "version": "2.2.0",
       "publishedAt": 1773421691633,
