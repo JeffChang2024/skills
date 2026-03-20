@@ -3,9 +3,15 @@
   "slug": "fakerjs",
   "displayName": "Fakerjs",
   "latest": {
-    "version": "1.0.5",
-    "publishedAt": 1773663710748,
-    "commit": "https://github.com/openclaw/skills/commit/b6b8c08d7c6580a05033ca90184ee422bcf8a1b9"
+    "version": "2.0.1",
+    "publishedAt": 1773830577013,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.5",
+      "publishedAt": 1773663710748,
+      "commit": "https://github.com/openclaw/skills/commit/b6b8c08d7c6580a05033ca90184ee422bcf8a1b9"
+    }
+  ]
 }
