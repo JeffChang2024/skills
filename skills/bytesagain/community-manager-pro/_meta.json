@@ -3,11 +3,16 @@
   "slug": "community-manager-pro",
   "displayName": "Community Manager Pro",
   "latest": {
-    "version": "2.3.7",
-    "publishedAt": 1773665333416,
-    "commit": "https://github.com/openclaw/skills/commit/b3815d182b9764deb631a22a5a97cd801cd3a919"
+    "version": "2.0.1",
+    "publishedAt": 1773830322479,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.3.7",
+      "publishedAt": 1773665333416,
+      "commit": "https://github.com/openclaw/skills/commit/b3815d182b9764deb631a22a5a97cd801cd3a919"
+    },
     {
       "version": "2.3.0",
       "publishedAt": 1773446797922,
