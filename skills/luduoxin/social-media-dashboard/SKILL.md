@@ -5,6 +5,8 @@
 ## 功能
 
 - 采集头条号粉丝数、阅读量、收益数据
+- 采集 CSDN 作品数据、收益数据、粉丝数据
+- 采集知乎内容数据、收益数据
 - 生成数据看板和趋势报告
 - 支持多平台扩展（公众号、小红书、B站、抖音等）
 
@@ -22,7 +24,19 @@
 
 ## 使用方法
 
-当用户请求查看头条号数据时，**必须按照以下流程执行**：
+### 选择平台
+
+根据用户请求选择对应平台的数据采集流程：
+
+| 平台 | 触发词 | 数据页面 |
+|-----|-------|---------|
+| **头条号** | 头条号、头条 | mp.toutiao.com |
+| **CSDN** | CSDN、博客 | mp.csdn.net |
+| **知乎** | 知乎、知乎创作 | zhihu.com/creator |
+
+---
+
+当用户请求查看头条号或 CSDN 数据时，**必须按照以下流程执行**：
 
 ### 步骤 1：检测可用浏览器
 
@@ -285,10 +299,149 @@ EOF
 查看我的头条号详细数据
 获取头条号粉丝统计
 头条号收益查询
+查看我的 CSDN 数据
+查看 CSDN 博客数据
+获取 CSDN 粉丝统计
+CSDN 收益查询
+查看我的知乎数据
+知乎内容数据分析
+知乎收益查询
+知乎创作数据
 生成自媒体数据周报
 我的自媒体数据
-头条号数据看板
 ```
+
+---
+
+## CSDN 数据采集
+
+当用户请求查看 CSDN 数据时，执行以下流程：
+
+### 步骤 1：检测登录状态
+
+#### Chrome 登录检测
+
+```bash
+osascript <<'EOF'
+tell application "Google Chrome"
+    set URL of active tab of front window to "https://mp.csdn.net/"
+    delay 3
+    set pageText to execute active tab of front window javascript "document.body.innerText"
+    if pageText contains "登录" then
+        return "NOT_LOGGED_IN"
+    else
+        return "LOGGED_IN"
+    end if
+end tell
+EOF
+```
+
+#### Safari 登录检测
+
+```bash
+osascript <<'EOF'
+tell application "Safari"
+    set URL of front document to "https://mp.csdn.net/"
+    delay 3
+    set pageText to do JavaScript "document.body.innerText" in front document
+    if pageText contains "登录" then
+        return "NOT_LOGGED_IN"
+    else
+        return "LOGGED_IN"
+    end if
+end tell
+EOF
+```
+
+#### 未登录处理
+
+> 检测到你还未登录 CSDN，请先登录：
+>
+> 1. 我已为你打开 CSDN 创作者中心
+> 2. 在浏览器中完成登录（扫码或账号密码）
+> 3. 登录成功后告诉我「登录好了」
+
+---
+
+### 步骤 2：采集 CSDN 数据
+
+#### Chrome 完整采集
+
+```bash
+# 作品数据
+osascript <<'EOF'
+tell application "Google Chrome"
+    set URL of active tab of front window to "https://mp.csdn.net/mp_blog/analysis/article/all"
+    delay 3
+    set pageText to execute active tab of front window javascript "document.body.innerText"
+    return pageText
+end tell
+EOF
+
+# 收益数据
+osascript <<'EOF'
+tell application "Google Chrome"
+    set URL of active tab of front window to "https://mp.csdn.net/mp_others/analysis/rewardall"
+    delay 3
+    set pageText to execute active tab of front window javascript "document.body.innerText"
+    return pageText
+end tell
+EOF
+
+# 粉丝数据
+osascript <<'EOF'
+tell application "Google Chrome"
+    set URL of active tab of front window to "https://mp.csdn.net/mp_others/analysis/fans/dataOverview"
+    delay 3
+    set pageText to execute active tab of front window javascript "document.body.innerText"
+    return pageText
+end tell
+EOF
+```
+
+#### Safari 完整采集
+
+```bash
+# 作品数据
+osascript <<'EOF'
+tell application "Safari"
+    set URL of front document to "https://mp.csdn.net/mp_blog/analysis/article/all"
+    delay 3
+    set pageText to do JavaScript "document.body.innerText" in front document
+    return pageText
+end tell
+EOF
+
+# 收益数据
+osascript <<'EOF'
+tell application "Safari"
+    set URL of front document to "https://mp.csdn.net/mp_others/analysis/rewardall"
+    delay 3
+    set pageText to do JavaScript "document.body.innerText" in front document
+    return pageText
+end tell
+EOF
+
+# 粉丝数据
+osascript <<'EOF'
+tell application "Safari"
+    set URL of front document to "https://mp.csdn.net/mp_others/analysis/fans/dataOverview"
+    delay 3
+    set pageText to do JavaScript "document.body.innerText" in front document
+    return pageText
+end tell
+EOF
+```
+
+---
+
+### CSDN 数据采集页面
+
+| 页面 | URL | 数据内容 |
+|-----|-----|---------|
+| 作品数据 | `/mp_blog/analysis/article/all` | 文章总数、阅读量、点赞、评论、收藏 |
+| 收益数据 | `/mp_others/analysis/rewardall` | 累计收益、可提现、昨日收益、本月收益 |
+| 粉丝数据 | `/mp_others/analysis/fans/dataOverview` | 粉丝总数、新增粉丝、活跃度 |
 
 ---
 
@@ -297,10 +450,207 @@ EOF
 | 平台 | 状态 | 数据类型 |
 |-----|------|---------|
 | 头条号 | ✅ 已支持 | 粉丝、阅读、收益 |
+| CSDN | ✅ 已支持 | 作品、收益、粉丝 |
+| 知乎 | ✅ 已支持 | 内容、收益 |
 | 公众号 | 🚧 开发中 | 粉丝、阅读、用户画像 |
 | 小红书 | 📋 计划中 | 粉丝、笔记数据 |
 | B站 | 📋 计划中 | 粉丝、播放、互动 |
 | 抖音 | 📋 计划中 | 粉丝、视频、直播 |
+
+---
+
+## 知乎数据采集
+
+当用户请求查看知乎数据时，执行以下流程：
+
+### 步骤 1：检测登录状态
+
+#### Chrome 登录检测
+
+```bash
+osascript <<'EOF'
+tell application "Google Chrome"
+    set URL of active tab of front window to "https://www.zhihu.com/creator"
+    delay 3
+    set pageText to execute active tab of front window javascript "document.body.innerText"
+    if pageText contains "登录" or pageText contains "注册" then
+        return "NOT_LOGGED_IN"
+    else
+        return "LOGGED_IN"
+    end if
+end tell
+EOF
+```
+
+#### Safari 登录检测
+
+```bash
+osascript <<'EOF'
+tell application "Safari"
+    set URL of front document to "https://www.zhihu.com/creator"
+    delay 3
+    set pageText to do JavaScript "document.body.innerText" in front document
+    if pageText contains "登录" or pageText contains "注册" then
+        return "NOT_LOGGED_IN"
+    else
+        return "LOGGED_IN"
+    end if
+end tell
+EOF
+```
+
+#### 未登录处理
+
+> 检测到你还未登录知乎，请先登录：
+>
+> 1. 我已为你打开知乎创作者中心
+> 2. 在浏览器中完成登录（扫码或账号密码）
+> 3. 登录成功后告诉我「登录好了」
+
+---
+
+### 步骤 2：采集知乎数据
+
+#### Chrome 完整采集
+
+```bash
+# 内容总览
+osascript <<'EOF'
+tell application "Google Chrome"
+    set URL of active tab of front window to "https://www.zhihu.com/creator/analytics/work/all"
+    delay 4
+    set pageText to execute active tab of front window javascript "document.body.innerText"
+    return pageText
+end tell
+EOF
+
+# 回答数据
+osascript <<'EOF'
+tell application "Google Chrome"
+    set URL of active tab of front window to "https://www.zhihu.com/creator/analytics/work/answer"
+    delay 4
+    set pageText to execute active tab of front window javascript "document.body.innerText"
+    return pageText
+end tell
+EOF
+
+# 文章数据
+osascript <<'EOF'
+tell application "Google Chrome"
+    set URL of active tab of front window to "https://www.zhihu.com/creator/analytics/work/article"
+    delay 4
+    set pageText to execute active tab of front window javascript "document.body.innerText"
+    return pageText
+end tell
+EOF
+
+# 想法数据
+osascript <<'EOF'
+tell application "Google Chrome"
+    set URL of active tab of front window to "https://www.zhihu.com/creator/analytics/work/pin"
+    delay 4
+    set pageText to execute active tab of front window javascript "document.body.innerText"
+    return pageText
+end tell
+EOF
+
+# 视频数据
+osascript <<'EOF'
+tell application "Google Chrome"
+    set URL of active tab of front window to "https://www.zhihu.com/creator/analytics/work/zvideo"
+    delay 4
+    set pageText to execute active tab of front window javascript "document.body.innerText"
+    return pageText
+end tell
+EOF
+
+# 收益数据
+osascript <<'EOF'
+tell application "Google Chrome"
+    set URL of active tab of front window to "https://www.zhihu.com/creator/income-analysis"
+    delay 4
+    set pageText to execute active tab of front window javascript "document.body.innerText"
+    return pageText
+end tell
+EOF
+```
+
+#### Safari 完整采集
+
+```bash
+# 内容总览
+osascript <<'EOF'
+tell application "Safari"
+    set URL of front document to "https://www.zhihu.com/creator/analytics/work/all"
+    delay 4
+    set pageText to do JavaScript "document.body.innerText" in front document
+    return pageText
+end tell
+EOF
+
+# 回答数据
+osascript <<'EOF'
+tell application "Safari"
+    set URL of front document to "https://www.zhihu.com/creator/analytics/work/answer"
+    delay 4
+    set pageText to do JavaScript "document.body.innerText" in front document
+    return pageText
+end tell
+EOF
+
+# 文章数据
+osascript <<'EOF'
+tell application "Safari"
+    set URL of front document to "https://www.zhihu.com/creator/analytics/work/article"
+    delay 4
+    set pageText to do JavaScript "document.body.innerText" in front document
+    return pageText
+end tell
+EOF
+
+# 想法数据
+osascript <<'EOF'
+tell application "Safari"
+    set URL of front document to "https://www.zhihu.com/creator/analytics/work/pin"
+    delay 4
+    set pageText to do JavaScript "document.body.innerText" in front document
+    return pageText
+end tell
+EOF
+
+# 视频数据
+osascript <<'EOF'
+tell application "Safari"
+    set URL of front document to "https://www.zhihu.com/creator/analytics/work/zvideo"
+    delay 4
+    set pageText to do JavaScript "document.body.innerText" in front document
+    return pageText
+end tell
+EOF
+
+# 收益数据
+osascript <<'EOF'
+tell application "Safari"
+    set URL of front document to "https://www.zhihu.com/creator/income-analysis"
+    delay 4
+    set pageText to do JavaScript "document.body.innerText" in front document
+    return pageText
+end tell
+EOF
+```
+
+---
+
+### 知乎数据采集页面
+
+| 页面 | URL | 数据内容 |
+|-----|-----|---------|
+| 内容总览 | `/creator/analytics/work/all` | 综合数据、播放量、阅读量、互动 |
+| 回答数据 | `/creator/analytics/work/answer` | 回答阅读、点赞、评论、收藏 |
+| 想法数据 | `/creator/analytics/work/pin` | 想法浏览、互动数据 |
+| 文章数据 | `/creator/analytics/work/article` | 文章阅读、点赞、评论、收藏 |
+| 视频数据 | `/creator/analytics/work/zvideo` | 视频播放、点赞、评论、分享 |
+| 收益数据 | `/creator/income-analysis` | 累计收益、可提现、昨日收益、本月收益 |
 
 ---
 
@@ -319,7 +669,9 @@ EOF
 social-media-dashboard/
 ├── SKILL.md              # 本文件
 ├── platforms/
-│   └── toutiao.md       # 头条号接口说明
+│   ├── toutiao.md       # 头条号接口说明
+│   ├── csdn.md          # CSDN 接口说明
+│   └── zhihu.md         # 知乎接口说明
 ├── templates/
 │   ├── dashboard.md     # 数据看板模板
 │   └── daily-report.md  # 日报模板
