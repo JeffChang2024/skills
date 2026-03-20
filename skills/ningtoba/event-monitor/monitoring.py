@@ -1,40 +1,25 @@
-#!/usr/bin/env python3
-"""
-Monitoring Skill for OpenClaw
-Collects CPU and memory metrics, stores in SQLite, generates Excel reports.
-"""
-
 import sqlite3
 import psutil
 import datetime
 import socket
 import os
 import argparse
+import math
+from math import ceil
 from openpyxl import Workbook
 from openpyxl.styles import Font
 
-# Skill directory for database and reports
-SKILL_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(SKILL_DIR, "monitoring.db")
-
-
 class DatabaseManager:
-    """SQLite database manager for monitoring metrics."""
-    
-    def __init__(self, db_path=DB_PATH):
+    def __init__(self, db_path="monitoring.db"):
         self.db_path = db_path
         self.init_db()
 
     def get_connection(self):
-        """Get SQLite connection."""
         return sqlite3.connect(self.db_path)
 
     def init_db(self):
-        """Initialize database tables."""
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            
-            # CPU usage table
             cursor.execute("""
             CREATE TABLE IF NOT EXISTS cpu_usage_table (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -48,8 +33,6 @@ class DatabaseManager:
                 working_day TEXT
             )
             """)
-            
-            # Memory usage table
             cursor.execute("""
             CREATE TABLE IF NOT EXISTS memory_usage_table (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -63,11 +46,19 @@ class DatabaseManager:
                 working_day TEXT
             )
             """)
-            
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS Alert (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                alert TEXT,
+                date TEXT,
+                devicename TEXT,
+                type TEXT,
+                variant TEXT
+            )
+            """)
             conn.commit()
 
     def insert_cpu_metrics(self, metrics):
-        """Insert CPU metrics into database."""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.executemany("""
@@ -78,7 +69,6 @@ class DatabaseManager:
             conn.commit()
 
     def insert_memory_metrics(self, metrics):
-        """Insert memory metrics into database."""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.executemany("""
@@ -88,31 +78,7 @@ class DatabaseManager:
             """, metrics)
             conn.commit()
 
-    def get_recent_cpu(self, limit=10):
-        """Get recent CPU metrics."""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT * FROM cpu_usage_table 
-                ORDER BY timestamp DESC, id DESC 
-                LIMIT ?
-            """, (limit,))
-            return cursor.fetchall()
-
-    def get_recent_memory(self, limit=10):
-        """Get recent memory metrics."""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT * FROM memory_usage_table 
-                ORDER BY timestamp DESC, id DESC 
-                LIMIT ?
-            """, (limit,))
-            return cursor.fetchall()
-
-
 def collect_metrics():
-    """Collect current system metrics."""
     device_name = socket.gethostname()
     now = datetime.datetime.now()
     timestamp = now.strftime('%Y-%m-%d %H:%M:%S')
@@ -144,7 +110,7 @@ def collect_metrics():
                 'month': month,
                 'working_day': working_day
             })
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
+        except Exception:
             continue
             
     top_cpu = sorted(process_list, key=lambda x: x['cpu_usage'], reverse=True)[:10]
@@ -152,9 +118,7 @@ def collect_metrics():
     
     return top_cpu, top_mem
 
-
 def save_to_db(top_cpu, top_mem, db_manager):
-    """Save metrics to SQLite database."""
     cpu_data = [
         (m['device_name'], m['app_name'], m['cpu_usage'], m['timestamp'], m['day'], m['week'], m['month'], m['working_day'])
         for m in top_cpu
@@ -166,14 +130,123 @@ def save_to_db(top_cpu, top_mem, db_manager):
     
     db_manager.insert_cpu_metrics(cpu_data)
     db_manager.insert_memory_metrics(mem_data)
-    print(f"[OK] Metrics saved to {db_manager.db_path}")
+    print("Metrics saved to database.")
 
+def predict_cpu_usage(db_manager):
+    try:
+        import pandas as pd
+        from sklearn.ensemble import RandomForestRegressor
+        from sklearn.model_selection import train_test_split
+    except ImportError:
+        print("Required libraries for prediction not found. Run: pip install pandas scikit-learn")
+        return
 
-def generate_excel_report(db_manager, filename="system_report.xlsx"):
-    """Generate Excel report from database."""
-    top_cpu = db_manager.get_recent_cpu(10)
-    top_mem = db_manager.get_recent_memory(10)
+    print("Starting predictive analysis...")
+    conn = db_manager.get_connection()
+    device_name = socket.gethostname()
+
+    query = """
+        SELECT 
+            timestamp, 
+            SUM(cpu_usage) as total_cpu, 
+            working_day 
+        FROM cpu_usage_table 
+        GROUP BY timestamp, working_day
+        ORDER BY timestamp ASC
+    """
+    df = pd.read_sql_query(query, conn)
+
+    if len(df) < 10:
+        print(f"Not enough data to train the prediction model. Found {len(df)} records, need at least 10.")
+        return
+
+    def get_status_label(cpu):
+        if cpu >= 80:
+            return 2
+        elif cpu >= 70:
+            return 1
+        return 0
+
+    df['avgPercent'] = df['total_cpu'].apply(get_status_label)
+    df['datetime'] = pd.to_datetime(df['timestamp'])
+
+    df['Day'] = df['datetime'].dt.weekday + 1 
+    df['Week'] = df['datetime'].apply(lambda d: int(ceil((d.day + d.replace(day=1).weekday()) / 7.0)))
+    df['Working'] = df['datetime'].dt.weekday.apply(lambda d: 0 if d in [5,6] else 1)
+    df['Hour'] = df['datetime'].dt.hour
+    df['Minute'] = df['datetime'].dt.minute
+
+    X = df[['Day', 'Week', 'Working', 'Hour', 'Minute']]
+    y = df['avgPercent']
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     
+    n_est = len(df)
+    if n_est < 10:
+        n_est = 10
+    
+    clf = RandomForestRegressor(n_estimators=n_est, max_features="sqrt", random_state=42)
+    clf.fit(X_train, y_train)
+
+    ntime = datetime.datetime.now()
+    oneday = ntime + datetime.timedelta(hours=24)
+
+    consecutive_amber_red_count = 0
+    current_time = ntime.replace(minute=0, second=0, microsecond=0)
+
+    print("Predicting potential CPU spikes for the next 24 hours...")
+    
+    while current_time < oneday:
+        current_hour = current_time.hour
+        current_minute = current_time.minute
+        inserttime = current_time.strftime("%Y-%m-%d %H:%M:%S")
+
+        day_pred = current_time.weekday() + 1
+        work_pred = 0 if day_pred in [6, 7] else 1
+        first_day = current_time.replace(day=1)
+        adjusted_dom = current_time.day + first_day.weekday()
+        week_pred = int(ceil(adjusted_dom / 7.0))
+
+        features = pd.DataFrame([[day_pred, week_pred, work_pred, current_hour, current_minute]], 
+                                columns=['Day', 'Week', 'Working', 'Hour', 'Minute'])
+        pred_val = clf.predict(features)[0]
+
+        if pred_val < 0.5:
+            current_time_status = "Low"
+            consecutive_amber_red_count = 0
+        elif 0.5 <= pred_val <= 1.0:
+            current_time_status = "Amber"
+            consecutive_amber_red_count += 1
+        else:
+            current_time_status = "Red"
+            consecutive_amber_red_count += 1
+
+        if consecutive_amber_red_count >= 2:
+            print(f"Prediction for {current_hour:02d}:00 - Status: {current_time_status}")
+            if current_time_status != "Low":
+                with conn:
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        SELECT id FROM Alert 
+                        WHERE alert = ? AND devicename = ? AND type = 'CPU' AND substr(date, 12, 2) = ?
+                    """, (current_time_status, device_name, f"{current_hour:02d}"))
+                    row = cursor.fetchone()
+
+                    if row:
+                        cursor.execute("UPDATE Alert SET alert = ?, date = ? WHERE id = ?", 
+                            (current_time_status, inserttime, row[0]))
+                    else:
+                        cursor.execute("INSERT INTO Alert (alert, date, devicename, type, variant) VALUES (?, ?, ?, ?, ?)",
+                            (current_time_status, inserttime, device_name, 'CPU', 'CPU'))
+                consecutive_amber_red_count = 0
+                current_time += datetime.timedelta(hours=1)
+                current_time = current_time.replace(minute=0)
+        else:
+            current_time += datetime.timedelta(minutes=10)
+
+    print("Predictive monitoring scan completed. Alerts saved to database if any.")
+
+def generate_excel_report(top_cpu, top_mem, filename="system_report.xlsx"):
     wb = Workbook()
     ws = wb.active
     ws.title = "Resource Usage"
@@ -185,9 +258,8 @@ def generate_excel_report(db_manager, filename="system_report.xlsx"):
     for cell in ws[1]:
         cell.font = header_font
         
-    # Add CPU data
-    for row in top_cpu:
-        ws.append([row[0], row[1], row[2], f"{row[3]:.3f}", f"{row[3]:.3f}", row[4], row[5], row[6], row[7], row[8]])
+    for i, m in enumerate(top_cpu, 1):
+        ws.append([i, m['device_name'], m['app_name'], f"{m['cpu_usage']:.3f}", f"{m['mem_usage']:.3f}", m['timestamp'], m['day'], m['week'], m['month'], m['working_day']])
         
     for column_cells in ws.columns:
         max_length = 0
@@ -197,62 +269,25 @@ def generate_excel_report(db_manager, filename="system_report.xlsx"):
                 max_length = max(max_length, len(str(cell.value)))
         ws.column_dimensions[column_letter].width = max_length + 2
         
-    output_path = os.path.join(SKILL_DIR, filename)
-    wb.save(output_path)
-    print(f"[OK] Report saved to {output_path}")
+    wb.save(filename)
+    print(f"Report saved to {filename}")
 
-
-def show_metrics(db_manager, limit=10, metric_type="both"):
-    """Display recent metrics from database."""
-    if metric_type in ["cpu", "both"]:
-        print("\n=== Recent CPU Metrics ===")
-        cpu_data = db_manager.get_recent_cpu(limit)
-        if cpu_data:
-            for row in cpu_data[:5]:
-                print(f"  {row[2]}: {row[3]:.3f}% @ {row[4]}")
-        else:
-            print("  No CPU data found")
-    
-    if metric_type in ["memory", "both"]:
-        print("\n=== Recent Memory Metrics ===")
-        mem_data = db_manager.get_recent_memory(limit)
-        if mem_data:
-            for row in mem_data[:5]:
-                print(f"  {row[2]}: {row[3]:.3f}% @ {row[4]}")
-        else:
-            print("  No memory data found")
-
-
-def run_skill():
-    """Main skill execution."""
+def run_skill(run_predict=False):
     db_manager = DatabaseManager()
     top_cpu, top_mem = collect_metrics()
     save_to_db(top_cpu, top_mem, db_manager)
-    generate_excel_report(db_manager)
-
-
-def main():
-    parser = argparse.ArgumentParser(description="Monitoring Skill for OpenClaw")
-    parser.add_argument("--collect", action="store_true", help="Collect and save metrics")
-    parser.add_argument("--report", action="store_true", help="Generate Excel report")
-    parser.add_argument("--show", action="store_true", help="Show recent metrics")
-    parser.add_argument("--limit", type=int, default=10, help="Number of records to show")
-    parser.add_argument("--type", choices=["cpu", "memory", "both"], default="both", help="Metric type")
-    args = parser.parse_args()
-    
-    db_manager = DatabaseManager()
-    
-    if args.collect:
-        top_cpu, top_mem = collect_metrics()
-        save_to_db(top_cpu, top_mem, db_manager)
-    elif args.report:
-        generate_excel_report(db_manager)
-    elif args.show:
-        show_metrics(db_manager, args.limit, args.type)
-    else:
-        # Default: collect + report
-        run_skill()
-
+    generate_excel_report(top_cpu, top_mem)
+    if run_predict:
+        predict_cpu_usage(db_manager)
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Predictive Monitoring Skill for OpenClaw")
+    parser.add_argument("--test", action="store_true", help="Run in test mode")
+    parser.add_argument("--predict", action="store_true", help="Run ML prediction on CPU usage")
+    args = parser.parse_args()
+    
+    if args.test:
+        print("Running in test mode...")
+        run_skill(run_predict=args.predict)
+    else:
+        run_skill(run_predict=args.predict)

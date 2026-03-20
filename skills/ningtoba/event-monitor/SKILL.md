@@ -1,71 +1,26 @@
 ---
-name: monitoring
-description: Monitors system CPU and Memory usage, saves metrics to SQLite database, and generates Excel reports.
+name: predictive-monitoring
+description: Predicts CPU spikes using Random Forest regressor, monitors system resources, saves metrics, and generates Excel reports.
 metadata: {"user-invocable": true}
-security:
-  # Explicitly declare what this skill does for security scanners
-  - category: system-monitoring
-  - reads: process-list, cpu-usage, memory-usage
-  - writes: sqlite-database, excel-files
-  - network: none
-  - external-apis: none
-  - credentials: none
 ---
 
-# Monitoring Skill
+# Predictive Monitoring Skill
 
-This skill allows you to monitor system resources and track historical usage patterns.
-
-## Security & Permissions
-
-| Category | Details |
-|----------|---------|
-| **System Access** | Reads process list via `psutil` (read-only) |
-| **File Writes** | Creates `monitoring.db` (SQLite) and `system_report.xlsx` in skill directory only |
-| **Network** | None - fully offline, no external connections |
-| **APIs** | None - no external API calls |
-| **Credentials** | None required |
-| **Shell Commands** | None - pure Python execution |
-
-### Why These Permissions?
-
-- **psutil**: Industry-standard library for reading system metrics (used by VS Code, PyCharm, etc.)
-- **SQLite**: Local embedded database, no server needed
-- **openpyxl**: Standard Excel library, no macros or VBA
-
-This skill is **benign** - it only reads public system information and writes to its own directory.
+This skill monitors system resources and predicts future CPU spikes based on past data.
 
 ## Commands
 
 ### /collect-metrics
 Triggers a collection of the top 10 CPU and Memory consuming processes.
-The results are saved to a local SQLite database `monitoring.db` in the skill directory.
+The results are saved to a local SQLite database `monitoring.db`.
+
+### /predict-usage
+Analyzes collected CPU metrics, trains a Random Forest model, and predicts CPU behavior for the next 24 hours. High CPU usage alerts (Amber, Red) are saved to the Alert table.
 
 ### /generate-report
-Generates an Excel report of the latest captured metrics from the database.
+Generates an Excel report of the latest captured metrics.
 
-### /show-metrics [limit=10]
-Displays the most recent metrics from the database.
-
-## Database
-
-- **Location:** `{skillDir}/monitoring.db`
-- **Tables:** `cpu_usage_table`, `memory_usage_table`
-- **Format:** SQLite 3
-
-## Usage
-
-```bash
-# Collect current metrics
-python {skillDir}/monitoring.py --collect
-
-# Generate Excel report
-python {skillDir}/monitoring.py --report
-
-# Show recent metrics
-python {skillDir}/monitoring.py --show --limit 10
-```
-
-## Data Retention
-
-Metrics include timestamp, day of week, week of month, month, and working day classification for trend analysis.
+## Instructions for Agent
+To collect metrics (without prediction), run `python {baseDir}/monitoring.py`.
+To collect metrics and run predictive analysis, run `python {baseDir}/monitoring.py --predict`.
+To verify the database, look for `monitoring.db` in the skill directory.
