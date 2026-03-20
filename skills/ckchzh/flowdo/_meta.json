@@ -3,11 +3,16 @@
   "slug": "flowdo",
   "displayName": "Flowdo",
   "latest": {
-    "version": "1.0.5",
-    "publishedAt": 1773666009915,
-    "commit": "https://github.com/openclaw/skills/commit/74f951fc9034472092f495d515d1fcfa14b4ff25"
+    "version": "2.0.0",
+    "publishedAt": 1773774557728,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.5",
+      "publishedAt": 1773666009915,
+      "commit": "https://github.com/openclaw/skills/commit/74f951fc9034472092f495d515d1fcfa14b4ff25"
+    },
     {
       "version": "1.0.0",
       "publishedAt": 1773522021726,
