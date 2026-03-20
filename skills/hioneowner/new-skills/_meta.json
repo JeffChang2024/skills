@@ -1,0 +1,11 @@
+{
+  "owner": "hioneowner",
+  "slug": "new-skills",
+  "displayName": "Ding Skills",
+  "latest": {
+    "version": "2.1.4",
+    "publishedAt": 1773986990016,
+    "commit": null
+  },
+  "history": []
+}
