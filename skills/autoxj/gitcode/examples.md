@@ -92,8 +92,10 @@ token = "YOUR_TOKEN"
 owner = "OWNER"
 repo = "REPO"
 
-url = f"https://api.gitcode.com/api/v5/repos/{owner}/{repo}/issues"
+# 官方路径为 /repos/{owner}/issues，repo 在 body 中传递
+url = f"https://api.gitcode.com/api/v5/repos/{owner}/issues"
 data = {
+    "repo": repo,
     "title": "Bug: 功能异常",
     "body": "详细描述问题...",
     "labels": ["bug", "high-priority"],
@@ -311,4 +313,55 @@ def get_all_issues(owner, repo, token, state='open'):
 token = "YOUR_TOKEN"
 issues = get_all_issues("OWNER", "REPO", token)
 print(f"共找到 {len(issues)} 个 Issues")
+```
+
+---
+
+## Example 11: 获取项目自定义角色列表
+
+```python
+import requests
+
+token = "YOUR_TOKEN"
+owner = "OWNER"
+repo = "REPO"
+
+url = f"https://api.gitcode.com/api/v5/repos/{owner}/{repo}/customized_roles"
+response = requests.get(url, headers={'PRIVATE-TOKEN': token})
+
+if response.status_code == 200:
+    roles = response.json()
+    for role in roles:
+        print(f"{role['role_name']}: {role['role_id']}")
+elif response.status_code == 401:
+    print("Token 无效或缺失")
+```
+
+---
+
+## Example 12: 添加项目成员
+
+```python
+import requests
+
+token = "YOUR_TOKEN"
+owner = "OWNER"
+repo = "REPO"
+username = "target_username"
+role_id = "ROLE_ID"  # 从 customized_roles 接口获取
+
+url = f"https://api.gitcode.com/api/v5/repos/{owner}/{repo}/collaborators/{username}"
+data = {"role_id": role_id}
+
+response = requests.put(
+    url,
+    headers={'PRIVATE-TOKEN': token, 'Content-Type': 'application/json'},
+    json=data
+)
+
+if response.status_code == 200:
+    member = response.json()
+    print(f"成员添加成功: {member['login']}")
+elif response.status_code == 403:
+    print("无权限访问")
 ```
