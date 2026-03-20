@@ -1,6 +1,6 @@
 ---
 name: clawdoctor
-description: Self-healing doctor for OpenClaw. Monitors gateway, crons, sessions, auth, and costs. Sends Telegram alerts. Auto-restarts gateway when it goes down. Use when you want proactive health monitoring with automatic recovery for your OpenClaw setup.
+description: Self-healing monitor for OpenClaw gateways, crons, and agent sessions. Use when you need to watch if OpenClaw is running, get Telegram alerts on failures, auto-restart the gateway, detect missed crons or stuck sessions, or monitor token costs. Install with `npm install -g clawdoctor`.
 metadata:
   {
     "openclaw":
@@ -20,103 +20,89 @@ metadata:
   }
 ---
 
-# ClawDoctor - Self-Healing Doctor for OpenClaw
+# ClawDoctor
 
-Monitors your OpenClaw setup and fixes problems before you notice them.
+Self-healing monitor for OpenClaw. Watches your gateway, crons, and agent sessions, sends Telegram alerts, and auto-fixes what it can.
 
-Built for people running OpenClaw in production who got tired of checking if things were still alive.
-
-**npm:** `clawdoctor` | **Version:** 0.2.0 | **License:** MIT
-
-## What It Monitors
-
-| Monitor | What It Watches | Interval |
-|---------|-----------------|----------|
-| GatewayWatcher | `openclaw` process running | 30s |
-| CronWatcher | `~/.openclaw/state/cron-*.json` for missed/failed crons | 60s |
-| SessionWatcher | `~/.openclaw/agents/*/sessions/*.jsonl` for errors, aborts, stuck sessions | 60s |
-| AuthWatcher | Gateway logs for 401/403/token expired patterns | 60s |
-| CostWatcher | Session token costs - flags if >3x rolling average | 5m |
-
-## What It Fixes
-
-| Healer | Action |
-|--------|--------|
-| ProcessHealer | Restarts gateway via `openclaw gateway restart`, then verifies recovery |
-| CronHealer | Logs the failure and includes the manual rerun command in the alert |
+**Site:** https://clawdoctor.dev  
+**npm:** https://www.npmjs.com/package/clawdoctor  
+**GitHub:** https://github.com/turleydesigns/clawdoctor
 
 ## Install
 
 ```bash
 npm install -g clawdoctor
-clawdoctor init
-clawdoctor start
 ```
 
-## When to Use
+## Quick Start
 
-- You run OpenClaw in production
-- You have cron jobs that sometimes fail silently
-- You want Telegram alerts when something breaks
-- You want the gateway to auto-restart if it goes down
+```bash
+# Interactive setup (Telegram bot token, chat ID, plan key)
+clawdoctor init
+
+# Start monitoring daemon
+clawdoctor start
+
+# Check health of all monitors
+clawdoctor status
+```
 
 ## Commands
 
 ```bash
-clawdoctor init              # Interactive setup (detects OpenClaw, configures Telegram)
+clawdoctor init              # Interactive setup
 clawdoctor start             # Start monitoring daemon
 clawdoctor start --dry-run   # Run without taking healing actions
 clawdoctor stop              # Stop daemon
-clawdoctor status            # Show current health of all monitors
-clawdoctor log               # Show recent events
-clawdoctor log -n 100        # Show 100 events
+clawdoctor status            # Live health check of all monitors
+clawdoctor log               # Show recent events from local database
+clawdoctor log -n 100        # Show last 100 events
 clawdoctor log -w GatewayWatcher -s critical  # Filter by watcher/severity
 clawdoctor install-service   # Install as systemd user service
 ```
 
-## Non-Interactive Setup (for agents)
+## What It Monitors
 
-```bash
-clawdoctor init \
-  --openclaw-path ~/.openclaw \
-  --telegram-token TOKEN \
-  --telegram-chat CHATID \
-  --auto-fix \
-  --no-prompt
-```
+| Monitor | What It Watches | Interval |
+|---------|-----------------|----------|
+| **GatewayWatcher** | `openclaw` process running | 30s |
+| **CronWatcher** | `~/.openclaw/state/cron-*.json` for missed/failed crons | 60s |
+| **SessionWatcher** | Agent session files for errors, aborts, stuck sessions | 60s |
+| **AuthWatcher** | Gateway logs for 401/403/token expired patterns | 60s |
+| **CostWatcher** | Session token costs — flags if >3x rolling average | 5m |
 
-## Sample Alert
+## What It Fixes
 
-```
-Alert: GatewayWatcher
-Event: Gateway process not found
-Action: openclaw gateway restart
-Status: Back online
-Time: 2026-03-15 03:14 UTC
-Host: devbox
-```
-
-Alerts are rate-limited to max 1 per monitor per 5 minutes to avoid spam.
-
-## Configuration
-
-Config lives at `~/.clawdoctor/config.json`. Events stored in `~/.clawdoctor/events.db` (SQLite, 7-day retention).
+| Healer | Action |
+|--------|--------|
+| **ProcessHealer** | Restarts gateway via systemctl or `openclaw gateway restart`, then verifies |
+| **CronHealer** | Logs failure and includes manual rerun command in the alert |
 
 ## Pricing
 
-- **Diagnose** ($9/mo): Monitoring + Telegram alerts
-  https://buy.stripe.com/7sY14g2fsex33F08U51ck01
-- **Heal** ($19/mo): Everything in Diagnose + auto-healing actions
-  https://buy.stripe.com/eVq28k2fsdsZ7Vg6LX1ck02
+| Tier | Price | Monitors | History | Auto-fix | Alerts |
+|------|-------|----------|---------|----------|--------|
+| **Watch** | Free | 5 | 7 days | ✗ | Local only |
+| **Diagnose** | $9/mo | 20 | 30 days | ✗ | ✅ Telegram |
+| **Heal** | $19/mo | Unlimited | 90 days | ✅ | ✅ Telegram |
 
-## Security
+- **Buy Diagnose ($9/mo):** https://buy.stripe.com/7sY14g2fsex33F08U51ck01
+- **Buy Heal ($19/mo):** https://buy.stripe.com/eVq28k2fsdsZ7Vg6LX1ck02
 
-- Reads OpenClaw log/state files (read-only)
-- Only action taken: `openclaw gateway restart` when gateway is down
-- Sends alerts via Telegram Bot API (outbound HTTPS only)
-- No data sent to external servers in free tier
-- No API keys or conversation content leaves the machine
+## Alerts
 
-## More Info
+Telegram alerts with rate limiting (max 1 per monitor per 5 minutes):
 
-https://clawdoctor.dev
+```
+🔴 ClawDoctor Alert
+Monitor: GatewayWatcher
+Severity: critical
+Message: openclaw process not found
+```
+
+## Notes
+
+- Config stored at `~/.clawdoctor/config.json`
+- Events stored in SQLite at `~/.clawdoctor/events.db`
+- Free tier: 5 monitors, local alerts only, no auto-fix
+- Paid tiers activated via license key from https://clawdoctor.dev
