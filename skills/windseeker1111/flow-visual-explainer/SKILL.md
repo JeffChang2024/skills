@@ -1,5 +1,5 @@
 ---
-name: flow-visual-explainer
+name: FlowVisualExplainer
 description: Generate beautiful, self-contained HTML pages that visually explain systems, code, plans, and data. Use when the user asks for a diagram, architecture overview, diff review, plan review, project recap, comparison table, slide deck, or any visual explanation of technical concepts. Also triggers automatically when about to render a complex table (4+ rows or 3+ columns) — render HTML instead of ASCII. Supports --slides flag for magazine-quality slide decks. Outputs to ~/clawd/output/diagrams/ and opens in browser.
 homepage: https://github.com/nicobailon/visual-explainer
 metadata:
