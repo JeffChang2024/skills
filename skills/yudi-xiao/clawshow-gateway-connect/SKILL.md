@@ -21,17 +21,29 @@ Execute a safe, minimal install-and-migrate flow from current OpenClaw settings 
 
 ## Workflow
 
-1. Identify current config source
+1. Install ws dependency
+- Run `npm i ws` in the project root before proceeding.
+- Confirm installation succeeds before continuing.
+
+2. Identify current config source
 - Search only OpenClaw gateway config files (`*.json`, `*.yaml`, `*.yml`) in the active project path.
 - Do not read `.env`, secrets files, deployment manifests, or unrelated workspace files.
 - Prefer editing the project-tracked config over user-global config when both exist.
 - If multiple candidate files exist, pick the file currently used by the running Gateway process.
 
-2. Create rollback copy before edits
+3. Create rollback copy before edits
 - Save a sibling backup copy of the target config file with timestamp suffix (for example `.bak.20260313-1405`).
 - Never delete the backup in the same task.
 
-3. Install plugin/package
+4. Check OpenClaw version gate (before plugin install)
+- Query current OpenClaw version using the supported command only:
+  - `openclaw version`
+- Compare against `2026.3.2` using OpenClaw's version ordering.
+- If current version is earlier than `2026.3.2`, upgrade OpenClaw using `openclaw update` first, then re-run:
+  - `openclaw version`
+- Continue only after version check/upgrade is complete.
+
+5. Install plugin/package
 - Install using OpenClaw plugin manager only:
   - `openclaw plugins install @bowong/clawshow-gateway`
 - Verify installation:
@@ -39,7 +51,7 @@ Execute a safe, minimal install-and-migrate flow from current OpenClaw settings 
 - Confirm package id is exactly `@bowong/clawshow-gateway`.
 - If already installed, do not reinstall unless version repair is needed.
 
-4. Migrate channel config to ClawShow
+6. Migrate channel config to ClawShow
 - Ensure package id references `@bowong/clawshow-gateway` where plugin/package declarations are required.
 - Ensure channel section exists under `channels.clawshow`.
 - Set:
@@ -51,17 +63,17 @@ Execute a safe, minimal install-and-migrate flow from current OpenClaw settings 
   - `channels.clawshow.allowFrom: ["*"]` (required)
 - Preserve unrelated channels, plugins, and runtime options unchanged.
 
-5. Remove conflicting legacy routing only when necessary
+7. Remove conflicting legacy routing only when necessary
 - If older channel config routes the same outbound traffic target, disable only the overlapping route.
 - Do not remove entire legacy channel blocks unless user explicitly asks.
 
-6. Validate config shape
+8. Validate config shape
 - Confirm JSON/YAML syntax after edit.
 - Confirm required keys exist for ClawShow (`authToken` at minimum).
 - Confirm package/plugin id and channel id are consistent (`clawshow`).
 - Confirm `enabled`, `relayUrl`, `authToken`, `name`, `dmPolicy`, and `allowFrom` are directly under `channels.clawshow` (no `default` layer).
 
-7. Apply config (Config RPC only)
+9. Apply config (Config RPC only)
 - Follow `Config RPC (programmatic updates)` exactly, using `config.apply (full replace)`.
 - Do not use direct file-edit-only activation, `config.patch`, or manual restart as the primary path.
 - Execute:
@@ -72,13 +84,13 @@ Execute a safe, minimal install-and-migrate flow from current OpenClaw settings 
 - Respect control-plane rate limits for write RPCs (`config.apply`, `config.patch`, `update.run`): 3 requests per 60 seconds per `deviceId+clientIp`.
 - If apply fails due to stale hash/conflict, call `config.get` again, rebase on newest config, and retry once.
 
-8. Verify runtime behavior
+10. Verify runtime behavior
 - Do not force a manual restart here; `config.apply` already validates, writes, and restarts in one step.
 - Run status/probe command if available.
 - Do not send outbound test messages by default.
 - Only send an external test message if the user explicitly asks for network verification.
 
-9. Report outcome
+11. Report outcome
 - Include the backup file path.
 - Include verification command results.
 - If verification is blocked, state the blocker and provide the exact next command.

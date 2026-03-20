@@ -3,9 +3,15 @@
   "slug": "clawshow-gateway-connect",
   "displayName": "ClawShow-Gateway-Connect",
   "latest": {
-    "version": "1.0.3",
-    "publishedAt": 1773395347171,
-    "commit": "https://github.com/openclaw/skills/commit/62bd3627cb0921c222c1e08e020bf04f0a0593da"
+    "version": "1.0.4",
+    "publishedAt": 1773898614030,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.3",
+      "publishedAt": 1773395347171,
+      "commit": "https://github.com/openclaw/skills/commit/62bd3627cb0921c222c1e08e020bf04f0a0593da"
+    }
+  ]
 }
