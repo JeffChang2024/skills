@@ -4,6 +4,8 @@ name: Bookkeeping
 description: "记账管家。收支记录、月度报表（含同比环比）、预算管理、存钱目标追踪。数据存本地JSON。. Use when you need bookkeeping pro capabilities. Triggers on: bookkeeping pro."
   记账理财助手。个人收支记录、月度报表、预算管理、消费分析、储蓄目标。Personal bookkeeping with income/expense tracking, monthly reports, budget management. 记账本、家庭账本、理财规划。Use when tracking personal finances.
 author: BytesAgain
+homepage: https://bytesagain.com
+source: https://github.com/bytesagain/ai-skills
 ---
 
 # bookkeeping
