@@ -3,11 +3,16 @@
   "slug": "terms-of-service",
   "displayName": "Terms Of Service",
   "latest": {
-    "version": "2.2.0",
-    "publishedAt": 1773444881129,
-    "commit": "https://github.com/openclaw/skills/commit/ab12411f6f1fc04458b6ebcc489d37be8a6c4abd"
+    "version": "2.0.0",
+    "publishedAt": 1773773971812,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.2.0",
+      "publishedAt": 1773444881129,
+      "commit": "https://github.com/openclaw/skills/commit/ab12411f6f1fc04458b6ebcc489d37be8a6c4abd"
+    },
     {
       "version": "1.0.0",
       "publishedAt": 1773235786522,

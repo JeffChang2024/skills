@@ -1,7 +1,11 @@
 ---
+version: "2.0.0"
 name: Terms of Service
 description: "Terms of Service Generator - 服务条款生成器. Use when you need terms of service capabilities. Triggers on: terms of service."
   服务条款生成器。SaaS/电商/App服务条款、更新通知、白话版。Terms of service generator. 服务条款、用户协议。
+author: BytesAgain
+homepage: https://bytesagain.com
+source: https://github.com/bytesagain/ai-skills
 ---
 # Terms of Service
 
@@ -26,9 +30,24 @@ A: 主要输出Markdown格式，方便复制和编辑。
   plain           plain
 ```
 
-
 ---
 *Terms of Service by BytesAgain*
 ---
 💬 Feedback & Feature Requests: https://bytesagain.com/feedback
 Powered by BytesAgain | bytesagain.com
+
+- Run `terms-of-service help` for all commands
+
+## Commands
+
+Run `terms-of-service help` to see all available commands.
+
+## When to Use
+
+- Quick terms tasks from terminal
+- Automation pipelines
+
+## When to Use
+
+- Quick terms tasks from terminal
+- Automation pipelines
