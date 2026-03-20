@@ -2,11 +2,29 @@
 name: Account & Authentication
 description: Account signup, login via email/OTP/wallet/biometric, token refresh, password reset, and session management.
 version: 1.0.0
+metadata:
+  openclaw:
+    requires:
+      env:
+        - AIOT_API_BASE_URL
+    primaryEnv: AIOT_API_BASE_URL
 ---
 
 # Account & Authentication
 
 Use this skill when the user needs to sign up, log in, manage sessions, reset their password, or link a Web3 wallet.
+
+## Configuration
+
+The default API base URL is `https://payment-api-dev.aiotnetwork.io`. All endpoints are relative to this URL.
+
+To override (e.g. for local development):
+
+```bash
+export AIOT_API_BASE_URL="http://localhost:8080"
+```
+
+If `AIOT_API_BASE_URL` is not set, use `https://payment-api-dev.aiotnetwork.io` as the base for all requests.
 
 ## Available Tools
 
@@ -34,8 +52,8 @@ Use this skill when the user needs to sign up, log in, manage sessions, reset th
 
 Create a new account via email and OTP
 
-1. Send OTP: POST /api/v1/auth/otp/send with {email, type: "signup"}
-2. Verify OTP: POST /api/v1/auth/otp/verify with {email, code, type: "signup"} — returns verification_token
+1. Send OTP: POST /api/v1/auth/otp/send with {email, type: "registration"}
+2. Verify OTP: POST /api/v1/auth/otp/verify with {email, code, type: "registration"} — returns verification_token
 3. Sign up: POST /api/v1/auth/signup with {email, password, verification_token}
 
 
@@ -66,7 +84,8 @@ Follow these instructions when executing this skill:
 - If the user requests an operation outside this skill's scope, decline and suggest the appropriate skill.
 - If a step fails, check the error and follow the recovery guidance below before retrying.
 
-- To sign up a new user: first call `send_otp`, then `verify_otp`, then `signup`. Never skip OTP verification.
+- To sign up a new user: first call `send_otp` with type "registration", then `verify_otp` with type "registration", then `signup`. Never skip OTP verification.
+- Valid OTP types: "registration" (signup), "forget_password", "account_unlock", "pin_setup", "pin_reset". Always use the correct type for the operation.
 - To reset a password: first call `send_otp` with type "forget_password", then `verify_otp`, then `reset_password` with the verification token.
 - All authenticated endpoints require a bearer token obtained from `login` or `login_with_wallet`.
 - When the access token expires (1 hour TTL), call `refresh_token` with the refresh token. Do not ask the user to log in again.
