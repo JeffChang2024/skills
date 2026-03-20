@@ -3,11 +3,16 @@
   "slug": "api-generator",
   "displayName": "Api Generator",
   "latest": {
-    "version": "2.3.4",
-    "publishedAt": 1773664558449,
-    "commit": "https://github.com/openclaw/skills/commit/03961ab4d93db2e9e1ec229fe24a8f0675e2a375"
+    "version": "2.0.0",
+    "publishedAt": 1773773744210,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.3.4",
+      "publishedAt": 1773664558449,
+      "commit": "https://github.com/openclaw/skills/commit/03961ab4d93db2e9e1ec229fe24a8f0675e2a375"
+    },
     {
       "version": "2.2.0",
       "publishedAt": 1773420920356,
