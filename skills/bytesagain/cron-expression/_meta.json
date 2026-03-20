@@ -3,11 +3,16 @@
   "slug": "cron-expression",
   "displayName": "Cron Expression",
   "latest": {
-    "version": "2.3.4",
-    "publishedAt": 1773665536720,
-    "commit": "https://github.com/openclaw/skills/commit/cd2bcdbe205e26a4da4908a6c0dc1ca50a570789"
+    "version": "3.0.0",
+    "publishedAt": 1773922145693,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.3.4",
+      "publishedAt": 1773665536720,
+      "commit": "https://github.com/openclaw/skills/commit/cd2bcdbe205e26a4da4908a6c0dc1ca50a570789"
+    },
     {
       "version": "2.3.0",
       "publishedAt": 1773446827535,
