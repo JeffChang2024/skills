@@ -1,0 +1,11 @@
+{
+  "owner": "minmengxhw-cpu",
+  "slug": "mnemo",
+  "displayName": "File-system + vector-powered memory skill for OpenClaw — semantic recall, daily journaling, and safeguard flushing, all running locally via Ollama",
+  "latest": {
+    "version": "1.0.3",
+    "publishedAt": 1773977174716,
+    "commit": null
+  },
+  "history": []
+}
