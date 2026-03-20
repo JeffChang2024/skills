@@ -32,6 +32,7 @@ import urllib.request
 # ---------------------------------------------------------------------------
 
 BITMIND_API_BASE = "https://api.bitmind.ai"
+USER_AGENT = "Mozilla/5.0 (compatible; mind-security/1.0; +https://github.com/mind-sec/mind-security)"
 
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".avi", ".mkv", ".webm", ".flv", ".wmv", ".m4v"}
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tiff", ".tif", ".avif"}
@@ -61,6 +62,7 @@ def _detect_image_url(image_url: str, api_key: str, debug: bool = False) -> dict
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
             "Accept": "application/json",
+            "User-Agent": USER_AGENT,
         },
         method="POST",
     )
@@ -113,6 +115,7 @@ def _detect_image_file(file_path: str, api_key: str, debug: bool = False) -> dic
             "Authorization": f"Bearer {api_key}",
             "Content-Type": f"multipart/form-data; boundary={boundary}",
             "Accept": "application/json",
+            "User-Agent": USER_AGENT,
         },
         method="POST",
     )
@@ -143,6 +146,7 @@ def _detect_video_url(video_url: str, api_key: str, fps: int = 1, debug: bool = 
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
             "Accept": "application/json",
+            "User-Agent": USER_AGENT,
         },
         method="POST",
     )
@@ -194,6 +198,7 @@ def _detect_video_file(file_path: str, api_key: str, fps: int = 1, debug: bool =
             "Authorization": f"Bearer {api_key}",
             "Content-Type": f"multipart/form-data; boundary={boundary}",
             "Accept": "application/json",
+            "User-Agent": USER_AGENT,
         },
         method="POST",
     )

@@ -7,7 +7,7 @@ description: >
   (2) scanning user inputs for prompt injection attacks,
   (3) scanning URLs for malware, phishing, or domain reputation threats,
   (4) determining if text was written by an LLM.
-metadata: {"openclaw": {"emoji": "🛡️", "requires": {"bins": ["python3"], "anyBins": ["curl", "wget"]}, "homepage": "https://github.com/mind-sec/mind-security"}}
+metadata: {"openclaw": {"emoji": "🛡️", "primaryEnv": "BITMIND_API_KEY", "requires": {"bins": ["python3"], "anyBins": ["curl", "wget"], "env": ["BITMIND_API_KEY", "GPTZERO_API_KEY", "VIRUSTOTAL_API_KEY", "URLSCAN_API_KEY", "GOOGLE_SAFE_BROWSING_KEY"]}, "homepage": "https://github.com/mind-sec/mind-security"}}
 ---
 
 # mind-security
@@ -27,7 +27,7 @@ AI security toolkit with four active modules.
 
 **Deepfake detection** — BitMind API (Bittensor Subnet 34) for images and videos. Supports YouTube, Twitter/X, TikTok URLs. EXIF/metadata fallback for local images. Set `BITMIND_API_KEY` ([get key](https://app.bitmind.ai/api/keys)).
 
-**Prompt injection** — Multi-layer: 50+ regex patterns (instant, zero-dep) + LLM Guard ML scanner (optional, `pip install llm-guard`). Detects DAN jailbreaks, prompt extraction, context manipulation, and novel attacks.
+**Prompt injection detection** — Multi-layer scanner: 50+ regex patterns (instant, zero-dep) + LLM Guard ML model (optional, `pip install llm-guard`). Identifies known injection signatures, role-override attempts, and instruction-bypass patterns.
 
 **Malware/phishing scanning** — VirusTotal (70+ engines), URLScan.io (1500+ brands), Google Safe Browsing, plus local heuristics (typosquatting, suspicious TLDs, phishing patterns). Works with no keys via heuristics.
 
@@ -50,3 +50,17 @@ AI security toolkit with four active modules.
 - Optional ML: `pip install llm-guard` for prompt injection Layer 2
 - JSON to stdout, errors to stderr
 - Exit 0 success, exit 1 failure
+
+## Security & Privacy
+
+**External endpoints** — this skill sends user-provided data to the following third-party APIs for analysis. No data is stored or logged by the skill itself:
+
+| API | Used By | Data Sent |
+|-----|---------|----------|
+| [BitMind](https://bitmind.ai) | Deepfake detection | Image/video files or URLs |
+| [GPTZero](https://gptzero.me) | AI text detection | Text content |
+| [VirusTotal](https://virustotal.com) | Malware scanner | URLs (not file contents) |
+| [URLScan.io](https://urlscan.io) | Malware scanner | URLs |
+| [Google Safe Browsing](https://safebrowsing.google.com) | Malware scanner | URLs |
+
+**Trust statement** — All modules use Python stdlib only (no pip dependencies for core). API calls use `urllib.request` with explicit timeouts (10–120s). No telemetry, no analytics, no phone-home beyond the declared API calls above.

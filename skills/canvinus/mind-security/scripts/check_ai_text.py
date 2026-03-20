@@ -29,6 +29,7 @@ import urllib.request
 # ---------------------------------------------------------------------------
 
 GPTZERO_API = "https://api.gptzero.me/v2/predict/text"
+USER_AGENT = "Mozilla/5.0 (compatible; mind-security/1.0; +https://github.com/mind-sec/mind-security)"
 
 
 def _detect_gptzero(text: str, api_key: str) -> dict:
@@ -46,6 +47,7 @@ def _detect_gptzero(text: str, api_key: str) -> dict:
             "x-api-key": api_key,
             "Content-Type": "application/json",
             "Accept": "application/json",
+            "User-Agent": USER_AGENT,
         },
         method="POST",
     )
