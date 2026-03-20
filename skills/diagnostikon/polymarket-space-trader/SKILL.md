@@ -28,29 +28,46 @@ Key insight: volatility spikes ~25% around launch events, creating short-window 
 
 ## Signal Logic
 
-### Default Signal: Launch Schedule Divergence
+### Default Signal: Conviction-Based Sizing with Operator Reliability Bias
 
 1. Discover active space/launch markets on Polymarket
-2. Query public launch databases (Rocket Watch, Next Spaceflight) for upcoming dates
-3. Compare scheduled launch date probability with current market price
-4. Before confirmed launches, markets often underprice success (retail pessimism bias)
-5. After anomalies (Falcon 9 hold, weather scrub), markets may overreact — fade the overreaction
+2. Compute base conviction from distance to threshold (0% at boundary → 100% at p=0/p=1)
+3. Apply `mission_bias()` multiplier based on operator track record in the question
+4. Size = `max(MIN_TRADE, conviction × bias × MAX_POSITION)` — capped at MAX_POSITION
+5. Skip markets with spread > MAX_SPREAD or fewer than MIN_DAYS to resolution
+
+### Mission Bias (built-in, no API required)
+
+Retail traders apply uniform skepticism across all space markets, ignoring the vast difference in historical reliability between operators. `mission_bias()` encodes documented success rates directly into position sizing:
+
+| Operator / Mission | Track record | Multiplier |
+|---|---|---|
+| Falcon 9 / Starlink deployments | ~98% mission success | **1.35x** |
+| SpaceX / Crew Dragon (general) | ~95% success | **1.25x** |
+| Starship (test vehicle) | Rapidly improving, ~60%+ | **1.10x** |
+| Blue Origin / New Glenn | Lower cadence, less proven | 0.90x |
+| NASA Artemis / SLS | Chronic delays, over-budget | 0.80x |
+| Mars missions (any operator) | Retail overprice enthusiasm | 0.75x |
+| Virgin Galactic | Multiple delays, financial struggles | **0.70x** |
+
+Example: Falcon 9 launch success market at 25% → conviction 34% × 1.35x = 46% → $14 position. NASA SLS timeline market at same price → 34% × 0.80x = 27% → $8.
 
 ### Remix Ideas
 
-- **Twitter/X sentiment**: SpaceX tweet activity correlates with 30% volume spikes — use as momentum signal
-- **FAA NOTAM filings**: File of Notice to Air Missions is public and indicates imminent launches days ahead
-- **Satellite tracker APIs**: Real orbital data to verify Starlink counts vs market claims
-- **NASA API**: https://api.nasa.gov/ for real-time mission status feeds
+- **FAA NOTAM filings**: Public Notice to Air Missions filed days ahead of launch — feed scheduled probability into p to trade divergence with market
+- **Next Spaceflight / Rocket Watch**: Public launch calendars as leading probability signal
+- **NASA API**: Real-time mission status and telemetry feeds
+- **Satellite TLE data**: Verify actual Starlink constellation count vs market claims before milestone markets resolve
 
 ## Market Categories Tracked
 
 ```python
-SPACE_KEYWORDS = [
-    "SpaceX", "Starship", "Starlink", "launch", "rocket",
-    "Mars", "NASA", "Blue Origin", "Virgin Galactic", "Axiom",
-    "satellite", "orbital", "ISS", "FAA", "Falcon",
-    "space station", "lunar", "Artemis", "ESA"
+KEYWORDS = [
+    'SpaceX', 'Starship', 'Starlink', 'Falcon 9', 'Crew Dragon',
+    'launch', 'rocket', 'Mars', 'Moon', 'lunar',
+    'NASA', 'Artemis', 'SLS', 'Blue Origin', 'New Glenn',
+    'Virgin Galactic', 'Axiom', 'satellite', 'orbital', 'ISS',
+    'FAA', 'launch window', 'ESA', 'JAXA',
 ]
 ```
 
@@ -104,11 +121,14 @@ All risk parameters are declared in `clawhub.json` as `tunables` and adjustable 
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `SIMMER_SPACE_MAX_POSITION` | `30` | Max USDC per trade |
-| `SIMMER_SPACE_MIN_VOLUME` | `2500` | Min market volume filter (USD) |
-| `SIMMER_SPACE_MAX_SPREAD` | `0.08` | Max bid-ask spread (0.10 = 10%) |
-| `SIMMER_SPACE_MIN_DAYS` | `3` | Min days until market resolves |
-| `SIMMER_SPACE_MAX_POSITIONS` | `6` | Max concurrent open positions |
+| `SIMMER_MAX_POSITION` | `30` | Max USDC per trade (reached at 100% conviction) |
+| `SIMMER_MIN_VOLUME` | `2500` | Min market volume filter (USD) |
+| `SIMMER_MAX_SPREAD` | `0.08` | Max bid-ask spread (0.08 = 8%) |
+| `SIMMER_MIN_DAYS` | `3` | Min days until market resolves |
+| `SIMMER_MAX_POSITIONS` | `6` | Max concurrent open positions |
+| `SIMMER_YES_THRESHOLD` | `0.38` | Buy YES if market price ≤ this value |
+| `SIMMER_NO_THRESHOLD` | `0.62` | Sell NO if market price ≥ this value |
+| `SIMMER_MIN_TRADE` | `5` | Floor for any trade (min USDC regardless of conviction) |
 
 ## Dependency
 
