@@ -1,6 +1,10 @@
 ---
 name: tts
-description: "Use this skill whenever the user wants to convert text into speech, generate audio from text, or produce voiceovers. Triggers include: any mention of 'TTS', 'text to speech', 'speak', 'say', 'voice', 'read aloud', 'audio narration', 'voiceover', 'dubbing', or requests to turn written content into spoken audio. Also use when converting EPUB/PDF/SRT/articles to audio, cloning voices from reference audio, controlling emotion or speed in speech, aligning speech to subtitle timelines, or producing per-segment voice-mapped audio.
+description: "Use this skill whenever the user wants to convert text into speech, generate audio from text, or produce voiceovers. Triggers include: any mention of 'TTS', 'text to speech', 'speak', 'say', 'voice', 'read aloud', 'audio narration', 'voiceover', 'dubbing', or requests to turn written content into spoken audio. Also use when converting EPUB/PDF/SRT/articles to audio, cloning voices from reference audio, controlling emotion or speed in speech, aligning speech to subtitle timelines, or producing per-segment voice-mapped audio."
+permissions:
+  - network
+  - filesystem
+metadata: {"openclaw": {"primaryEnv": "NOIZ_API_KEY"}}
 ---
 
 # tts
@@ -138,9 +142,23 @@ Available guest voices (15 built-in):
 | `5a68d66b` | The Healer (Serena) | en | F | Calm |
 | `0e4ab6ec` | The Mentor (Maya) | en | F | Calm |
 
+## Security & data disclosure
+
+This skill performs the following file and network operations at runtime:
+
+- **Credential storage**: When you run `config --set-api-key`, the key is saved to `~/.config/noiz/api_key` (permissions `0600`). The `NOIZ_API_KEY` environment variable is also supported as an alternative.
+- **Legacy key migration**: If `~/.noiz_api_key` exists and `~/.config/noiz/api_key` does not, the key is **copied** (not deleted) to the new location. A message is printed; the old file is left untouched for you to remove manually.
+- **Network calls (Noiz backend)**: Text and optional reference audio are uploaded to `https://noiz.ai/v1/` for synthesis. No data is sent unless you invoke a Noiz command.
+- **Reference audio download**: When `--ref-audio` is a URL, the file is downloaded to a temp file, used for the API call, then deleted. If no voice-id or ref-audio is provided, a default reference audio is downloaded from `storage.googleapis.com` or `noiz.ai`.
+- **Temp files**: Temporary audio/text files may be created during synthesis and are cleaned up after use.
+- **ffmpeg**: Invoked only in timeline `render` mode to assemble the final audio.
+
+No files outside the output path and `~/.config/noiz/` are modified. The Kokoro backend runs entirely offline with no network access.
+
 ## Requirements
 
 - `ffmpeg` in PATH (timeline mode only)
+- `requests` package: `uv pip install requests` (required for Noiz backend)
 - Get your API key at [Noiz Developer](https://developers.noiz.ai/api-keys), then run `python3 skills/tts/scripts/tts.py config --set-api-key YOUR_KEY` (guest mode works without a key but has limited features)
 - Kokoro: if already installed, pass `--backend kokoro` to use the local backend
 

@@ -19,7 +19,11 @@ from pathlib import Path
 from typing import List, Optional
 
 SCRIPT_DIR = Path(__file__).parent
-NOIZ_KEY_FILE = Path.home() / ".noiz_api_key"
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+NOIZ_KEY_FILE = Path.home() / ".config" / "noiz" / "api_key"
+_LEGACY_KEY_FILE = Path.home() / ".noiz_api_key"
 DEFAULT_NOIZ_REF_AUDIO_URL_CN = (
     "https://storage.googleapis.com/noiz_audio_public/resource/audio/ref_cn_fm1.WAV"
 )
@@ -45,13 +49,39 @@ def normalize_api_key_base64(value: str) -> str:
     return base64.b64encode(key.encode("utf-8")).decode("ascii")
 
 
+def _migrate_legacy_key() -> None:
+    """One-time migration from ~/.noiz_api_key to XDG path (non-destructive)."""
+    if _LEGACY_KEY_FILE.exists() and not NOIZ_KEY_FILE.exists():
+        NOIZ_KEY_FILE.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        raw = _LEGACY_KEY_FILE.read_text(encoding="utf-8").strip()
+        if raw:
+            NOIZ_KEY_FILE.write_text(raw, encoding="utf-8")
+            os.chmod(str(NOIZ_KEY_FILE), 0o600)
+        print(
+            "[config] Copied API key from {} to {}. "
+            "You can remove the old file manually if desired.".format(
+                _LEGACY_KEY_FILE, NOIZ_KEY_FILE
+            ),
+            file=sys.stderr,
+        )
+
+
 def load_api_key() -> Optional[str]:
     env_key = os.environ.get("NOIZ_API_KEY", "")
     if env_key:
         normalized = normalize_api_key_base64(env_key)
         os.environ["NOIZ_API_KEY"] = normalized
         return normalized
+    _migrate_legacy_key()
     if NOIZ_KEY_FILE.exists():
+        mode = NOIZ_KEY_FILE.stat().st_mode & 0o777
+        if mode & 0o077:
+            print(
+                "[security] Warning: {} has too-open permissions ({:o}). "
+                "Fixing to 600.".format(NOIZ_KEY_FILE, mode),
+                file=sys.stderr,
+            )
+            os.chmod(str(NOIZ_KEY_FILE), 0o600)
         raw = NOIZ_KEY_FILE.read_text(encoding="utf-8").strip()
         if raw:
             normalized = normalize_api_key_base64(raw)
@@ -62,6 +92,7 @@ def load_api_key() -> Optional[str]:
 
 def save_api_key(key: str) -> None:
     normalized = normalize_api_key_base64(key)
+    NOIZ_KEY_FILE.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     NOIZ_KEY_FILE.write_text(normalized, encoding="utf-8")
     os.chmod(str(NOIZ_KEY_FILE), 0o600)
 
@@ -95,8 +126,13 @@ def unlink_silent(path: Optional[Path]) -> None:
 
 def ensure_noiz_ready() -> None:
     if importlib.util.find_spec("requests") is None:
-        print("[noiz] Installing requests...", file=sys.stderr)
-        subprocess.check_call(["uv", "pip", "install", "requests"])
+        print(
+            "Error: 'requests' package is required for Noiz backend but not installed.\n"
+            "  Install it with:  uv pip install requests\n"
+            "  Or use the local Kokoro backend:  --backend kokoro",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
 
 
 def detect_text_lang(text: str) -> str:
@@ -207,22 +243,20 @@ def cmd_speak(args: argparse.Namespace) -> int:
             "[noiz-guest] Using guest mode (limited features, no API key required)",
             file=sys.stderr,
         )
-        cmd = [
-            sys.executable,
-            str(SCRIPT_DIR / "noiz_tts.py"),
-            "--guest",
-            "--output", output,
-            "--output-format", fmt,
-        ]
-        if args.text:
-            cmd += ["--text", args.text]
-        else:
-            cmd += ["--text-file", args.text_file]
-        cmd += ["--voice-id", args.voice_id]
-        if args.speed is not None:
-            cmd += ["--speed", str(args.speed)]
+        from noiz_tts import synthesize_guest as _noiz_guest_synthesize
 
-        subprocess.check_call(cmd)
+        text = args.text
+        if not text and args.text_file:
+            text = Path(args.text_file).read_text(encoding="utf-8").strip()
+        _noiz_guest_synthesize(
+            base_url="https://noiz.ai/v1",
+            text=text,
+            voice_id=args.voice_id,
+            output_format=fmt,
+            speed=args.speed or 1.0,
+            timeout=120,
+            out_path=Path(output),
+        )
 
     # ── noiz (authenticated) ─────────────────────────────────────────
     else:
@@ -263,38 +297,32 @@ def cmd_speak(args: argparse.Namespace) -> int:
             downloaded_ref_path = prepare_ref_audio(ref_audio)
             ref_audio = downloaded_ref_path
 
-        cmd = [
-            sys.executable,
-            str(SCRIPT_DIR / "noiz_tts.py"),
-            "--api-key", api_key,
-            "--output", output,
-            "--output-format", fmt,
-        ]
-        if args.text:
-            cmd += ["--text", args.text]
-        else:
-            cmd += ["--text-file", args.text_file]
-        if args.voice_id:
-            cmd += ["--voice-id", args.voice_id]
-        if ref_audio:
-            cmd += ["--reference-audio", ref_audio]
-        if args.speed is not None:
-            cmd += ["--speed", str(args.speed)]
-        if args.emo:
-            cmd += ["--emo", args.emo]
-        if args.duration is not None:
-            cmd += ["--duration", str(args.duration)]
-        if args.lang:
-            cmd += ["--target-lang", args.lang]
+        from noiz_tts import synthesize as _noiz_synthesize, call_emotion_enhance as _noiz_emotion_enhance
+
+        text = args.text
+        if not text and args.text_file:
+            text = Path(args.text_file).read_text(encoding="utf-8").strip()
+
         if args.auto_emotion:
-            cmd += ["--auto-emotion"]
-        if args.similarity_enh:
-            cmd += ["--similarity-enh"]
-        if args.save_voice:
-            cmd += ["--save-voice"]
+            text = _noiz_emotion_enhance("https://noiz.ai/v1", api_key, text, 120)
 
         try:
-            subprocess.check_call(cmd)
+            _noiz_synthesize(
+                base_url="https://noiz.ai/v1",
+                api_key=api_key,
+                text=text,
+                voice_id=args.voice_id,
+                reference_audio=Path(ref_audio) if ref_audio else None,
+                output_format=fmt,
+                speed=args.speed or 1.0,
+                emo=args.emo,
+                target_lang=args.lang,
+                similarity_enh=args.similarity_enh,
+                save_voice=args.save_voice,
+                duration=args.duration,
+                timeout=120,
+                out_path=Path(output),
+            )
         finally:
             if downloaded_ref_path and downloaded_ref_path != (args.ref_audio or ""):
                 try:
@@ -337,15 +365,6 @@ def cmd_render(args: argparse.Namespace, extra: List[str]) -> int:
         print("    Then pass --backend kokoro", file=sys.stderr)
         return 1
 
-    cmd = [
-        sys.executable,
-        str(SCRIPT_DIR / "render_timeline.py"),
-        "--srt", args.srt,
-        "--voice-map", args.voice_map,
-        "--output", args.output,
-        "--backend", backend,
-    ]
-
     if backend == "noiz":
         api_key = load_api_key()
         if not api_key:
@@ -358,28 +377,43 @@ def cmd_render(args: argparse.Namespace, extra: List[str]) -> int:
                 file=sys.stderr,
             )
             return 1
-        cmd += ["--api-key", api_key]
+    else:
+        api_key = None
 
-    cmd += extra
-    subprocess.check_call(cmd)
-    return 0
+    render_argv = ["--srt", args.srt, "--voice-map", args.voice_map,
+                    "--output", args.output, "--backend", backend]
+    if api_key:
+        render_argv += ["--api-key", api_key]
+    render_argv += extra
+
+    from render_timeline import main as _render_main
+    old_argv = sys.argv
+    try:
+        sys.argv = ["render_timeline.py"] + render_argv
+        return _render_main()
+    finally:
+        sys.argv = old_argv
 
 
 # ── to-srt ────────────────────────────────────────────────────────────
 
 
 def cmd_to_srt(args: argparse.Namespace) -> int:
-    cmd = [
-        sys.executable,
-        str(SCRIPT_DIR / "text_to_srt.py"),
-        "--input", args.input,
-        "--output", args.output,
-    ]
-    if args.cps is not None:
-        cmd += ["--chars-per-second", str(args.cps)]
-    if args.gap is not None:
-        cmd += ["--gap-ms", str(args.gap)]
-    subprocess.check_call(cmd)
+    from text_to_srt import split_sentences, estimate_timings, write_srt
+
+    text = Path(args.input).read_text(encoding="utf-8").strip()
+    if not text:
+        print("Error: Input text is empty.", file=sys.stderr)
+        return 1
+    sentences = split_sentences(text)
+    if not sentences:
+        print("Error: No sentences found after splitting.", file=sys.stderr)
+        return 1
+    cps = args.cps if args.cps is not None else 4.0
+    gap = args.gap if args.gap is not None else 300
+    entries = estimate_timings(sentences, chars_per_second=cps, gap_ms=gap)
+    write_srt(entries, Path(args.output))
+    print("Done. {} segments written to {}".format(len(entries), args.output))
     return 0
 
 
