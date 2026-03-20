@@ -3,11 +3,16 @@
   "slug": "prompt-generator",
   "displayName": "Prompt Generator",
   "latest": {
-    "version": "2.3.4",
-    "publishedAt": 1773666841035,
-    "commit": "https://github.com/openclaw/skills/commit/5885491a81d7bbffbe3a3ddbc0bfbbc40dc874a5"
+    "version": "2.0.0",
+    "publishedAt": 1773773201476,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.3.4",
+      "publishedAt": 1773666841035,
+      "commit": "https://github.com/openclaw/skills/commit/5885491a81d7bbffbe3a3ddbc0bfbbc40dc874a5"
+    },
     {
       "version": "2.2.0",
       "publishedAt": 1773421708019,
