@@ -3,11 +3,16 @@
   "slug": "youtube-live-broadcast-checking",
   "displayName": "YouTube Live Broadcast Checking",
   "latest": {
-    "version": "1.3.4",
-    "publishedAt": 1773754618434,
-    "commit": "https://github.com/openclaw/skills/commit/4f3fe302369d3134b35b69d1d0d52217f72cabf0"
+    "version": "1.3.5",
+    "publishedAt": 1773921646305,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.3.4",
+      "publishedAt": 1773754618434,
+      "commit": "https://github.com/openclaw/skills/commit/4f3fe302369d3134b35b69d1d0d52217f72cabf0"
+    },
     {
       "version": "1.1.0",
       "publishedAt": 1773659209713,
