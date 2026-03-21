@@ -2,15 +2,15 @@
 """
 export-pptx.py — Export slide-creator HTML presentations to PPTX.
 
-Uses Playwright with your existing system Chrome to take pixel-perfect
-screenshots of each slide, then assembles them into a PowerPoint file.
-No Chromium download needed if Chrome/Edge/Brave is already installed.
+Supports two export modes:
+  --mode image  (default): Pixel-perfect screenshots, no editing
+  --mode native:           Editable text/shapes/tables, simplified visuals
 
 Usage:
-    python export-pptx.py <presentation.html> [output.pptx] [--width W] [--height H]
+    python export-pptx.py <presentation.html> [output.pptx] [--mode image|native] [--width W] [--height H]
 
 Dependencies:
-    pip install playwright python-pptx
+    pip install playwright python-pptx beautifulsoup4 lxml
     (No browser download needed if Chrome is already installed)
 """
 
@@ -51,6 +51,7 @@ from pptx.util import Inches
 # CSS injected before screenshotting to:
 # 1. Disable all animations/transitions so content is immediately fully visible
 # 2. Force .reveal elements (which start invisible) to be shown
+# 3. Disable scroll-snap to allow precise positioning for screenshots
 DISABLE_ANIMATIONS_CSS = """
 *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -62,6 +63,9 @@ DISABLE_ANIMATIONS_CSS = """
     opacity: 1 !important;
     transform: none !important;
     filter: none !important;
+}
+html, body {
+    scroll-snap-type: none !important;
 }
 """
 
@@ -108,10 +112,13 @@ def find_and_launch_browser(playwright):
         raise SystemExit(1) from e
 
 
-def screenshot_slides(html_path, output_dir, width=1440, height=900):
+def screenshot_slides(html_path, output_dir, width=1440, height=900, scale=2):
     """
     Open the HTML presentation in a headless browser, scroll to each .slide,
     and save a screenshot. Returns a list of screenshot paths in slide order.
+
+    scale: device pixel ratio (default 2 = retina, 2880×1800 for 1440×900 viewport).
+    Higher values produce sharper images but larger files.
     """
     html_path = Path(html_path).resolve()
     url = f"file://{html_path}"
@@ -119,7 +126,8 @@ def screenshot_slides(html_path, output_dir, width=1440, height=900):
 
     with sync_playwright() as p:
         browser = find_and_launch_browser(p)
-        page = browser.new_page(viewport={"width": width, "height": height})
+        page = browser.new_page(viewport={"width": width, "height": height},
+                                device_scale_factor=scale)
 
         # Navigate and wait for fonts + images
         page.goto(url, wait_until="networkidle")
@@ -144,10 +152,6 @@ def screenshot_slides(html_path, output_dir, width=1440, height=900):
         print(f"  Found {slide_count} slides. Capturing...")
 
         for i in range(slide_count):
-            # Scroll this slide into view
-            page.evaluate(f"document.querySelectorAll('.slide')[{i}].scrollIntoView()")
-            page.wait_for_timeout(150)
-
             # Get title for progress display
             title = page.evaluate(f"""
                 (() => {{
@@ -159,7 +163,9 @@ def screenshot_slides(html_path, output_dir, width=1440, height=900):
             print(f"  [{i+1}/{slide_count}] {title}")
 
             img_path = output_dir / f"slide_{i:03d}.png"
-            page.screenshot(path=str(img_path), full_page=False)
+            # Screenshot the slide element directly — avoids scroll-snap positioning bugs
+            # where window.scrollTo() could land on a snapped position ≠ the target slide
+            page.locator('.slide').nth(i).screenshot(path=str(img_path))
             screenshots.append(img_path)
 
         browser.close()
@@ -194,7 +200,7 @@ def assemble_pptx(screenshots, output_path, width=1440, height=900):
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
-def export(html_path, output_path=None, width=1440, height=900):
+def export(html_path, output_path=None, width=1440, height=900, scale=2):
     html_path = Path(html_path).resolve()
     if not html_path.exists():
         print(f"Error: file not found: {html_path}")
@@ -203,11 +209,11 @@ def export(html_path, output_path=None, width=1440, height=900):
     output_path = Path(output_path) if output_path else html_path.with_suffix('.pptx')
 
     print(f"Exporting: {html_path.name}")
-    print(f"Viewport:  {width}×{height}")
+    print(f"Viewport:  {width}×{height}  Scale: {scale}x ({width*scale}×{height*scale} px)")
 
     tmp_dir = Path(tempfile.mkdtemp(prefix="slide-export-"))
     try:
-        screenshots = screenshot_slides(html_path, tmp_dir, width, height)
+        screenshots = screenshot_slides(html_path, tmp_dir, width, height, scale)
         if not screenshots:
             print("Nothing to export.")
             return
@@ -225,10 +231,29 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("html", help="Path to the HTML presentation")
     parser.add_argument("output", nargs="?", help="Output .pptx path (default: same name as HTML)")
+    parser.add_argument("--mode", choices=["image", "native"], default="image",
+                        help="Export mode: 'image' (pixel-perfect, not editable) or 'native' (editable text, simplified visuals)")
     parser.add_argument("--width",  type=int, default=1440, help="Viewport width  (default: 1440)")
     parser.add_argument("--height", type=int, default=900,  help="Viewport height (default: 900)")
+    parser.add_argument("--scale",  type=int, default=2,    help="Device pixel ratio for image mode (default: 2, produces 2880×1800 for 1440×900 viewport)")
     args = parser.parse_args()
-    export(args.html, args.output, args.width, args.height)
+
+    if args.mode == "native":
+        # Import and use native export (filename has hyphens, use importlib)
+        try:
+            import importlib.util
+            _script = Path(__file__).parent / "export-native-pptx.py"
+            _spec = importlib.util.spec_from_file_location("export_native_pptx", _script)
+            _mod = importlib.util.module_from_spec(_spec)
+            _spec.loader.exec_module(_mod)
+            _mod.export_native(args.html, args.output, args.width, args.height)
+        except ImportError as e:
+            print(f"Error: Native mode requires additional dependencies.")
+            print(f"  Install with: pip install beautifulsoup4 lxml")
+            print(f"  Details: {e}")
+            sys.exit(1)
+    else:
+        export(args.html, args.output, args.width, args.height, args.scale)
 
 
 if __name__ == "__main__":

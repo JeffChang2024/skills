@@ -1,11 +1,17 @@
 {
   "owner": "kaisersong",
   "slug": "kai-html-export",
-  "displayName": "kai-html-export",
+  "displayName": "Kai Html Export",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1773714887206,
-    "commit": "https://github.com/openclaw/skills/commit/8493e9dd23d92f7f5777738b2663d9605eecce12"
+    "version": "1.1.2",
+    "publishedAt": 1773925581911,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1773714887206,
+      "commit": "https://github.com/openclaw/skills/commit/8493e9dd23d92f7f5777738b2663d9605eecce12"
+    }
+  ]
 }
