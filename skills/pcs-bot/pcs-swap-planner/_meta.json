@@ -1,0 +1,11 @@
+{
+  "owner": "pcs-bot",
+  "slug": "pcs-swap-planner",
+  "displayName": "Swap Planner",
+  "latest": {
+    "version": "1.2.1",
+    "publishedAt": 1773995472501,
+    "commit": null
+  },
+  "history": []
+}
