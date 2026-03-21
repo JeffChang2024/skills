@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/home/linuxbrew/.linuxbrew/bin/python3.10
 # -*- coding: utf-8 -*-
 """
 股票仓位管理与风控专家 - 主计算脚本 (v1.0)
@@ -7,8 +7,17 @@
 
 import sys
 import argparse
+import time
 from dataclasses import dataclass
 from typing import List, Optional
+
+# 尝试导入 AKShare
+try:
+    import akshare as ak
+    HAS_AKSHARE = True
+except ImportError:
+    HAS_AKSHARE = False
+    print("⚠️ AKShare 未安装，请运行：pip3 install akshare pandas -U")
 
 
 @dataclass
@@ -365,24 +374,85 @@ def format_output(info: PositionInfo, assessment: RiskAssessment, plan: ActionPl
     return output
 
 
+def get_current_price_from_akshare(symbol: str, max_retries: int = 3) -> Optional[float]:
+    """
+    从 AKShare 获取股票当前价格
+    
+    ⚠️ 强制使用 AKShare，不 fallback
+    """
+    if not HAS_AKSHARE:
+        print("❌ AKShare 未安装，无法获取股价")
+        return None
+    
+    for attempt in range(1, max_retries + 1):
+        try:
+            if attempt > 1:
+                wait_time = 2 ** (attempt - 1)
+                print(f"⏳ 等待 {wait_time} 秒后重试 (第 {attempt}/{max_retries} 次)...")
+                time.sleep(wait_time)
+            else:
+                print(f"[AKShare] 获取股价中... (第 {attempt}/{max_retries} 次尝试)")
+            
+            # 获取实时行情
+            df = ak.stock_zh_a_spot_em()
+            if df is not None and len(df) > 0:
+                # 查找对应股票
+                if symbol:
+                    mask = df['代码'] == symbol
+                    if mask.any():
+                        row = df[mask].iloc[0]
+                        price = row['最新价'] if '最新价' in row else row['收盘价']
+                        print(f"✓ AKShare 成功获取 {symbol} 当前价格：{price:.2f}元")
+                        return float(price)
+            
+            print(f"⚠️ 未找到股票 {symbol}")
+            return None
+            
+        except Exception as e:
+            print(f"⚠️ AKShare 尝试 {attempt}/{max_retries} 失败：{e}")
+            if attempt == max_retries:
+                print("❌ AKShare 所有重试均失败")
+                return None
+    
+    return None
+
+
 def main():
     parser = argparse.ArgumentParser(description='股票仓位管理与风控专家')
     parser.add_argument('--name', required=True, help='股票名称')
     parser.add_argument('--code', default='', help='股票代码')
     parser.add_argument('--cost', type=float, required=True, help='持仓成本价')
-    parser.add_argument('--current', type=float, required=True, help='当前价格')
+    parser.add_argument('--current', type=float, help='当前价格 (可选，不提供则从 AKShare 获取)')
     parser.add_argument('--shares', type=int, required=True, help='持仓股数')
     parser.add_argument('--ratio', type=float, required=True, help='仓位占比 (%)')
     parser.add_argument('--assets', type=float, help='总资产 (可选)')
     
     args = parser.parse_args()
     
+    # 获取当前价格：优先使用 AKShare
+    current_price = args.current
+    if current_price is None and args.code:
+        print(f"\n🔍 从 AKShare 获取 {args.code} 当前价格...")
+        print("=" * 50)
+        current_price = get_current_price_from_akshare(args.code, max_retries=3)
+        
+        if current_price is None:
+            print("\n❌ 错误：无法获取当前价格")
+            print("   请手动提供 --current 参数，或检查网络连接")
+            sys.exit(1)
+    elif current_price is None:
+        print("\n❌ 错误：未提供股票代码，无法获取当前价格")
+        print("   请使用 --code 指定股票代码，或手动提供 --current 参数")
+        sys.exit(1)
+    else:
+        print(f"✅ 使用命令行提供的当前价格：{current_price:.2f}元")
+    
     # 创建持仓信息
     info = PositionInfo(
         stock_name=args.name,
         stock_code=args.code,
         cost_price=args.cost,
-        current_price=args.current,
+        current_price=current_price,
         shares=args.shares,
         position_ratio=args.ratio,
         total_assets=args.assets
