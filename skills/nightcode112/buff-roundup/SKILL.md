@@ -3,7 +3,7 @@ name: buff-roundup
 description: Auto-invest spare change from every transaction. Rounds up payments to the nearest dollar and invests the difference into BTC, ETH, or SOL via Jupiter on Solana. All fee logic enforced server-side. SDK is a thin API client — no secrets, no sensitive logic. REST API for any language.
 required_credentials:
   - name: BUFF_API_KEY
-    description: "API key for authenticating with the Buff API. Get one at buff.finance/dashboard"
+    description: "API key for authenticating with the Buff API. Generate programmatically via POST /api/keys/generate or get one at buff.finance/dashboard"
     sensitive: true
   - name: BUFF_WALLET_PUBKEY
     description: "Your Buff wallet public key (Solana address)"
@@ -82,7 +82,45 @@ buff.setAllocations([
 
 ## REST API
 
-No SDK needed — any language, any agent:
+No SDK needed — any language, any agent. Base URL: `https://buff.finance`
+
+### Public Endpoints (no auth required)
+
+```bash
+# Get auth message to sign
+curl https://buff.finance/api/auth
+
+# Get plan tiers and config
+curl https://buff.finance/api/plans
+
+# Get live crypto prices
+curl https://buff.finance/api/price
+
+# Get portfolio for any wallet
+curl https://buff.finance/api/portfolio/WALLET_ADDRESS
+
+# Check accumulator (balance vs threshold)
+curl "https://buff.finance/api/accumulator/WALLET_ADDRESS?threshold=5"
+
+# Get transaction history
+curl "https://buff.finance/api/activity?address=WALLET_ADDRESS&limit=20"
+```
+
+### Generate API Key (no pre-existing key needed)
+
+```bash
+# 1. Sign "Buff API Authentication" with your Solana keypair
+# 2. Send wallet + signature to generate your key
+
+curl -X POST https://buff.finance/api/keys/generate \
+  -H "Content-Type: application/json" \
+  -d '{"wallet": "YOUR_PUBKEY", "signature": "BASE64_SIGNATURE"}'
+
+# Response: { "ok": true, "data": { "apiKey": "...", "wallet": "..." } }
+# Use both x-api-key and x-wallet headers on all authenticated requests
+```
+
+### Authenticated Endpoints (require x-api-key + x-wallet, or x-wallet + x-signature)
 
 ```bash
 # Calculate round-up
@@ -95,14 +133,34 @@ curl -X POST https://buff.finance/api/wrap \
   -H "x-api-key: YOUR_KEY" \
   -d '{"txValueUsd": 27.63, "userPubkey": "...", "buffWalletPubkey": "..."}'
 
-# Build swap transaction
+# Get Jupiter swap quote
+curl -X POST https://buff.finance/api/swap/quote \
+  -H "x-api-key: YOUR_KEY" \
+  -d '{"inputLamports": 100000000, "targetAsset": "BTC"}'
+
+# Build swap transaction (server-side via Jupiter)
 curl -X POST https://buff.finance/api/swap/build \
   -H "x-api-key: YOUR_KEY" \
-  -d '{"buffWalletPubkey": "...", "targetAsset": "BTC"}'
+  -d '{"buffWalletPubkey": "...", "targetAsset": "BTC", "threshold": 5}'
 
-# Check portfolio
-curl https://buff.finance/api/portfolio/WALLET_ADDRESS
+# Execute signed swap transaction
+curl -X POST https://buff.finance/api/swap/execute \
+  -H "x-api-key: YOUR_KEY" \
+  -d '{"signedTransaction": "base64-signed-tx", "network": "mainnet-beta"}'
+
+# Derive Buff wallet from signature
+curl -X POST https://buff.finance/api/wallet/derive \
+  -d '{"signature": "base64-or-hex-signature"}'
+
+# Register an agent
+curl -X POST https://buff.finance/api/agent/register \
+  -H "x-api-key: YOUR_KEY" \
+  -d '{"publicKey": "...", "agentId": "my-agent"}'
 ```
+
+### Interactive API Playground
+
+Try all endpoints live at: https://buff.finance/docs/api/rest
 
 ## Security
 
