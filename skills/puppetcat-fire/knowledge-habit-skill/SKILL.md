@@ -2,7 +2,7 @@
 name: knowledge-habit-tracker
 description: "知识工作习惯追踪器：为知识工作者设计的隐私优先、离线第一的习惯与事件记录系统，支持单习惯专注、事件沉淀、节点候选生成，以及Web、Electron桌面、Android覆盖层多平台支持。"
 author: "puppetcat-fire (柏然)"
-version: "1.0.4"
+version: "1.0.6"
 created: "2026-03-15"
 license: "MIT"
 metadata:
@@ -10,7 +10,7 @@ metadata:
     emoji: "📚⏱️"
     requires:
       bins: ["node", "npm", "bash"]
-      node_version: "1.0.4"
+      node_version: "1.0.6"
     install:
       - id: "install-deps"
         kind: "shell"
@@ -171,7 +171,7 @@ npm run desktop
 
 ## 版本历史
 
-### v1.0.4 (2026-03-15)
+### v1.0.6 (2026-03-15)
 - **初始发布**：完整的知识工作习惯追踪系统
 - **多平台支持**：Web浏览器版 + Electron桌面版 + Android覆盖层MVP
 - **核心功能**：单习惯专注、事件证据链、节点候选生成、纯本地数据
