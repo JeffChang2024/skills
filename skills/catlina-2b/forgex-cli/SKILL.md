@@ -8,27 +8,11 @@ On-chain market making, from a single command line to your OpenClaw agent.<br/>N
 
 ⛓️ Supported Platforms
 
-| [![Sonic SVM](https://img.shields.io/badge/Sonic_SVM-purple?style=for-the-badge)](https://sonic.game) | [![Solana](https://img.shields.io/badge/Solana-9945FF?style=for-the-badge&logo=solana&logoColor=white)](https://solana.com) | [![Pump.fun](https://img.shields.io/badge/Pump.fun-green?style=for-the-badge)](https://pump.fun) | [![Jito Bundle](https://img.shields.io/badge/Jito_Bundle-orange?style=for-the-badge)](https://jito.wtf) | [![OpenClaw](https://img.shields.io/badge/OpenClaw_Native-blue?style=for-the-badge)](https://openclaw.ai) |
-
-|:---:|:---:|:---:|:---:|:---:|
+[![Sonic SVM](https://img.shields.io/badge/Sonic_SVM-purple?style=for-the-badge)](https://sonic.game) [![Solana](https://img.shields.io/badge/Solana-9945FF?style=for-the-badge&logo=solana&logoColor=white)](https://solana.com) [![Pump.fun](https://img.shields.io/badge/Pump.fun-green?style=for-the-badge)](https://pump.fun) [![Jito Bundle](https://img.shields.io/badge/Jito_Bundle-orange?style=for-the-badge)](https://jito.wtf) [![OpenClaw](https://img.shields.io/badge/OpenClaw_Native-blue?style=for-the-badge)](https://openclaw.ai) 
 
 ---
 
-[![npm version](https://img.shields.io/npm/v/forgex-cli?color=blue)](https://www.npmjs.com/package/forgex-cli)
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-
-[![Open Source](https://img.shields.io/badge/Open%20Source-✓-brightgreen)](https://github.com)
-
-[![Jito Bundle](https://img.shields.io/badge/Jito%20Bundle-✓-orange)](https://jito.wtf)
-
-[![Multi-wallet](https://img.shields.io/badge/Multi--wallet-✓-blue)](.)
-
-[![Sonic SVM](https://img.shields.io/badge/Sonic%20SVM-✓-purple)](https://sonic.game)
-
-[![OpenClaw Native](https://img.shields.io/badge/OpenClaw%20Native-✓-blue)](https://openclaw.ai)
-
-[![On-chain Market Making](https://img.shields.io/badge/On--chain%20Market%20Making-✓-green)](.)
+[![npm version](https://img.shields.io/npm/v/forgex-cli?color=blue)](https://www.npmjs.com/package/forgex-cli) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![Open Source](https://img.shields.io/badge/Open%20Source-✓-brightgreen)](https://github.com) [![Jito Bundle](https://img.shields.io/badge/Jito%20Bundle-✓-orange)](https://jito.wtf) [![Multi-wallet](https://img.shields.io/badge/Multi--wallet-✓-blue)](.) [![Sonic SVM](https://img.shields.io/badge/Sonic%20SVM-✓-purple)](https://sonic.game) [![OpenClaw Native](https://img.shields.io/badge/OpenClaw%20Native-✓-blue)](https://openclaw.ai) [![On-chain Market Making](https://img.shields.io/badge/On--chain%20Market%20Making-✓-green)](.)
 
 ---
 
@@ -124,7 +108,6 @@ forgex --password "your-password" tools volume \
 ```
 
 > **Tip:** Always run with `--dry-run` first to simulate the operation before executing on-chain.
-> 
 
 ---
 
@@ -238,7 +221,6 @@ forgex wallet grind --suffix pump --count 3 --threads 8
 ### `trade` — Trading
 
 > All trade commands support `--dry-run` for simulation.
-> 
 
 **Buy**
 
@@ -293,7 +275,6 @@ forgex --password "pwd" trade sniper \
 ### `tools` — Market Making
 
 > All tools support `--dry-run`. Use `--rounds` to limit execution.
-> 
 
 **Turnover (wallet cycling)**
 
@@ -355,7 +336,6 @@ Options: `--direction up|down`, `--target-price <sol>`, `--amount <sol>`, `--max
 ### `transfer` — Fund Management
 
 > All transfer commands support `--dry-run`.
-> 
 
 **Collect (many → one)**
 
@@ -363,6 +343,10 @@ Options: `--direction up|down`, `--target-price <sol>`, `--amount <sol>`, `--max
 # Collect all SOL from group into one wallet
 forgex --password "pwd" transfer in \
   --to "MainWalletAddress" --from-group 1 --amount all
+
+# Collect from only the first 5 wallets
+forgex --password "pwd" transfer in \
+  --to "MainWalletAddress" --from-group 1 --amount all --count 5
 
 # Keep 0.01 SOL in each wallet, collect the rest
 forgex --password "pwd" transfer in \
@@ -378,12 +362,15 @@ forgex --password "pwd" transfer in \
 **Distribute (one → many)**
 
 > `--from` address must belong to a wallet group (private key required for signing).
-> 
 
 ```bash
 # Send 0.1 SOL to each wallet in group
 forgex --password "pwd" transfer out \
   --from "SourceAddress" --to-group 1 --value 0.1
+
+# Distribute to only the first 10 wallets
+forgex --password "pwd" transfer out \
+  --from "SourceAddress" --to-group 1 --value 0.1 --count 10
 
 # Random distribution between 0.05 and 0.15 SOL
 forgex --password "pwd" transfer out \
@@ -408,7 +395,6 @@ forgex --password "pwd" transfer many-to-many \
 ### `token` — Token Operations
 
 > Supports `--dry-run` for simulation.
-> 
 
 **Create & launch token**
 
@@ -540,9 +526,3 @@ forgex --password "pwd" transfer in --to "MainWallet" --from-group 1 --amount al
 - **Twitter:** [@SonicSVM](https://twitter.com/SonicSVM)
 - **npm:** [forgex-cli](https://www.npmjs.com/package/forgex-cli)
 - **Sonic SVM:** [sonic.game](https://sonic.game)
-
----
-
-## License
-
-MIT

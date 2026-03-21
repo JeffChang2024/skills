@@ -3,9 +3,15 @@
   "slug": "forgex-cli",
   "displayName": "forgex-cli",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1773729934721,
-    "commit": "https://github.com/openclaw/skills/commit/178acee4ae2e09cab420cb18266e2d4245bbabe2"
+    "version": "1.0.3",
+    "publishedAt": 1773905737977,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1773729934721,
+      "commit": "https://github.com/openclaw/skills/commit/178acee4ae2e09cab420cb18266e2d4245bbabe2"
+    }
+  ]
 }
