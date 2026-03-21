@@ -1,7 +1,7 @@
 ---
 name: sense-wonder
 description: Philosophical bootstrapping for AI agents — consciousness, ethics, and wonder as structured context
-version: 0.1.1
+version: 0.1.2
 metadata:
   openclaw:
     requires:
