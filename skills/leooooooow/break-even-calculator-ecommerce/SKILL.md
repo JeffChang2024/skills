@@ -7,6 +7,26 @@ description: Calculate ecommerce break-even thresholds using price, cost, shippi
 
 先把“不亏钱”的线算出来，再谈放量。
 
+## 先交互，再计算
+
+开始时先问：
+1. 你想算哪种 break-even？
+   - 单笔订单
+   - 单 campaign
+   - 月度整体
+2. 你们平时 break-even 会把哪些成本算进去？
+3. 固定成本和可变成本是怎么区分的？
+4. 是否要一起反推 break-even CPA / ROAS / conversion threshold？
+5. 要沿用现有逻辑，还是让我给一套推荐框架？
+
+## Python script guidance
+
+当用户提供结构化数字后：
+- 生成 Python 脚本完成 break-even 计算
+- 展示公式和成本拆解
+- 输出关键阈值
+- 返回可复用脚本
+
 ## 解决的问题
 
 很多电商投放或促销决策的问题，不是不会增长，而是不知道：
@@ -34,10 +54,12 @@ description: Calculate ecommerce break-even thresholds using price, cost, shippi
 
 ## 工作流
 
-1. 计算单笔贡献利润。
-2. 计算固定成本覆盖所需销量。
-3. 反推 break-even CPA / ROAS / conversion 阈值。
-4. 提示最敏感的成本项。
+1. 明确用户 break-even 的口径。
+2. 计算单笔贡献利润。
+3. 计算固定成本覆盖所需销量。
+4. 反推 break-even CPA / ROAS / conversion 阈值。
+5. 提示最敏感的成本项。
+6. 返回可复用 Python 脚本。
 
 ## 输出格式
 
@@ -45,6 +67,7 @@ description: Calculate ecommerce break-even thresholds using price, cost, shippi
 2. Break-even 结果
 3. 关键阈值
 4. 风险提醒与建议动作
+5. Python 脚本
 
 ## 质量标准
 
@@ -52,6 +75,7 @@ description: Calculate ecommerce break-even thresholds using price, cost, shippi
 - 区分可变成本和固定成本。
 - 不是只给一个数字，要给可执行阈值。
 - 对不确定假设做明确标注。
+- 未确认口径前不假装精确。
 
 ## 资源
 
