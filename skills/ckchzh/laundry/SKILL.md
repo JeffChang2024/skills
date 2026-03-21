@@ -1,8 +1,10 @@
 ---
 name: "Laundry"
-description: "Lightweight Laundry tracker. Add entries, view stats, search history, and export in multiple formats."
+description: "Track laundry loads, view usage stats, and export reports in multiple formats. Use when logging wash cycles, reviewing patterns, exporting schedules."
 version: "2.0.0"
 author: "BytesAgain"
+homepage: https://bytesagain.com
+source: https://github.com/bytesagain/ai-skills
 tags: ["organize", "smart-home", "inventory", "laundry", "home"]
 ---
 
