@@ -3,9 +3,15 @@
   "slug": "blood",
   "displayName": "Blood",
   "latest": {
-    "version": "1.0.2",
-    "publishedAt": 1773664841477,
-    "commit": "https://github.com/openclaw/skills/commit/6529c715f09fba5f515d8fdc9a7707898e82c2b0"
+    "version": "2.0.2",
+    "publishedAt": 1773830159088,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.2",
+      "publishedAt": 1773664841477,
+      "commit": "https://github.com/openclaw/skills/commit/6529c715f09fba5f515d8fdc9a7707898e82c2b0"
+    }
+  ]
 }

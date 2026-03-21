@@ -1,8 +1,10 @@
 ---
 name: "Blood"
-description: "Blood — a fast health & wellness tool. Log anything, find it later, export when needed."
+description: "Log blood pressure, glucose, and health metrics with trend charts. Use when recording vitals, reviewing health trends, or exporting medical logs."
 version: "2.0.0"
 author: "BytesAgain"
+homepage: https://bytesagain.com
+source: https://github.com/bytesagain/ai-skills
 tags: ["health", "wellness", "fitness", "blood", "personal"]
 ---
 
