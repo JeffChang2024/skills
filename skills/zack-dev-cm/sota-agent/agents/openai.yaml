@@ -1,0 +1,4 @@
+interface:
+  display_name: "SOTA Agent"
+  short_description: "SOTA-focused CV and DS campaigns across browser notebooks and GPU VMs"
+  default_prompt: "Use $sota-agent to freeze the benchmark target, triage the papers, choose the OpenClaw browser, notebook, or GPU VM lane, plan the ablations, and decide whether a candidate legitimately reaches SOTA."

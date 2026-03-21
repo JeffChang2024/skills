@@ -1,0 +1,11 @@
+{
+  "owner": "zack-dev-cm",
+  "slug": "sota-agent",
+  "displayName": "SOTA Agent",
+  "latest": {
+    "version": "1.2.0",
+    "publishedAt": 1773934465254,
+    "commit": null
+  },
+  "history": []
+}
