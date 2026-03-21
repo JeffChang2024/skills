@@ -1,0 +1,11 @@
+{
+  "owner": "pcs-bot",
+  "slug": "pcs-lp-planner",
+  "displayName": "Liquidity Planner",
+  "latest": {
+    "version": "1.0.1",
+    "publishedAt": 1773995470722,
+    "commit": null
+  },
+  "history": []
+}
