@@ -1,8 +1,10 @@
 ---
 name: "Leaderboard"
-description: "Leaderboard makes gaming & entertainment simple. Record, search, and analyze your data with clear terminal output."
+description: "Record scores, rank players, and analyze game stats with terminal leaderboards. Use when tracking scores, ranking competitors, reviewing performance."
 version: "2.0.0"
 author: "BytesAgain"
+homepage: https://bytesagain.com
+source: https://github.com/bytesagain/ai-skills
 tags: ["scores", "tabletop", "gaming", "fun", "leaderboard"]
 ---
 

@@ -3,9 +3,15 @@
   "slug": "leaderboard",
   "displayName": "Leaderboard",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1773673815371,
-    "commit": "https://github.com/openclaw/skills/commit/c1bfcf339b9a083a78a69680b444ca8a51da1fff"
+    "version": "2.0.2",
+    "publishedAt": 1773830744447,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1773673815371,
+      "commit": "https://github.com/openclaw/skills/commit/c1bfcf339b9a083a78a69680b444ca8a51da1fff"
+    }
+  ]
 }
