@@ -3,9 +3,15 @@
   "slug": "excel2insights",
   "displayName": "Excel2Insights",
   "latest": {
-    "version": "1.0.8",
-    "publishedAt": 1773813383726,
-    "commit": "https://github.com/openclaw/skills/commit/8d3a67fd975e920a90ad96410de5e0d09009f13e"
+    "version": "1.1.0",
+    "publishedAt": 1773829110745,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.8",
+      "publishedAt": 1773813383726,
+      "commit": "https://github.com/openclaw/skills/commit/8d3a67fd975e920a90ad96410de5e0d09009f13e"
+    }
+  ]
 }
