@@ -1,0 +1,11 @@
+{
+  "owner": "membranedev",
+  "slug": "fogbugz",
+  "displayName": "Fogbugz",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773900147110,
+    "commit": null
+  },
+  "history": []
+}
