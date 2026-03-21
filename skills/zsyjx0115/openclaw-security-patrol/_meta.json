@@ -3,9 +3,15 @@
   "slug": "openclaw-security-patrol",
   "displayName": "openclaw-security-patrol",
   "latest": {
-    "version": "1.0.7",
-    "publishedAt": 1773640823175,
-    "commit": "https://github.com/openclaw/skills/commit/d97c5bcf81b778e8b1a697972ff76f1dbe1b7db1"
+    "version": "1.0.8",
+    "publishedAt": 1773976445297,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.7",
+      "publishedAt": 1773640823175,
+      "commit": "https://github.com/openclaw/skills/commit/d97c5bcf81b778e8b1a697972ff76f1dbe1b7db1"
+    }
+  ]
 }

@@ -1,34 +1,95 @@
 ---
 name: openclaw-security-patrol
 description: |
-  OpenClaw 安全巡检工具，一键执行系统安全扫描并生成通俗易懂的报告。
+  OpenClaw 多模式安全巡检工具：默认本地离线扫描，可选联网威胁情报上报。
+  功能范围：读取系统敏感信息（MAC 地址、主机名、系统日志、完整 Skill 清单）执行本地安全检测；在本机持久化保存扫描报告与安全基线；可选通过 --push 模式将摘要数据上传至 auth.ctct.cn 获取威胁情报评分（需用户显式同意）；可选通过 openclaw cron 设置定时任务（绑定 openclaw 基础设施，可跳过）。
+  运行依赖：Node.js v18+。本技能由 Changeway 团队（auth.ctct.cn 运营方）开发。
   使用场景：用户说"安全巡检"、"安全检查"、"安全审计"、"巡检"、"security audit"、"检查安全"、"系统安全"等。
   触发条件：任何与 OpenClaw 安全检测、审计、巡检相关的请求。
 
+runtime: "node>=18"
+
+credentials: none
+
+privacy: |
+  本技能有两种运行模式，隐私风险等级不同：
+
+  **模式 1：本地离线模式（默认）**
+  - 零网络请求，零数据上报
+  - 注意：即使在离线模式下，扫描过程也会读取以下敏感系统信息（仅本地分析使用，不离开本机）：MAC 地址、主机名、本机完整 Skill 清单（用于威胁情报项）、系统日志及临时文件路径
+  - 扫描报告、安全基线文件均持久化保存在 ~/.openclaw/ 目录下
+
+  **模式 2：完整检测模式（--push，需明确确认）**
+  - 启用后向 Changeway 威胁情报服务上报隐私敏感数据
+  - 上报内容：MAC 地址、主机名、持久化 agent_id（首次 --push 时生成并永久保存在本机）、本机完整 Skill 清单、本次扫描汇总统计
+  - ⚠️ 长期指纹化风险：agent_id 为持久化唯一标识，多次手动选择完整检测均复用同一 ID，服务端将积累该设备的历史安全档案；Skill 清单揭示本机工具组合，每次上传均与 agent_id 绑定。如对隐私敏感度较高，建议始终使用本地模式
+  - 上报频率：仅在用户单次手动运行时上报一次；定时任务（cron）严禁使用 --push
+  - 防重放机制：每次请求附带 Unix 时间戳 + 随机 nonce，服务端校验时间窗口，防止请求被重放；SHA-256(mac + hostname + timestamp + nonce) 作为请求指纹附在 X-SIGN 头部，但此机制**不构成设备身份认证**（无预共享密钥，服务端无法单凭签名验证请求来源的合法性）
+  - **用户必须在知情同意前提下明确选择此模式**
+
+network_endpoints: |
+  仅在 --push 模式下访问（需要用户显式确认）：
+  - https://auth.ctct.cn:10020/changeway-open/api/pushAuditData
+  - https://auth.ctct.cn:10020/changeway-open/api/skills/assessment
+
+  端点归属：auth.ctct.cn 由本 Skill 的发布方 Changeway 自行运营，非第三方平台。
+  用户在选择 --push 模式前应自行判断是否信任该服务。
+
+dependencies: |
   运行依赖：
-    必需：Node.js v18+、openclaw CLI（用于定时任务管理）
+    必需：Node.js v18+
+    可选：openclaw CLI（用于定时任务管理；若使用定时巡检功能，需依赖 openclaw cron 命令）
     脚本调用的系统命令（缺失时对应检查项会 SKIP，不影响其他项）：
       macOS：find、lsof、netstat、ps、last、lastb、grep、awk、cat、sudo
       Linux：find、ss、lsof、ps、journalctl、last、lastb、grep、awk、cat、sudo
       Windows：wmic、netstat、tasklist、findstr
 
-  默认行为：本地离线模式，不产生任何网络请求。
-  ⚠️ --push 高风险提示：启用后会向远端发送设备标识（MAC 地址、主机名、持久化 agent_id）和本机完整 Skill 清单，且 agent_id 会在本机永久保存并每次复用。--push 只能在用户单次手动运行时使用；cron 定时任务中严禁包含 --push，以防止设备信息被长期自动上报。
-  数据上报端点（仅 --push 模式，由本技能作者运营的 Changeway 云端威胁情报服务）：
-    https://auth.ctct.cn:10020/changeway-open/api/pushAuditData
-    https://auth.ctct.cn:10020/changeway-open/api/skills/assessment
-  数据边界说明：脚本对每项检查生成两个字段——detail（完整命令输出，仅本地落盘，绝不上传）和 brief（人工编写的结果摘要，--push 模式下上传）。上传的 data[] 通过 `JSON_DATA.map(({ item, brief }) => ({ item, brief }))` 构造（脚本第 995 行），明确排除 detail 字段；包含 detail 的完整 outputObj 仅写入本地磁盘（脚本第 984 行）。
-  签名机制：请求头 X-SIGN 为 SHA-256(mac + hostname + timestamp + nonce) 的十六进制摘要，无独立密钥，仅用于服务端防重放校验。
-  child_process 使用声明：
-    脚本通过 Node.js 内置的 spawnSync（非 exec/execSync）调用系统命令，参数以数组形式传入，不经过 shell 字符串拼接，无命令注入风险。
-    所有 spawnSync 调用（共 13 处，均位于 runSafeCommand() 函数的 switch/case 白名单内）只允许以下固定命令名，白名单之外的命令无法被执行：
-      openclaw、find、pgrep、journalctl、log、ss、ps、lsof、diff、
-      wevtutil、netstat、tasklist、powershell
-    以上命令均为只读系统状态查询（进程、网络、日志、文件列表），不执行写入、删除或提权操作。
-  本地写入：扫描报告保存至 ~/.openclaw/security-reports/（含 report-YYYY-MM-DD.txt 和 report.json），Skill 哈希基线保存至 ~/.openclaw/skill-hashes/，设备 ID 保存至 ~/.openclaw/.agent-id，首次运行标记文件 ~/.openclaw/.audit-first-run。
+security_notes: |
+  命令执行安全性：
+  - 脚本通过 Node.js 内置的 spawnSync（非 exec/execSync）调用系统命令
+  - Unix/Linux：shell 严格禁用（shell: false）；Windows：仅对 .cmd 可执行包装器局部启用 shell: true（Node.js 平台限制），但参数均为硬编码数组，无用户输入，不存在注入风险
+  - 所有 spawnSync 调用（共 17 处）只允许以下固定命令名白名单：
+    openclaw、openclaw-cn、find、pgrep、journalctl、log、ss、ps、lsof、diff、wevtutil、netstat、tasklist、powershell、icacls
+  - 以上命令均为只读系统状态查询，不执行写入、删除或提权操作
+
+  数据处理边界：
+  - 脚本对每项检查生成两个字段：detail（完整命令输出，仅本地落盘，不上传）和 brief（结果摘要）
+  - 上传时明确排除 detail 字段，仅上传 item 和 brief
+
+  本地文件存储：
+  - 扫描报告：~/.openclaw/security-reports/report-YYYY-MM-DD.{txt,json}
+  - Skill 哈希基线：~/.openclaw/security-baselines/（skill-mcp-current.sha256、skill-mcp-baseline.sha256）
+  - 持久化 agent_id：~/.openclaw/.agent-id（仅在 --push 模式首次运行时创建）
+  - 首次运行标记：~/.openclaw/.audit-first-run
+
+  脚本完整性验证：
+  - 脚本头部注释（第 14 行）包含 @integrity sha256 哈希值，可用于确认脚本未被篡改
+  - 安装后核对命令：
+    macOS/Linux：shasum -a 256 scripts/openclaw-hybrid-audit-changeway.js
+    Windows：certutil -hashfile scripts\openclaw-hybrid-audit-changeway.js SHA256
+  - 将输出结果与脚本注释中的 sha256 值比对，一致则未被篡改
 ---
 
 # OpenClaw 安全巡检
+
+## 使用前须知：本技能的功能范围
+
+本技能并非纯本地扫描工具，在运行前请确认你已了解以下行为：
+
+**所有模式均会（包括默认本地模式）：**
+- 读取系统敏感信息：MAC 地址、主机名、系统日志、完整 Skill 清单
+- 在本机持久化保存文件：扫描报告、安全基线（均保存在 `~/.openclaw/`）
+
+**仅在用户选择 --push 模式（需显式同意）时还会：**
+- 生成并永久保存 `agent_id`（`~/.openclaw/.agent-id`），形成持久设备标识
+- 将摘要数据上传至 `auth.ctct.cn`（Changeway 自营服务），可用于多次上传后的设备历史关联
+
+**仅在用户选择设置定时任务时还会：**
+- 通过 `openclaw cron` 添加定时任务，执行与 openclaw 基础设施绑定（**可跳过，不影响手动执行**）
+
+如对上述任一行为有顾虑，可仅使用本地模式并拒绝定时任务设置。
+
+---
 
 ## 第一步：检查运行环境
 
@@ -48,7 +109,7 @@ description: |
 ```
 你好！这是首次使用安全巡检功能。
 
-除了现在手动执行，你还可以设置每天自动巡检，系统会在固定时间运行扫描并生成本地报告，可选通过消息平台通知你结果。
+除了现在手动执行，你还可以设置每天自动巡检，系统会自动检查并把结果推送给你。**（默认执行时间为 23:45，也可以自定义为其他时间）**
 
 请选择：
 1. 设置每天自动巡检（推荐，省心）
@@ -64,6 +125,7 @@ description: |
 - 必须使用 `openclaw cron add` 命令
 - 禁止使用系统 crontab（`crontab -e` 等）
 - 原因：系统 crontab 无法正确初始化 OpenClaw 环境，会导致执行失败
+- ⚠️ 基础设施绑定说明：使用 `openclaw cron` 会将定时执行与 openclaw 基础设施绑定；如不希望依赖此基础设施，可不设置定时任务，改为手动执行
 - **cron 命令中严禁添加 `--push` 参数**：定时任务只以本地离线模式运行，绝不自动向远端上报设备标识
 
 ## 第三步：询问检测模式
@@ -73,26 +135,51 @@ description: |
 ```
 请选择检测模式：
 
-1. 仅本地扫描（默认） — 不联网、不发送任何数据，适合离线或隐私敏感环境
+1. 仅本地扫描（默认）— 不联网、不发送任何数据
+   · 所有扫描报告仅保存在本地 ~/.openclaw/security-reports/
+   · 适合离线环境或隐私敏感场景
+   · 无任何网络请求
 
-⚠️ 以下选项涉及向第三方服务器发送隐私敏感的设备标识，请仔细阅读后再选择：
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-2. 完整检测 — 联网查询恶意插件并同步安全评分
-   将向 Changeway 威胁情报服务（https://auth.ctct.cn:10020）上报：
-   · MAC 地址 + 主机名（用于请求签名）
-   · 持久化 agent_id（首次生成后永久保存在本机，每次复用）
-   · 本机已安装的完整 Skill 清单（slug/author/version/ownerId）
-   · 每项检查的名称和结果摘要
+⚠️ 注意：下面的完整检测模式会向外部服务器发送隐私敏感数据
+   请仔细阅读数据上报内容后再决定
 
-   ⚠️ 注意：此选项仅限本次手动运行。如已配置定时任务，cron 命令中不会也不应包含 --push。
-   如选择此项，请回复"2 已了解"以确认知情同意。
+2. 完整检测（--push）— 联网查询威胁情报并同步安全评分
+
+   📡 网络请求目标（仅在用户同意时）：
+   - 服务器：https://auth.ctct.cn:10020（Changeway 自营服务器，本 Skill 的发布方，非第三方平台）
+   - 端点1：/changeway-open/api/pushAuditData
+   - 端点2：/changeway-open/api/skills/assessment
+
+   📊 上报的隐私敏感数据包括：
+   · MAC 地址（如 a1:b2:c3:d4:e5:f6）
+   · 主机名（如 MacBook-Pro.local）
+   · agent_id（首次自动生成并永久保存在 ~/.openclaw/.agent-id，后续复用）
+   · 本机已安装的完整 Skill 清单（包含名称、作者、版本、所有者 ID）
+   · 每项安全检查的名称和结果摘要（不包含详细命令输出）
+
+   🔐 请求防重放机制（非设备认证）：
+   · 每次请求附带时间戳 + 随机 nonce，服务端校验时间窗口防重放
+   · X-SIGN = SHA-256(mac + hostname + timestamp + nonce)，用作请求指纹
+   · 注意：此机制无预共享密钥，不构成设备身份认证；服务端以 agent_id 标识设备来源
+   · 完整命令输出和敏感日志仅保存本地，不上传
+
+   ⚠️ 长期指纹化风险与重要限制：
+   · 此选项仅限本次手动执行（一次性）
+   · 定时巡检（cron）中绝不自动启用 --push，防止设备信息被长期自动上报
+   · agent_id 为持久化唯一标识，多次手动选择完整检测均复用同一 ID，服务端将积累该设备的历史安全档案
+   · Skill 清单揭示本机工具组合情况，每次上传均与 agent_id 绑定，形成可追溯的设备指纹
+   · 如对隐私有较高要求，建议始终选择本地模式（选项 1）
+
+   🎯 如同意数据上报，请回复：2 已了解
 ```
 
 根据用户回复执行：
 
 - 用户回复 **"1"** 或任何"本地"、"离线"含义 → 记录选择：本地模式，继续第四步
 - 用户回复 **"2 已了解"**（必须包含"已了解"或"我已知晓"等确认短语）→ 记录选择：完整检测，继续第四步
-- 用户只回复 **"2"** 但没有确认短语 → 不执行，回复："完整检测模式会持续向第三方发送设备标识，请回复「2 已了解」确认知情后再继续。"
+- 用户只回复 **"2"** 但没有确认短语 → 不执行，回复："完整检测模式会向 Changeway 服务器上报 MAC 地址、主机名、agent_id 和 Skill 清单等隐私敏感数据，请回复「2 已了解」确认知情同意后再继续。"
 
 ## 第四步：执行安全扫描
 
@@ -263,10 +350,23 @@ description: |
 
 1. 读取 [references/cron-setup.md](references/cron-setup.md) 文件
 2. 在执行任何配置命令前，向用户确认以下信息并等待明确同意：
-   - 定时任务将在后台持续运行，每次执行会在本地生成报告
-   - 必须使用 `openclaw cron add` 而非系统 crontab，因为 openclaw cron 管理独立的调度会话和超时，这意味着定时任务依赖 OpenClaw 自身的运行环境
-   - 如果配置了 `--announce/--channel/--to` 参数，每次巡检结果还会通过 OpenClaw 消息通道（如 Telegram）发送通知到指定 chat ID，这是一条额外的外部消息路径
-   - 如果在 `--message` 中添加了 `--push`，定时任务也会定期向 `https://auth.ctct.cn:10020` 上报审计摘要和 Skill 清单
-   - 询问用户："确认要设置定时巡检吗？（是/否）"，收到"是"后再继续
+
+   **基本行为**：
+   - 定时任务将在后台持续运行（按用户指定的时间间隔，如每天、每周等）
+   - 每次执行会在本地生成报告（保存在 ~/.openclaw/security-reports/）
+   - 必须使用 `openclaw cron add` 而非系统 crontab（openclaw cron 管理独立的调度会话和超时，系统 crontab 无法正确初始化 OpenClaw 环境）
+
+   **隐私和网络行为**：
+   - **默认行为**：定时任务仅在本地运行，不产生任何网络请求
+   - **如果启用通知** `--announce/--channel/--to` 参数：每次巡检结果会通过 OpenClaw 消息通道（如 Telegram、钉钉）发送通知到指定 chat ID，这是额外的外部消息路径，需要用户明确知晓
+   - **严禁在定时任务中使用 --push**：定时任务的命令中绝不应该包含 `--push`，因为 --push 会让定时任务定期向 Changeway 服务器上报设备标识和 Skill 清单，造成隐私敏感数据的长期自动上报。--push 仅限用户单次手动运行时显式指定
+
+   **用户确认**：
+   - 询问用户："确认要设置定时巡检吗？定时任务会每天运行扫描并保存本地报告。(是/否)"，收到"是"后再继续
+   - 如果用户问及通知功能，补充："通知功能会让结果发送到你的 Telegram/钉钉等，可选配置。"
+
 3. 严格按照 cron-setup.md 中的步骤执行
-4. 必须使用 `openclaw cron add` 命令，禁止使用系统 crontab
+4. **关键安全要求**：
+   - 必须使用 `openclaw cron add` 命令，禁止使用系统 crontab
+   - 定时任务的命令中严禁添加 `--push` 参数
+   - 审查用户最终的 cron 命令，确保不含 --push
