@@ -3,9 +3,15 @@
   "slug": "case-study-factory",
   "displayName": "Case Study Factory",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1773625011816,
-    "commit": "https://github.com/openclaw/skills/commit/3b1c0c0ad53318cf2e2968811089628fc183eb33"
+    "version": "1.0.1",
+    "publishedAt": 1773799394131,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1773625011816,
+      "commit": "https://github.com/openclaw/skills/commit/3b1c0c0ad53318cf2e2968811089628fc183eb33"
+    }
+  ]
 }
