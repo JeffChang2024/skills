@@ -6,7 +6,7 @@ const { DatabaseSync } = require('node:sqlite');
 const DEFAULT_WORKSPACE_DIR = path.join(os.homedir(), '.openclaw', 'workspace', 'wordpal');
 const DB_FILENAME = 'vocab.db';
 const BUSY_TIMEOUT_MS = 5000;
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 const WORD_COLUMNS = `
   word,
@@ -45,12 +45,20 @@ const EVENT_COLUMNS = `
   created_at
 `;
 
+const PROBLEM_WORD_COLUMNS = `
+  e.word AS word,
+  SUM(CASE WHEN e.event = 'wrong' THEN 1 ELSE 0 END) AS wrong_count,
+  SUM(CASE WHEN e.event = 'remembered_after_hint' THEN 1 ELSE 0 END) AS remembered_after_hint_count,
+  COUNT(*) AS problematic_count,
+  w.status AS current_status,
+  w.last_reviewed AS last_reviewed
+`;
+
 const USER_PROFILE_COLUMNS = `
   profile_id,
   created,
   learning_goal,
   push_times,
-  report_style,
   difficulty_level,
   daily_target,
   updated_at
@@ -83,70 +91,81 @@ function initializeDatabase(db) {
   db.exec(`PRAGMA busy_timeout = ${BUSY_TIMEOUT_MS};`);
 
   const { user_version: currentVersion } = db.prepare('PRAGMA user_version').get();
-  if (currentVersion >= SCHEMA_VERSION) return;
 
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS words (
-      word TEXT PRIMARY KEY,
-      status INTEGER NOT NULL CHECK (status BETWEEN 0 AND 8),
-      first_learned TEXT NOT NULL,
-      last_reviewed TEXT,
-      next_review TEXT,
-      mastered_date TEXT,
-      srs_due TEXT,
-      srs_stability REAL,
-      srs_difficulty REAL,
-      srs_reps INTEGER NOT NULL DEFAULT 0,
-      srs_lapses INTEGER NOT NULL DEFAULT 0,
-      srs_state TEXT NOT NULL,
-      last_op_id TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
+  if (currentVersion < 1) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS words (
+        word TEXT PRIMARY KEY,
+        status INTEGER NOT NULL CHECK (status BETWEEN 1 AND 8),
+        first_learned TEXT NOT NULL,
+        last_reviewed TEXT,
+        next_review TEXT,
+        mastered_date TEXT,
+        srs_due TEXT,
+        srs_stability REAL,
+        srs_difficulty REAL,
+        srs_reps INTEGER NOT NULL DEFAULT 0,
+        srs_lapses INTEGER NOT NULL DEFAULT 0,
+        srs_state TEXT NOT NULL,
+        last_op_id TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
 
-    CREATE TABLE IF NOT EXISTS word_events (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      op_id TEXT NOT NULL UNIQUE,
-      word TEXT NOT NULL,
-      event TEXT NOT NULL,
-      previous_status INTEGER,
-      next_status INTEGER NOT NULL,
-      study_date TEXT NOT NULL,
-      result_due TEXT,
-      result_srs_state TEXT,
-      created_at TEXT NOT NULL,
-      FOREIGN KEY (word) REFERENCES words(word) ON DELETE CASCADE
-    );
+      CREATE TABLE IF NOT EXISTS word_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        op_id TEXT NOT NULL UNIQUE,
+        word TEXT NOT NULL,
+        event TEXT NOT NULL,
+        previous_status INTEGER,
+        next_status INTEGER NOT NULL,
+        study_date TEXT NOT NULL,
+        result_due TEXT,
+        result_srs_state TEXT,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (word) REFERENCES words(word) ON DELETE CASCADE
+      );
 
-    CREATE TABLE IF NOT EXISTS pending_words (
-      word TEXT PRIMARY KEY,
-      created_at TEXT NOT NULL,
-      last_op_id TEXT NOT NULL
-    );
+      CREATE TABLE IF NOT EXISTS pending_words (
+        word TEXT PRIMARY KEY,
+        created_at TEXT NOT NULL,
+        last_op_id TEXT NOT NULL
+      );
 
-    CREATE TABLE IF NOT EXISTS user_profile (
-      profile_id INTEGER PRIMARY KEY CHECK (profile_id = 1),
-      created TEXT,
-      learning_goal TEXT NOT NULL,
-      push_times TEXT NOT NULL,
-      report_style TEXT NOT NULL,
-      difficulty_level TEXT NOT NULL,
-      daily_target INTEGER NOT NULL,
-      updated_at TEXT NOT NULL
-    );
+      CREATE TABLE IF NOT EXISTS user_profile (
+        profile_id INTEGER PRIMARY KEY CHECK (profile_id = 1),
+        created TEXT,
+        learning_goal TEXT NOT NULL,
+        push_times TEXT NOT NULL,
+        difficulty_level TEXT NOT NULL,
+        daily_target INTEGER NOT NULL,
+        updated_at TEXT NOT NULL
+      );
 
-    CREATE INDEX IF NOT EXISTS idx_words_status_due
-      ON words(status, next_review, word);
-    CREATE INDEX IF NOT EXISTS idx_words_last_reviewed
-      ON words(last_reviewed);
-    CREATE INDEX IF NOT EXISTS idx_word_events_study_date
-      ON word_events(study_date);
-    CREATE INDEX IF NOT EXISTS idx_word_events_word_date
-      ON word_events(word, study_date);
-    CREATE INDEX IF NOT EXISTS idx_pending_words_created_at
-      ON pending_words(created_at, word);
-  `);
-  db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
+      CREATE INDEX IF NOT EXISTS idx_words_status_due
+        ON words(status, next_review, word);
+      CREATE INDEX IF NOT EXISTS idx_words_last_reviewed
+        ON words(last_reviewed);
+      CREATE INDEX IF NOT EXISTS idx_word_events_study_date
+        ON word_events(study_date);
+      CREATE INDEX IF NOT EXISTS idx_word_events_word_date
+        ON word_events(word, study_date);
+      CREATE INDEX IF NOT EXISTS idx_pending_words_created_at
+        ON pending_words(created_at, word);
+    `);
+    db.exec(`PRAGMA user_version = 1`);
+  }
+
+  if (currentVersion < 2) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS hint_tokens (
+        token TEXT PRIMARY KEY,
+        word TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+    `);
+    db.exec(`PRAGMA user_version = 2`);
+  }
 }
 
 function openDatabase(workspaceDir = DEFAULT_WORKSPACE_DIR) {
@@ -225,7 +244,6 @@ function rowToUserProfileEntry(row) {
     created: row.created ?? null,
     learningGoal: row.learning_goal,
     pushTimes: row.push_times,
-    reportStyle: row.report_style,
     difficultyLevel: row.difficulty_level,
     dailyTarget: row.daily_target,
     updatedAt: row.updated_at,
@@ -298,7 +316,6 @@ function normalizeUserProfileRecord(record) {
     created: record.created ?? null,
     learning_goal: record.learningGoal,
     push_times: record.pushTimes,
-    report_style: record.reportStyle,
     difficulty_level: record.difficultyLevel,
     daily_target: record.dailyTarget,
     updated_at: record.updatedAt,
@@ -334,17 +351,16 @@ function createRepository(workspaceDir = DEFAULT_WORKSPACE_DIR) {
     listDueWords: db.prepare(`
       SELECT ${WORD_COLUMNS}
       FROM words
-      WHERE status BETWEEN 0 AND 7
+      WHERE status BETWEEN 1 AND 7
         AND last_reviewed IS NOT NULL
         AND next_review IS NOT NULL
         AND next_review <= ?
       ORDER BY
         CASE status
-          WHEN 0 THEN 0
-          WHEN 1 THEN 1
-          WHEN 2 THEN 2
-          WHEN 3 THEN 3
-          ELSE 4
+          WHEN 1 THEN 0
+          WHEN 2 THEN 1
+          WHEN 3 THEN 2
+          ELSE 3
         END,
         next_review,
         word
@@ -352,17 +368,16 @@ function createRepository(workspaceDir = DEFAULT_WORKSPACE_DIR) {
     listDueWordsLimited: db.prepare(`
       SELECT ${WORD_COLUMNS}
       FROM words
-      WHERE status BETWEEN 0 AND 7
+      WHERE status BETWEEN 1 AND 7
         AND last_reviewed IS NOT NULL
         AND next_review IS NOT NULL
         AND next_review <= ?
       ORDER BY
         CASE status
-          WHEN 0 THEN 0
-          WHEN 1 THEN 1
-          WHEN 2 THEN 2
-          WHEN 3 THEN 3
-          ELSE 4
+          WHEN 1 THEN 0
+          WHEN 2 THEN 1
+          WHEN 3 THEN 2
+          ELSE 3
         END,
         next_review,
         word
@@ -463,7 +478,6 @@ function createRepository(workspaceDir = DEFAULT_WORKSPACE_DIR) {
         created,
         learning_goal,
         push_times,
-        report_style,
         difficulty_level,
         daily_target,
         updated_at
@@ -472,7 +486,6 @@ function createRepository(workspaceDir = DEFAULT_WORKSPACE_DIR) {
         $created,
         $learning_goal,
         $push_times,
-        $report_style,
         $difficulty_level,
         $daily_target,
         $updated_at
@@ -481,7 +494,6 @@ function createRepository(workspaceDir = DEFAULT_WORKSPACE_DIR) {
         created = excluded.created,
         learning_goal = excluded.learning_goal,
         push_times = excluded.push_times,
-        report_style = excluded.report_style,
         difficulty_level = excluded.difficulty_level,
         daily_target = excluded.daily_target,
         updated_at = excluded.updated_at
@@ -492,7 +504,7 @@ function createRepository(workspaceDir = DEFAULT_WORKSPACE_DIR) {
     countDueWords: db.prepare(`
       SELECT COUNT(*) AS count
       FROM words
-      WHERE status BETWEEN 0 AND 7
+      WHERE status BETWEEN 1 AND 7
         AND last_reviewed IS NOT NULL
         AND next_review IS NOT NULL
         AND next_review <= ?
@@ -500,7 +512,7 @@ function createRepository(workspaceDir = DEFAULT_WORKSPACE_DIR) {
     countDueByDateRange: db.prepare(`
       SELECT next_review AS date, COUNT(*) AS count
       FROM words
-      WHERE status BETWEEN 0 AND 7
+      WHERE status BETWEEN 1 AND 7
         AND last_reviewed IS NOT NULL
         AND next_review IS NOT NULL
         AND next_review BETWEEN ? AND ?
@@ -510,19 +522,26 @@ function createRepository(workspaceDir = DEFAULT_WORKSPACE_DIR) {
     getEarliestDueDate: db.prepare(`
       SELECT MIN(next_review) AS earliest_due_date
       FROM words
-      WHERE status BETWEEN 0 AND 7
+      WHERE status BETWEEN 1 AND 7
         AND last_reviewed IS NOT NULL
         AND next_review IS NOT NULL
     `),
     listRiskWords: db.prepare(`
       SELECT ${RISK_COLUMNS.replace('overdue_days', 'CAST(MAX(0, julianday(?) - julianday(next_review)) AS INTEGER) AS overdue_days')}
       FROM words
-      WHERE status BETWEEN 0 AND 7
+      WHERE status BETWEEN 1 AND 7
         AND last_reviewed IS NOT NULL
         AND next_review IS NOT NULL
       ORDER BY overdue_days DESC, status ASC, srs_lapses DESC, word ASC
       LIMIT ?
     `),
+    insertHintToken: db.prepare(`
+      INSERT OR REPLACE INTO hint_tokens (token, word, created_at)
+      VALUES ($token, $word, $created_at)
+    `),
+    findHintToken: db.prepare(`SELECT token, word, created_at FROM hint_tokens WHERE token = ?`),
+    deleteHintToken: db.prepare(`DELETE FROM hint_tokens WHERE token = ?`),
+    deleteExpiredHintTokens: db.prepare(`DELETE FROM hint_tokens WHERE created_at < datetime('now', '-30 minutes')`),
     countReviewedDistinctOn: db.prepare(`
       SELECT COUNT(DISTINCT word) AS count
       FROM word_events
@@ -544,6 +563,14 @@ function createRepository(workspaceDir = DEFAULT_WORKSPACE_DIR) {
       WHERE first_learned BETWEEN ? AND ?
       GROUP BY first_learned
     `),
+    listProblemWordsByDateRange: db.prepare(`
+      SELECT ${PROBLEM_WORD_COLUMNS}
+      FROM word_events e
+      LEFT JOIN words w ON w.word = e.word
+      WHERE e.event IN ('wrong', 'remembered_after_hint')
+        AND e.study_date BETWEEN ? AND ?
+      GROUP BY e.word, w.status, w.last_reviewed
+    `),
   };
 
   return {
@@ -561,8 +588,8 @@ function createRepository(workspaceDir = DEFAULT_WORKSPACE_DIR) {
       } catch (error) {
         try {
           db.exec('ROLLBACK');
-        } catch (_) {
-          // Ignore rollback failures after a failed transaction.
+        } catch (rollbackErr) {
+          console.error('[vocab-db] rollback failed:', rollbackErr.message);
         }
         throw error;
       }
@@ -671,6 +698,23 @@ function createRepository(workspaceDir = DEFAULT_WORKSPACE_DIR) {
       const stmt = db.prepare(`SELECT ${WORD_COLUMNS} FROM words WHERE word IN (${placeholders})`);
       return stmt.all(...words).map(rowToWordEntry);
     },
+    insertHintToken(record) {
+      statements.insertHintToken.run({
+        token: record.token,
+        word: record.word,
+        created_at: record.createdAt,
+      });
+    },
+    findHintToken(token) {
+      const row = statements.findHintToken.get(token);
+      return row ? { token: row.token, word: row.word, createdAt: row.created_at } : null;
+    },
+    deleteHintToken(token) {
+      statements.deleteHintToken.run(token);
+    },
+    deleteExpiredHintTokens() {
+      statements.deleteExpiredHintTokens.run();
+    },
     countDistinctReviewedWordsOn(date) {
       const row = statements.countReviewedDistinctOn.get(date);
       return row ? (Number(row.count) || 0) : 0;
@@ -684,6 +728,18 @@ function createRepository(workspaceDir = DEFAULT_WORKSPACE_DIR) {
       if (dates.length === 0) return [];
       const rows = statements.countNewByRange.all(dates[0], dates[dates.length - 1]);
       return mapCountRows(rows, dates);
+    },
+    listProblemWordsByDateRange(startDate, endDate) {
+      return statements.listProblemWordsByDateRange.all(startDate, endDate).map((row) => ({
+        word: row.word,
+        wrongCount: Number(row.wrong_count) || 0,
+        rememberedAfterHintCount: Number(row.remembered_after_hint_count) || 0,
+        problematicCount: Number(row.problematic_count) || 0,
+        currentStatus: Number.isInteger(row.current_status)
+          ? row.current_status
+          : (Number.isFinite(Number(row.current_status)) ? Number(row.current_status) : null),
+        lastReviewed: row.last_reviewed ?? 'never',
+      }));
     },
   };
 }

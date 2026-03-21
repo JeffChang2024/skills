@@ -6,10 +6,9 @@ const {
 const { addDays, daysBetween } = require('../utils/date');
 
 const STATUS_WEIGHT = {
-  0: 5,
-  1: 4,
-  2: 3,
-  3: 2,
+  1: 5,
+  2: 4,
+  3: 3,
   4: 0,
   5: 0,
   6: 0,
@@ -44,7 +43,6 @@ function forwardDateRange(startDateStr, days) {
 
 function normalizeStatusCounts(rawCounts) {
   const counts = {
-    0: 0,
     1: 0,
     2: 0,
     3: 0,
@@ -159,7 +157,7 @@ function calcDue({ todayStr, days, todayDue, dueByDateRows, earliestDueDate }) {
 function buildNextAction({ todayDue, totalWords }) {
   if (todayDue > 0) {
     return {
-      kind: 'review_now',
+      kind: 'learn_now',
       reason: 'today_due>0',
     };
   }
@@ -221,7 +219,7 @@ function buildReportStats({ repo, today, days, topRisk }) {
       status_counts: counts,
       learned_counts: {
         status_4_to_7: counts[4] + counts[5] + counts[6] + counts[7],
-        status_0_to_3: counts[0] + counts[1] + counts[2] + counts[3],
+        status_1_to_3: counts[1] + counts[2] + counts[3],
       },
     },
     due,

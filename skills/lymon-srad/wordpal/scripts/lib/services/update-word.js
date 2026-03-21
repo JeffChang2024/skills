@@ -1,5 +1,3 @@
-const crypto = require('crypto');
-
 const { AppError, EXIT_CODES } = require('../errors');
 const {
   DEFAULT_RETENTION,
@@ -11,6 +9,7 @@ const {
   scheduleUnreviewed,
 } = require('../core/fsrs-scheduler');
 const {
+  deriveOpId,
   resolveStatusFromEvent,
   validateEventTransition,
 } = require('../core/input-guard');
@@ -18,20 +17,15 @@ const {
 const NEW_WORD_STATUS = 3;
 
 const STATUS_EMOJI = {
-  0: '❌❌❌',
-  1: '❌❌',
-  2: '❌',
-  3: '⚠️',
+  1: '❌❌❌',
+  2: '❌❌',
+  3: '❌',
   4: '✅',
   5: '✅✅',
   6: '✅✅✅',
   7: '✅✅✅✅',
   8: '⭐',
 };
-
-function deriveOpId(input) {
-  return crypto.createHash('sha256').update(input).digest('hex').slice(0, 24);
-}
 
 function normalizeSrsState(raw, fallback) {
   if (raw === 'new' || raw === 'learning' || raw === 'review' || raw === 'relearning') {

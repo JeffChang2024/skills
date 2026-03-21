@@ -1,4 +1,5 @@
 const { addDays, daysBetween } = require('../utils/date');
+const { AppError, EXIT_CODES } = require('../errors');
 
 const DEFAULT_RETENTION = 0.9;
 const DECAY = -0.5;
@@ -12,8 +13,7 @@ const DEFAULT_WEIGHTS = [
 ];
 
 const LEGACY_DAYS = {
-  0: 1, 1: 1, 2: 1,
-  3: 2,
+  1: 1, 2: 1, 3: 1,
   4: 3, 5: 5, 6: 10, 7: 30,
 };
 
@@ -24,10 +24,9 @@ const EVENT_TO_GRADE = {
 };
 
 const STATUS_STABILITY_FALLBACK = {
-  0: 0.5,
-  1: 0.9,
-  2: 1.4,
-  3: 2.3,
+  1: 0.5,
+  2: 0.9,
+  3: 1.4,
   4: 3.4,
   5: 5.6,
   6: 9.5,
@@ -35,10 +34,9 @@ const STATUS_STABILITY_FALLBACK = {
 };
 
 const STATUS_DIFFICULTY_FALLBACK = {
-  0: 9.4,
-  1: 8.8,
-  2: 8.0,
-  3: 7.1,
+  1: 9.4,
+  2: 8.8,
+  3: 8.0,
   4: 6.0,
   5: 5.0,
   6: 4.0,
@@ -148,7 +146,6 @@ function inferEventFromTransition(prevStatus, nextStatus, lastReviewed) {
   if (typeof prevStatus !== 'number') return 'correct';
   if (nextStatus > prevStatus) return 'correct';
   if (nextStatus < prevStatus) return 'wrong';
-  if (nextStatus === 3) return 'remembered_after_hint';
   return 'correct';
 }
 
@@ -169,7 +166,7 @@ function bootstrapSrsFromLegacy(entry, reviewDate) {
   const lastReviewedRaw = entry['last-reviewed'];
   const lastReviewed = parseLocalDate(lastReviewedRaw);
 
-  let stability = STATUS_STABILITY_FALLBACK[status] || 2.3;
+  let stability = STATUS_STABILITY_FALLBACK[status] || 1.4;
   if (nextReview && lastReviewed) {
     stability = Math.max(0.1, daysBetween(lastReviewed, nextReview));
   }
@@ -177,7 +174,7 @@ function bootstrapSrsFromLegacy(entry, reviewDate) {
   return {
     due: nextReview ? formatLocalDate(nextReview) : computeLegacyNextReview(status, reviewDate),
     stability: Number(stability.toFixed(4)),
-    difficulty: Number((STATUS_DIFFICULTY_FALLBACK[status] || 7.1).toFixed(4)),
+    difficulty: Number((STATUS_DIFFICULTY_FALLBACK[status] || 8.0).toFixed(4)),
     reps: 0,
     lapses: 0,
     state: lastReviewedRaw === 'never' ? 'new' : 'review',
@@ -203,8 +200,8 @@ function normalizeSrs(existingSrs, legacyEntry, reviewDate) {
 
   return {
     due: isValidDate(existingSrs.due) ? existingSrs.due : computeLegacyNextReview(legacyEntry.status, reviewDate),
-    stability: Math.max(0.1, Number(existingSrs.stability) || STATUS_STABILITY_FALLBACK[legacyEntry.status] || 2.3),
-    difficulty: clamp(Number(existingSrs.difficulty) || STATUS_DIFFICULTY_FALLBACK[legacyEntry.status] || 7.1, 1, 10),
+    stability: Math.max(0.1, Number(existingSrs.stability) || STATUS_STABILITY_FALLBACK[legacyEntry.status] || 1.4),
+    difficulty: clamp(Number(existingSrs.difficulty) || STATUS_DIFFICULTY_FALLBACK[legacyEntry.status] || 8.0, 1, 10),
     reps: Math.max(0, Math.floor(Number(existingSrs.reps) || 0)),
     lapses: Math.max(0, Math.floor(Number(existingSrs.lapses) || 0)),
     state: normalizeState(existingSrs.state),
@@ -224,13 +221,13 @@ function scheduleFromReview(input) {
 
   const reviewDate = parseLocalDate(reviewDateStr);
   if (!reviewDate) {
-    throw new Error('invalid review date');
+    throw new AppError('INVALID_DATE', 'invalid review date', EXIT_CODES.INVALID_INPUT);
   }
 
   const card = normalizeSrs(existingSrs, legacyEntry, reviewDate);
   const grade = eventToGrade(event);
   if (!grade) {
-    throw new Error(`unsupported review event: ${String(event)}`);
+    throw new AppError('INVALID_EVENT', `unsupported review event: ${String(event)}`, EXIT_CODES.INVALID_INPUT);
   }
 
   let retrievability = 1;
@@ -281,8 +278,8 @@ function scheduleUnreviewed(status, today = new Date()) {
     nextReview: computeLegacyNextReview(status, today),
     srs: {
       due: computeLegacyNextReview(status, today),
-      stability: Number((STATUS_STABILITY_FALLBACK[status] || 2.3).toFixed(4)),
-      difficulty: Number((STATUS_DIFFICULTY_FALLBACK[status] || 7.1).toFixed(4)),
+      stability: Number((STATUS_STABILITY_FALLBACK[status] || 1.4).toFixed(4)),
+      difficulty: Number((STATUS_DIFFICULTY_FALLBACK[status] || 8.0).toFixed(4)),
       reps: 0,
       lapses: 0,
       state: 'new',
@@ -317,7 +314,7 @@ function buildBackfillSrsFromLegacy(entry, opts = {}) {
     };
   }
 
-  let stability = STATUS_STABILITY_FALLBACK[status] || 2.3;
+  let stability = STATUS_STABILITY_FALLBACK[status] || 1.4;
   if (legacyNext && legacyLast) {
     const d1 = parseLocalDate(legacyLast);
     const d2 = parseLocalDate(legacyNext);
@@ -326,7 +323,7 @@ function buildBackfillSrsFromLegacy(entry, opts = {}) {
     }
   }
 
-  const difficulty = STATUS_DIFFICULTY_FALLBACK[status] || 7.1;
+  const difficulty = STATUS_DIFFICULTY_FALLBACK[status] || 8.0;
   const hasReview = !!legacyLast;
 
   return {
@@ -334,7 +331,7 @@ function buildBackfillSrsFromLegacy(entry, opts = {}) {
     stability: Number(stability.toFixed(4)),
     difficulty: Number(difficulty.toFixed(4)),
     reps: hasReview ? 1 : 0,
-    lapses: hasReview && status <= 2 ? 1 : 0,
+    lapses: hasReview && status <= 3 ? 1 : 0,
     state: status === 8 ? 'review' : (entry && entry['last-reviewed'] === 'never' ? 'new' : 'review'),
   };
 }

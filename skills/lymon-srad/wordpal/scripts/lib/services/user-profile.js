@@ -11,13 +11,11 @@ const DEFAULT_PROFILE = {
   created: null,
   learningGoal: 'DAILY',
   pushTimes: [],
-  reportStyle: 'MIXED',
   difficultyLevel: 'III',
   dailyTarget: 10,
 };
 
 const LEARNING_GOALS = ['CET4', 'CET6', 'POSTGRAD', 'IELTS', 'TOEFL', 'GRE', 'DAILY'];
-const REPORT_STYLES = ['MIXED', 'EXAM', 'LIFE'];
 const DIFFICULTY_LEVELS = ['I', 'II', 'III', 'IV', 'V'];
 
 function parseProfileMap(raw) {
@@ -77,7 +75,6 @@ function normalizeDailyTarget(value, fallback) {
 
 function normalizeProfile(map) {
   const learningGoal = normalizeEnum(map['learning-goal'], LEARNING_GOALS, DEFAULT_PROFILE.learningGoal);
-  const reportStyle = normalizeEnum(map['report-style'], REPORT_STYLES, DEFAULT_PROFILE.reportStyle);
   const difficultyLevel = normalizeEnum(map['difficulty-level'], DIFFICULTY_LEVELS, DEFAULT_PROFILE.difficultyLevel);
   const dailyTarget = normalizeDailyTarget(Number.parseInt(map['daily-target'] || '', 10), DEFAULT_PROFILE.dailyTarget);
 
@@ -85,7 +82,6 @@ function normalizeProfile(map) {
     created: normalizeCreated(map.created, DEFAULT_PROFILE.created),
     learningGoal,
     pushTimes: parsePushTimes(map['push-times']),
-    reportStyle,
     difficultyLevel,
     dailyTarget,
   };
@@ -100,7 +96,6 @@ function profileToDbRecord(profile, updatedAt = formatLocalDate()) {
     created: profile.created,
     learningGoal: profile.learningGoal,
     pushTimes: profile.pushTimes.join(', '),
-    reportStyle: profile.reportStyle,
     difficultyLevel: profile.difficultyLevel,
     dailyTarget: profile.dailyTarget,
     updatedAt,
@@ -113,7 +108,6 @@ function dbEntryToProfile(entry) {
     created: entry.created ?? '',
     'learning-goal': entry.learningGoal,
     'push-times': entry.pushTimes,
-    'report-style': entry.reportStyle,
     'difficulty-level': entry.difficultyLevel,
     'daily-target': String(entry.dailyTarget),
   });
@@ -204,7 +198,6 @@ function renderUserProfile(profile) {
     `created: ${created}`,
     `learning-goal: ${profile.learningGoal}`,
     `push-times: ${pushTimes}`,
-    `report-style: ${profile.reportStyle}`,
     `difficulty-level: ${profile.difficultyLevel}`,
     `daily-target: ${profile.dailyTarget}`,
     '',
@@ -216,7 +209,6 @@ function toScriptProfile(profile) {
     created: profile.created,
     learning_goal: profile.learningGoal,
     push_times: profile.pushTimes,
-    report_style: profile.reportStyle,
     difficulty_level: profile.difficultyLevel,
     daily_target: profile.dailyTarget,
   };
@@ -230,7 +222,6 @@ function writeUserProfile(file, patch, options = {}) {
     created: patch.created ?? currentProfile.created ?? today,
     learningGoal: patch.learningGoal ?? currentProfile.learningGoal,
     pushTimes: patch.pushTimes ?? currentProfile.pushTimes,
-    reportStyle: patch.reportStyle ?? currentProfile.reportStyle,
     difficultyLevel: patch.difficultyLevel ?? currentProfile.difficultyLevel,
     dailyTarget: patch.dailyTarget ?? currentProfile.dailyTarget,
   };
@@ -239,7 +230,6 @@ function writeUserProfile(file, patch, options = {}) {
   if (nextProfile.created !== currentProfile.created) updatedFields.push('created');
   if (nextProfile.learningGoal !== currentProfile.learningGoal) updatedFields.push('learning_goal');
   if (JSON.stringify(nextProfile.pushTimes) !== JSON.stringify(currentProfile.pushTimes)) updatedFields.push('push_times');
-  if (nextProfile.reportStyle !== currentProfile.reportStyle) updatedFields.push('report_style');
   if (nextProfile.difficultyLevel !== currentProfile.difficultyLevel) updatedFields.push('difficulty_level');
   if (nextProfile.dailyTarget !== currentProfile.dailyTarget) updatedFields.push('daily_target');
 
@@ -259,7 +249,6 @@ module.exports = {
   DIFFICULTY_LEVELS,
   LEARNING_GOALS,
   PROFILE_FILENAME,
-  REPORT_STYLES,
   loadUserProfileFromFile,
   loadUserProfile,
   normalizeCreated,

@@ -1,6 +1,35 @@
+const { AppError, EXIT_CODES } = require('../errors');
 const { updateWord } = require('./update-word');
 
 function submitAnswer({ repo, input }) {
+  if (input.hintTokenArg != null) {
+    const tokenRecord = repo.findHintToken(input.hintTokenArg);
+    if (!tokenRecord) {
+      throw new AppError(
+        'HINT_TOKEN_INVALID',
+        'Hint token not found or already used',
+        EXIT_CODES.BUSINESS_RULE,
+      );
+    }
+    if (tokenRecord.word !== input.word) {
+      throw new AppError(
+        'HINT_TOKEN_INVALID',
+        'Hint token does not match the submitted word',
+        EXIT_CODES.BUSINESS_RULE,
+      );
+    }
+    const ageMs = Date.now() - new Date(tokenRecord.createdAt).getTime();
+    if (ageMs > 30 * 60 * 1000) {
+      repo.deleteHintToken(input.hintTokenArg);
+      throw new AppError(
+        'HINT_TOKEN_EXPIRED',
+        'Hint token has expired. Call show-hint.js again.',
+        EXIT_CODES.BUSINESS_RULE,
+      );
+    }
+    repo.deleteHintToken(input.hintTokenArg);
+  }
+
   const update = updateWord({
     repo,
     input: {

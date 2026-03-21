@@ -1,10 +1,5 @@
-const crypto = require('crypto');
-
 const { AppError, EXIT_CODES } = require('../errors');
-
-function deriveOpId(input) {
-  return crypto.createHash('sha256').update(input).digest('hex').slice(0, 24);
-}
+const { deriveOpId } = require('../core/input-guard');
 
 function toResultPayload(input) {
   const {

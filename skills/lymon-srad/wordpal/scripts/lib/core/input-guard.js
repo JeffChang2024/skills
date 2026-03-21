@@ -1,4 +1,7 @@
+const crypto = require('crypto');
+
 const SAFE_WORD_PATTERN = /^[a-z][a-z0-9'-]{0,63}$/;
+const HINT_TOKEN_PATTERN = /^[0-9a-f]{24}$/;
 const RESERVED_WORD_KEYS = new Set([
   '__proto__',
   'prototype',
@@ -18,7 +21,6 @@ const VALID_EVENTS = new Set(['correct', 'wrong', 'remembered_after_hint', 'skip
 const OP_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 
 const UPGRADE_MAP = {
-  0: 1,
   1: 2,
   2: 3,
   3: 4,
@@ -29,17 +31,16 @@ const UPGRADE_MAP = {
 };
 
 const DOWNGRADE_MAP = {
-  7: 4,
-  6: 4,
-  5: 4,
-  4: 3,
-  3: 2,
+  1: 1,
   2: 1,
-  1: 0,
-  0: 0,
+  3: 2,
+  4: 3,
+  5: 3,
+  6: 3,
+  7: 3,
 };
 
-const DEFAULT_NEW_WORD_STATUS = 3;
+const DEFAULT_NEW_WORD_STATUS = 3; // virtual baseline for pending words; status 3 = ❌
 
 function normalizeWord(raw) {
   return String(raw || '')
@@ -73,6 +74,12 @@ function ensureValidOpId(opId) {
   }
 }
 
+function ensureValidHintToken(token) {
+  if (!HINT_TOKEN_PATTERN.test(token)) {
+    throw new Error('invalid --hint-token format');
+  }
+}
+
 function resolveStatusFromEvent(previousStatus, event, fallbackStatus = DEFAULT_NEW_WORD_STATUS) {
   ensureValidEvent(event);
 
@@ -82,8 +89,12 @@ function resolveStatusFromEvent(previousStatus, event, fallbackStatus = DEFAULT_
     return 8;
   }
 
-  if (event === 'remembered_after_hint' || event === 'unreviewed') {
+  if (event === 'unreviewed') {
     return fallbackStatus;
+  }
+
+  if (event === 'remembered_after_hint') {
+    return 4;
   }
 
   if (event === 'correct') {
@@ -111,7 +122,7 @@ function validateEventTransition(input) {
 
   ensureValidEvent(event);
 
-  if (!Number.isInteger(nextStatus) || nextStatus < 0 || nextStatus > 8) {
+  if (!Number.isInteger(nextStatus) || nextStatus < 1 || nextStatus > 8) {
     throw new Error(`invalid status transition target: ${String(nextStatus)}`);
   }
 
@@ -131,8 +142,8 @@ function validateEventTransition(input) {
   }
 
   if (event === 'remembered_after_hint') {
-    if (nextStatus !== 3) {
-      throw new Error('event "remembered_after_hint" must set status=3');
+    if (nextStatus !== 4) {
+      throw new Error('event "remembered_after_hint" must set status=4');
     }
     return;
   }
@@ -157,14 +168,21 @@ function validateEventTransition(input) {
   }
 }
 
+function deriveOpId(input) {
+  return crypto.createHash('sha256').update(input).digest('hex').slice(0, 24);
+}
+
 module.exports = {
   VALID_EVENTS,
   OP_ID_PATTERN,
+  HINT_TOKEN_PATTERN,
+  deriveOpId,
   normalizeWord,
   isSafeWord,
   ensureSafeWord,
   ensureValidEvent,
   ensureValidOpId,
+  ensureValidHintToken,
   resolveStatusFromEvent,
   validateEventTransition,
 };

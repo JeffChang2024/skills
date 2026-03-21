@@ -20,7 +20,7 @@ const HELP_TEXT = `
 WordPal 下一题准备脚本
 
 用法:
-  node next-question.js --mode <learn|review> --word <word> --item-type <pending|due> [--status <0-7>] [--difficulty-level <I|II|III|IV|V>] [--last-type <N1..N7|R1..R11>] [--validate] [--today YYYY-MM-DD] [--workspace-dir <path>]
+  node next-question.js --mode learn --word <word> --item-type <pending|due> [--status <0-7>] [--difficulty-level <I|II|III|IV|V>] [--last-type <Q1..Q17>] [--validate] [--today YYYY-MM-DD] [--workspace-dir <path>]
 
 输出:
   成功时输出 { meta, data } JSON，data 内包含可选的暂存结果与紧凑题型规划。
@@ -57,7 +57,7 @@ function parseInput(argv = process.argv.slice(2)) {
 
   return {
     help: false,
-    mode: parseEnum(values.mode, '--mode', ['learn', 'review']),
+    mode: parseEnum(values.mode, '--mode', ['learn']),
     word,
     itemType: parseEnum(values['item-type'], '--item-type', ['pending', 'due']),
     status: typeof values.status === 'string'

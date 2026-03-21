@@ -4,18 +4,15 @@ const { AppError, EXIT_CODES } = require('../errors');
 const { PROFILE_FILENAME, loadUserProfile } = require('./user-profile');
 
 const LEARN_TITLE = 'WordPal 学习推送';
-const REVIEW_TITLE = 'WordPal 复习推送';
 const LEARN_DESCRIPTION = '[WordPal:type=learn] WordPal 学习推送';
-const REVIEW_DESCRIPTION = '[WordPal:type=review] WordPal 复习推送';
 
-function toRegistration(pushTime, index, total) {
-  const isReview = total > 1 && index === total - 1;
+function toRegistration(pushTime, index) {
   return {
     index,
     time: pushTime,
-    kind: isReview ? 'review' : 'learn',
-    title: isReview ? REVIEW_TITLE : LEARN_TITLE,
-    description: isReview ? REVIEW_DESCRIPTION : LEARN_DESCRIPTION,
+    kind: 'learn',
+    title: LEARN_TITLE,
+    description: LEARN_DESCRIPTION,
   };
 }
 
@@ -41,15 +38,13 @@ function buildPushPlan({ workspaceDir }) {
   }
 
   return {
-    registrations: pushTimes.map((pushTime, index) => toRegistration(pushTime, index, pushTimes.length)),
+    registrations: pushTimes.map((pushTime, index) => toRegistration(pushTime, index)),
   };
 }
 
 module.exports = {
   LEARN_DESCRIPTION,
   LEARN_TITLE,
-  REVIEW_DESCRIPTION,
-  REVIEW_TITLE,
   buildPushPlan,
   toRegistration,
 };

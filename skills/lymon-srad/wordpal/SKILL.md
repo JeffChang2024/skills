@@ -1,6 +1,6 @@
 ---
 name: WordPal
-description: 结合用户画像与 memory 管理英语单词学习流程，包含新词学习(learn)、到期复习(review)、答题反馈和学习报告生成(report)。
+description: 嵌在聊天框的个性化英语学习 companion。结合你与龙虾的memory出词，学习英语词汇learn，查看词汇报告report。含17种多样题型，配合AI解析，覆盖多种词汇学习状态。使用FSRS算法计算复习周期，并通过corn定时推送学习提醒。
 user-invocable: true
 metadata:
   openclaw:
@@ -8,6 +8,8 @@ metadata:
     requires:
       bins:
         - node
+    capabilities:
+      - cron
 ---
 # WordPal · 主控协议
 
@@ -15,23 +17,23 @@ metadata:
 - `{baseDir}` 由 OpenClaw 自动替换为本技能的实际安装路径
 
 ## 执行顺序
-1. 判断用户意图并路由：
-   - features（问功能/能力）→ 读 `references/features.md`，不执行脚本
-   - learn（学习意图，或只输入 `/wordpal`）→ 读 `references/learn.md`
-   - review（复习意图）→ 读 `references/review.md`
-   - report（报告意图）→ 读 `references/report.md`
-2. 进入 learn/review/report 前，先执行 `session-context.js --mode <learn|review|report>`：
-   - `profile_exists = false` → 读取 `references/onboarding.md` 引导初始化
+1. 执行 `session-context.js --mode <learn|report>`：
+   - `profile_exists = false` → 读取 `references/onboarding.md` 引导onboarding初始化
    - `profile_exists = true` → `data.profile` 为用户画像唯一真值，继续流程
+2. 判断用户意图并路由：
+   - learn（学习意图，或只输入 `/wordpal`）→ 读 `references/learn.md`
+   - report（报告意图）→ 读 `references/report.md`
 
-## 共享事件映射（learn/review 共用）
-- 答对 → `submit-answer.js --event correct`
-- 答错 → `submit-answer.js --event wrong`
-- 提示后记住 → `submit-answer.js --event remembered_after_hint`
-- 提示后仍不会 → `submit-answer.js --event wrong`
-- 跳过/会了/斩词 → `submit-answer.js --event skip`
-- 新词确认进入学习 → `next-question.js --validate`
-`remembered_after_hint` vs `wrong` 判定见 `learn.md` / `review.md`「阶段 B-3」。
+## 事件映射
+- 答对 → `submit-answer.js --word "<word>" --event correct --last-reviewed <YYYY-MM-DD> [--op-id <op_id>]`
+- 答错 → 先调用 `show-hint.js --word "<word>"` 获取 `hint_token`，展示解析后按 B-3 子流程判定，**不直接提交**
+- 提示后记住 → `submit-answer.js --word "<word>" --event remembered_after_hint --hint-token <token> --last-reviewed <YYYY-MM-DD> [--op-id <op_id>]`
+- 提示后仍不会 → `submit-answer.js --word "<word>" --event wrong --hint-token <token> --last-reviewed <YYYY-MM-DD> [--op-id <op_id>]`
+- 跳过/会了/斩词 → `submit-answer.js --word "<word>" --event skip --last-reviewed <YYYY-MM-DD> [--op-id <op_id>]`
+
+`<word>` 为当前题目单词，`<YYYY-MM-DD>` 为今日日期，`<op_id>` 来自 `next-question.js` 返回的 `data.stage.op_id`（可选）。
+`<token>` 来自 `show-hint.js` 返回的 `data.hint_token`，一次性有效；缺失时 submit-answer.js 返回 `HINT_TOKEN_REQUIRED` 错误。
+`remembered_after_hint` vs `wrong` 判定见 `learn.md`「阶段 B-3」。
 
 ## 脚本通用规则
 - 所有脚本前缀：`node {baseDir}/scripts/`

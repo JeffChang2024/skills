@@ -20,7 +20,7 @@ const HELP_TEXT = `
 WordPal 会话汇总脚本
 
 用法:
-  node session-summary.js --mode <learn|review> --op-ids "id1,id2,..." [--today YYYY-MM-DD] [--top-risk 5] [--workspace-dir <path>]
+  node session-summary.js --mode <learn> --op-ids "id1,id2,..." [--today YYYY-MM-DD] [--top-risk 5] [--workspace-dir <path>]
 
 输出:
   成功时输出 { meta, data } JSON，data 内包含本轮事件计数、升级词、风险词和下次复习汇总。
@@ -72,7 +72,7 @@ function parseInput(argv = process.argv.slice(2)) {
 
   return {
     help: false,
-    mode: parseEnum(values.mode, '--mode', ['learn', 'review']),
+    mode: parseEnum(values.mode, '--mode', ['learn']),
     opIds: parseOpIds(values['op-ids']),
     today: values.today ? parseDate(values.today, '--today', isValidDate) : formatLocalDate(),
     topRisk: values['top-risk'] ? parseInteger(values['top-risk'], '--top-risk', 1, 20) : 5,

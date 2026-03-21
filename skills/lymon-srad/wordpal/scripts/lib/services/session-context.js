@@ -3,9 +3,9 @@ const path = require('path');
 
 const { parseLocalDate } = require('../core/fsrs-scheduler');
 const { addDays, toIsoDate } = require('../utils/date');
-const { loadUserProfileFromFile, DEFAULT_PROFILE } = require('./user-profile');
+const { DEFAULT_PROFILE } = require('./user-profile');
+const { buildLearnerMemory } = require('./learner-memory');
 
-const REVIEW_CANDIDATE_CAP = 30;
 
 function extractPoints(raw, limit = 3) {
   const lines = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
@@ -35,7 +35,12 @@ function buildMemoryDigest(todayStr, memoryDir) {
     const dateStr = toIsoDate(date);
     const file = path.join(memoryDir, `${dateStr}.md`);
     if (!fs.existsSync(file)) continue;
-    const raw = fs.readFileSync(file, 'utf8');
+    let raw;
+    try {
+      raw = fs.readFileSync(file, 'utf8');
+    } catch (_) {
+      continue;
+    }
     const points = extractPoints(raw, 3);
     if (points.length === 0) continue;
     out.push({ date: dateStr, points });
@@ -55,25 +60,19 @@ function toLearnQueuePreview(items) {
   }));
 }
 
-function buildSessionContext({ repo, today, mode, profileFile, memoryDir, maxDue, maxPending }) {
+function buildSessionContext({ repo, today, mode, memoryDir, maxDue, maxPending }) {
   const dbEntry = repo.getUserProfile();
-  const fileProfile = dbEntry ? null : loadUserProfileFromFile(profileFile);
-  const profileExists = !!dbEntry || !!fileProfile?.exists;
-  const profile = dbEntry
-    ? dbEntry
-    : fileProfile?.profile ?? { ...DEFAULT_PROFILE };
-  const reviewCandidateLimit = Math.max(1, Math.min(maxDue, REVIEW_CANDIDATE_CAP));
+  const profileExists = !!dbEntry;
+  const profile = dbEntry ?? { ...DEFAULT_PROFILE };
   const queueLimit = mode === 'learn'
     ? Math.max(profile.dailyTarget, 1)
-    : (mode === 'review'
-      ? reviewCandidateLimit
-      : Math.max(profile.dailyTarget, maxDue, maxPending, 1));
+    : Math.max(profile.dailyTarget, maxDue, maxPending, 1);
   const pendingPreview = mode === 'learn' ? repo.listPendingWordsLimited(queueLimit) : [];
-  const duePreview = mode === 'learn' || mode === 'review'
+  const duePreview = mode === 'learn'
     ? repo.listDueWordsLimited(today, queueLimit)
     : [];
   const statusCounts = repo.countWordsByStatus();
-  const activeCount = [0, 1, 2, 3, 4, 5, 6, 7].reduce((sum, s) => sum + (statusCounts[s] || 0), 0);
+  const activeCount = [1, 2, 3, 4, 5, 6, 7].reduce((sum, s) => sum + (statusCounts[s] || 0), 0);
   const masteredCount = statusCounts[8] || 0;
   const todayReviewedCount = repo.countDistinctReviewedWordsOn(today);
   const memoryDigest = buildMemoryDigest(today, memoryDir);
@@ -84,7 +83,6 @@ function buildSessionContext({ repo, today, mode, profileFile, memoryDir, maxDue
     profile_exists: profileExists,
     profile: {
       learning_goal: profile.learningGoal,
-      report_style: profile.reportStyle,
       difficulty_level: profile.difficultyLevel,
       daily_target: profile.dailyTarget,
     },
@@ -95,6 +93,11 @@ function buildSessionContext({ repo, today, mode, profileFile, memoryDir, maxDue
       pending_count: pendingCount,
     },
     memory_digest: memoryDigest,
+    learner_memory: buildLearnerMemory({
+      repo,
+      today,
+      memoryDigest,
+    }),
   };
 
   if (mode === 'learn') {
@@ -131,19 +134,6 @@ function buildSessionContext({ repo, today, mode, profileFile, memoryDir, maxDue
         need_new_words: Math.max(0, profile.dailyTarget - queue.length),
       },
       queue_preview: toLearnQueuePreview(queue),
-    };
-  }
-
-  if (mode === 'review') {
-    data.review = {
-      due_count: dueCount,
-      first_due_date: duePreview.length > 0 ? duePreview[0].nextReview : null,
-      due_candidates: duePreview.slice(0, reviewCandidateLimit).map((item) => ({
-        word: item.word,
-        status: item.status,
-        last_reviewed: item.lastReviewed,
-        next_review: item.nextReview,
-      })),
     };
   }
 

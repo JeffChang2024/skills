@@ -13,13 +13,12 @@ const DEFAULT_MAX_DUE = 120;
 const DEFAULT_MAX_PENDING = 120;
 
 const HELP_TEXT = `
-WordPal 会话上下文脚本
+WordPal session context script
+Usage:
+  node session-context.js --mode <learn|report> [--today YYYY-MM-DD] [--workspace-dir <path>] [--memory-dir <path>] [--max-due 120] [--max-pending 120]
 
-用法:
-  node session-context.js --mode <learn|review|report> [--today YYYY-MM-DD] [--workspace-dir <path>] [--memory-dir <path>] [--max-due 120] [--max-pending 120]
-
-输出:
-  成功时输出 { meta, data } JSON，data 内包含 profile/progress/memory_digest 以及对应模式的上下文。
+Output:
+  Success prints { meta, data } JSON. data includes profile, progress, memory_digest, learner_memory, and mode-specific context.
 `;
 
 function parseInput(argv = process.argv.slice(2)) {
@@ -44,7 +43,7 @@ function parseInput(argv = process.argv.slice(2)) {
 
   return {
     help: false,
-    mode: parseEnum(values.mode, '--mode', ['learn', 'review', 'report']),
+    mode: parseEnum(values.mode, '--mode', ['learn', 'report']),
     today: values.today ? parseDate(values.today, '--today', isValidDate) : formatLocalDate(),
     workspaceDir: values['workspace-dir']
       ? resolvePath(values['workspace-dir'], '--workspace-dir')
@@ -79,7 +78,6 @@ function main() {
         repo,
         today: input.today,
         mode: input.mode,
-        profileFile: path.join(input.workspaceDir, 'user-profile.md'),
         memoryDir: input.memoryDir,
         maxDue: input.maxDue,
         maxPending: input.maxPending,

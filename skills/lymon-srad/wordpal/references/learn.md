@@ -2,17 +2,17 @@
 
 ## Session 状态展示
 
-进入学习前，展示状态摘要：
+进入学习前，展示状态摘要（以下状态块必须完整输出，）：
 
 ```
 📘 WordPal · 学习模式
-🎯 目标：<learning_goal>（如 TOEFL / CET6）
-📊 难度：<difficulty_level>（如 III）
+🎯 目标：<learning_goal>
+📊 难度：<difficulty_level>
 📅 今日进度：已学 <today_reviewed_count> / 目标 <daily_target> 词
 📋 本轮队列：<pending 数> 新词 + <due 数> 复习词
 ```
 
-数据来自 `session-context.js --mode learn` 返回的 `data.profile` 和 `data.learn`。
+数据来自 `session-context.js --mode learn` 返回的 `data.profile`、`data.learner_memory` 和 `data.learn`。
 
 ## 执行顺序
 
@@ -20,25 +20,16 @@
 2. 若 `queue_preview` 为空且 `need_new_words <= 0`，结束本轮。
 3. 按 `daily_target` 上限逐题推进：先消费 `queue_preview`，不足时补新词。
 4. 补新词（仅 `need_new_words > 0` 时）：
-   - 按 `learning_goal + difficulty_level + memory_digest` 生成 **1 个**新词候选
-   - 调用 `next-question.js --mode learn --item-type pending --word "<word>" --difficulty-level <I-V> --validate [--last-type <Nk>]`
-   - 若 `WORD_REJECTED`，重新生成并重试
+   - 按 `learning_goal + difficulty_level + learner_memory.personal_context.recent_context_digest` 生成 **1 个**新词候选；兼容旧实现时可继续回退到 `memory_digest`。难度等级表示在 `learning_goal` 词汇范围内的难度梯度：I=高频易记，II=较高频，III=中频，IV=较低频，V=低频难记
+   - 调用 `next-question.js --mode learn --item-type pending --word "<word>" --difficulty-level <I-V> --validate [--last-type <Qk>]`
+   - 若 `WORD_REJECTED` 且 `details.reason` 为 `exists_pending`：视为该词已就绪，直接用该词出题，**不重新生成**
+   - 若 `WORD_REJECTED` 且 `details.reason` 为其他（`duplicate_in_input` / `unsafe_word` / `exists_mastered` / `exists_active`）：重新生成新词候选并重试
 5. 对 `queue_preview` 中已有词调用 `next-question.js`：
-   - pending：`next-question.js --mode learn --item-type pending --word "<word>" --difficulty-level <I-V> [--last-type <Nk>]`
-   - due：`next-question.js --mode learn --item-type due --word "<word>" --status <0-7> [--last-type <Rk>]`
-6. 读取 `data.question` 后，按下方"单题输出规范"的 A → B → C 流程出题。题面规则见"题型速查"。
+   - pending：`next-question.js --mode learn --item-type pending --word "<word>" --difficulty-level <I-V> [--last-type <Qk>]`
+   - due：`next-question.js --mode learn --item-type due --word "<word>" --status <0-7> [--last-type <Qk>]`
+6. 读取 `data.question` 后，按下方"单题输出规范"的 A → B → C 流程出题。
 7. 每题反馈后记录题型编号，下一题传入 `--last-type`。
 8. 用户暂停或本轮结束时，收集所有 `op_id`，调用 `session-summary.js --mode learn --op-ids "<op1>,<op2>,..."`.
-
-## 题型速查
-
-- **N1 单词释义选择**：直接给目标词，4 选 1 中文/短义项，不额外提示
-- **N2 词卡同义词识别**：先展示词卡，再给 4 个简单英文同义/近义选项
-- **N3 英文语境猜义**：给一条含目标词的英文句子，让用户猜大意
-- **N4 场景选义**：先展示词卡，再判断目标词是否适合某个具体场景
-- **N5 固定搭配入门**：先展示词卡，再从多个搭配里选最自然的一项
-- **N6 词卡造句**：先展示词卡，再让用户用目标词写 1 句英文句子
-- **N7 场景翻译**：先展示词卡，再把中文场景翻成含目标词的英文句子
 
 ## 单题输出规范
 
@@ -62,10 +53,11 @@
 - **B-1 正确** → event=`correct`，调用 `submit-answer.js`，进入 C
 - **B-2 跳过**（"跳过/会了/斩词"）→ event=`skip`，调用 `submit-answer.js`，进入 C
 - **B-3 答错** → 子流程：
-  1. 展示正确答案+解析（1-2 句）+ 补充词卡（若阶段 A 未展示）。不调用 submit-answer.js
-  2. 引导确认："记住了吗？"
-  3. 判定：用户主动复述/造句/说"懂了" → `remembered_after_hint`；仅被动确认"嗯/好"或说"记不住" → `wrong`
-  4. 调用 `submit-answer.js`，进入 C
+  1. 调用 `show-hint.js --word <word>`，取得 `data.hint_token`；将提示内容（正确答案 + 解析 1-2 句）展示给用户，补充词卡（若阶段 A 未展示）。
+  2. 询问用户："记住了还是没记住？"
+  3. 用户回答"记住了 / 懂了 / 明白了" → 调用 `submit-answer.js --event remembered_after_hint --hint-token <hint_token>`
+     用户回答"没记住 / 不记得" → 调用 `submit-answer.js --event wrong --hint-token <hint_token>`
+  4. 进入 C
 
 ### 阶段 C：答后反馈
 
@@ -78,6 +70,10 @@ submit-answer.js 返回后展示：
 [状态] <status_emoji>（status N）| 下次复习：<next_review>
 [进度] <已完成数> / <总数>
 ```
+
+下一题衔接规则：
+- `correct` / `skip`：C 结束后直接出下一题，无需等待用户输入
+- `wrong` / `remembered_after_hint`（即经历了 B-3 子流程）：C 结束后**停止**，等用户主动继续，不自动出下一题
 
 ## 参数调整
 

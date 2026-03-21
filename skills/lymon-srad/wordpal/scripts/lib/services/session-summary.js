@@ -97,7 +97,7 @@ function buildSessionSummary({ repo, mode, opIds, today, topRisk = 5 }) {
   });
   const masteredWords = words.filter((word) => word.current_status === 8).map((word) => word.word);
   const riskWords = words
-    .filter((word) => word.current_status === 0 || word.current_status === 1)
+    .filter((word) => word.current_status === 1 || word.current_status === 2)
     .slice(0, topRisk)
     .map((word) => ({
       word: word.word,
@@ -118,7 +118,7 @@ function buildSessionSummary({ repo, mode, opIds, today, topRisk = 5 }) {
     mastered_words: masteredWords,
     risk_words: riskWords,
     next_review: summarizeNextReview(words),
-    remaining_due_count: mode === 'review' ? repo.countDueWords(today) : null,
+    remaining_due_count: repo.countDueWords(today),
     words,
   };
 }

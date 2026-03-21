@@ -11,7 +11,6 @@ const {
   DIFFICULTY_LEVELS,
   LEARNING_GOALS,
   PROFILE_FILENAME,
-  REPORT_STYLES,
   loadUserProfile,
   normalizePushTimesInput,
   toScriptProfile,
@@ -23,7 +22,7 @@ WordPal 用户画像脚本
 
 用法:
   node profile.js get [--workspace-dir <path>]
-  node profile.js set [--workspace-dir <path>] [--created YYYY-MM-DD] [--learning-goal <goal>] [--push-times "08:00, 20:00"] [--report-style <style>] [--difficulty-level <I|II|III|IV|V>] [--daily-target <1-100>]
+  node profile.js set [--workspace-dir <path>] [--created YYYY-MM-DD] [--learning-goal <goal>] [--push-times "08:00, 20:00"] [--difficulty-level <I|II|III|IV|V>] [--daily-target <1-100>]
 
 输出:
   成功时输出 { meta, data } JSON。get 返回 exists/profile，set 返回更新后的 profile 和 updated_fields。
@@ -68,9 +67,6 @@ function parseSetPatch(values) {
   if (values['push-times']) {
     patch.pushTimes = normalizePushTimesInput(values['push-times']);
   }
-  if (values['report-style']) {
-    patch.reportStyle = parseUpperEnum(values['report-style'], '--report-style', REPORT_STYLES);
-  }
   if (values['difficulty-level']) {
     patch.difficultyLevel = parseUpperEnum(values['difficulty-level'], '--difficulty-level', DIFFICULTY_LEVELS);
   }
@@ -100,7 +96,6 @@ function parseInput(argv = process.argv.slice(2)) {
       'difficulty-level': { type: 'string' },
       'learning-goal': { type: 'string' },
       'push-times': { type: 'string' },
-      'report-style': { type: 'string' },
       'workspace-dir': { type: 'string' },
     },
   });

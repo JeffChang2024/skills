@@ -11,7 +11,7 @@ const {
 } = require('./lib/cli/helpers');
 const { writeHelp, writeJsonError, writeJsonSuccess } = require('./lib/output');
 const { isValidDate } = require('./lib/core/fsrs-scheduler');
-const { ensureSafeWord, ensureValidOpId, normalizeWord } = require('./lib/core/input-guard');
+const { ensureSafeWord, ensureValidHintToken, ensureValidOpId, normalizeWord } = require('./lib/core/input-guard');
 const { createRepository, DEFAULT_WORKSPACE_DIR } = require('./lib/core/vocab-db');
 const { submitAnswer } = require('./lib/services/submit-answer');
 
@@ -19,7 +19,11 @@ const HELP_TEXT = `
 WordPal 答题提交脚本
 
 用法:
-  node submit-answer.js --word <word> --event <correct|wrong|remembered_after_hint|skip> --last-reviewed <YYYY-MM-DD> [--op-id <id>] [--remaining-count <n>] [--workspace-dir <path>]
+  node submit-answer.js --word <word> --event <correct|wrong|remembered_after_hint|skip> --last-reviewed <YYYY-MM-DD> [--hint-token <token>] [--op-id <id>] [--remaining-count <n>] [--workspace-dir <path>]
+
+注意:
+  --event wrong 和 --event remembered_after_hint 必须携带 --hint-token。
+  hint_token 由 show-hint.js 生成，一次性有效。
 
 输出:
   成功时输出 { meta, data } JSON，data 内包含更新结果与轻量进度字段。
@@ -33,6 +37,7 @@ function parseInput(argv = process.argv.slice(2)) {
       word: { type: 'string' },
       event: { type: 'string' },
       'last-reviewed': { type: 'string' },
+      'hint-token': { type: 'string' },
       'op-id': { type: 'string' },
       'remaining-count': { type: 'string' },
       'workspace-dir': { type: 'string' },
@@ -61,11 +66,31 @@ function parseInput(argv = process.argv.slice(2)) {
     }
   }
 
+  const eventArg = parseEnum(values.event, '--event', ['correct', 'wrong', 'remembered_after_hint', 'skip']);
+
+  const HINT_REQUIRED_EVENTS = new Set(['wrong', 'remembered_after_hint']);
+  let hintTokenArg = null;
+  if (typeof values['hint-token'] === 'string') {
+    hintTokenArg = values['hint-token'].trim();
+    try {
+      ensureValidHintToken(hintTokenArg);
+    } catch (error) {
+      throw new AppError('INVALID_HINT_TOKEN', error.message, EXIT_CODES.INVALID_INPUT);
+    }
+  } else if (HINT_REQUIRED_EVENTS.has(eventArg)) {
+    throw new AppError(
+      'HINT_TOKEN_REQUIRED',
+      `--hint-token is required for event "${eventArg}". Call show-hint.js first.`,
+      EXIT_CODES.INVALID_INPUT,
+    );
+  }
+
   return {
     help: false,
     word,
-    eventArg: parseEnum(values.event, '--event', ['correct', 'wrong', 'remembered_after_hint', 'skip']),
+    eventArg,
     lastReviewed: parseDate(values['last-reviewed'], '--last-reviewed', isValidDate),
+    hintTokenArg,
     opIdArg,
     remainingCount: typeof values['remaining-count'] === 'string'
       ? parseInteger(values['remaining-count'], '--remaining-count', 0, 1000000)
