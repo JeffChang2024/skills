@@ -1,296 +1,73 @@
 ---
 name: transcribe
-description: Use podcast-helper to transcribe podcast audio into original audio, SRT subtitles, and TXT transcripts, then optionally clean the transcript with episode-page context. Use when the user asks to transcribe a podcast episode, generate subtitles, extract a transcript from an audio file, or polish a raw transcript using the podcast page. Prefer no-install invocation through npx or pnpm dlx when appropriate.
+description: "For transcript or subtitle requests involving podcast URLs, public audio URLs/files, or raw transcript cleanup. Generates audio + SRT + TXT artifacts and can optionally clean transcripts with episode-page context."
 allowed-tools: Bash(curl:*), Bash(podcast-helper:*), Bash(npx podcast-helper:*), Bash(pnpm dlx podcast-helper:*), Bash(node dist/cli.js:*), Bash(pnpm run build:*)
+metadata:
+  version: "1.4.1"
+  tags: [podcast, transcription, audio, subtitles, asr, cleanup]
 ---
 
-# Transcribe and Clean with podcast-helper
+# Transcribe with podcast-helper
 
-`podcast-helper` is a CLI for podcast download and transcription workflows.
-
-Use this skill when the user wants any of the following:
-
-- Transcribe a Xiaoyuzhou episode URL
-- Transcribe a public podcast episode page that exposes audio metadata or a discoverable RSS/Atom feed
-- Transcribe a direct remote audio URL
-- Transcribe a local audio file
-- Generate subtitle files (`.srt`)
-- Generate plain transcript files (`.txt`)
-- Clean a raw transcript after transcription
-- Fix obvious ASR mistakes with episode-page context
-- Run local transcription on Apple Silicon
-- Use a specific AI SDK transcription provider such as OpenAI, Groq, Deepgram, Gladia, AssemblyAI, or Rev.ai
-
-## Inputs
-
-The main `transcribe` command accepts exactly one input:
-
-- A Xiaoyuzhou episode URL
-- A public podcast episode page URL
-- A direct audio URL such as `.mp3` or `.m4a`
-- A local audio file path
-
-Examples:
-
-```bash
-npx podcast-helper transcribe https://www.xiaoyuzhoufm.com/episode/69b4d2f9f8b8079bfa3ae7f2 --output-dir ./out/episode --json
-npx podcast-helper transcribe https://example.fm/episodes/42 --output-dir ./out/episode-page --json
-npx podcast-helper transcribe https://storage.googleapis.com/eleven-public-cdn/audio/marketing/nicole.mp3 --output-dir ./out/smoke --json
-npx podcast-helper transcribe ./audio/interview.mp3 --output-dir ./out/local --json
-```
-
-Generic episode-page support works best when the page exposes:
-
-- `og:audio` or similar audio metadata
-- `<audio>` or `<source>` tags
-- JSON-LD `AudioObject` or `PodcastEpisode`
-- an alternate RSS or Atom feed that links back to the current episode page
-
-That covers many host-powered public pages without a dedicated adapter, including pages commonly built on Buzzsprout, Libsyn, Simplecast, Podbean, Transistor, Castos, Omny, Acast, and Spreaker.
-
-## Requirements
-
-- The CLI can be invoked from npm with `npx` or `pnpm dlx`, or run from the repository
-- Cleanup with Jina Reader is optional and does not require ElevenLabs
-
-For ElevenLabs runs:
-
-- `ELEVENLABS_API_KEY` must be set
-
-Other supported remote providers:
-
-- `OPENAI_API_KEY` -> `openai`
-- `GROQ_API_KEY` -> `groq`
-- `DEEPGRAM_API_KEY` -> `deepgram`
-- `GLADIA_API_KEY` -> `gladia`
-- `ASSEMBLYAI_API_KEY` -> `assemblyai`
-- `REVAI_API_KEY` -> `revai`
-
-For Apple Silicon local transcription with `mlx-whisper`:
-
-- `ffmpeg` must be installed
-- `python3` must be available
-- `podcast-helper setup mlx-whisper` installs the local runtime into a stable venv
-
-Check the API key first if transcription is expected to run:
-
-```bash
-printenv ELEVENLABS_API_KEY
-```
-
-Default engine selection:
-
-- If local `mlx-whisper` is available, omit `--engine` and let the CLI use `mlx-whisper`
-- Else if `ELEVENLABS_API_KEY` is present, omit `--engine` and let the CLI use `elevenlabs`
-- Else if `OPENAI_API_KEY` is present, omit `--engine` and let the CLI use `openai`
-- Else if `GROQ_API_KEY` is present, omit `--engine` and let the CLI use `groq`
-- Else if `DEEPGRAM_API_KEY` is present, omit `--engine` and let the CLI use `deepgram`
-- Else if `GLADIA_API_KEY` is present, omit `--engine` and let the CLI use `gladia`
-- Else if `ASSEMBLYAI_API_KEY` is present, omit `--engine` and let the CLI use `assemblyai`
-- Else if `REVAI_API_KEY` is present, omit `--engine` and let the CLI use `revai`
-- Otherwise omit `--engine` and let the CLI fall back to `mlx-whisper`
-- Use `--engine <provider>` only when you need to force a specific backend
-
-## Preferred Command Form
-
-Prefer machine-readable output:
-
-```bash
-npx podcast-helper transcribe <input> --output-dir <dir> --json
-```
-
-The local workflow defaults to:
-
-- a request-scoped temp workspace
-- FFmpeg chunking at `300` seconds
-- chunk-by-chunk partial transcript events on `stderr`
-- automatic cleanup unless `--keep-temp` is set
-
-Why:
-
-- Progress goes to `stderr`
-- Final success payloads are emitted as JSON on `stdout`
-- Structured failure payloads are emitted as JSON on `stderr`
-- Agents can parse the output without scraping logs
-
-## Output Contract
-
-The command produces:
-
-- Original audio file
-- `.srt` subtitle file
-- `.txt` transcript file
-
-Typical JSON output:
-
-```json
-{
-  "ok": true,
-  "command": "transcribe",
-  "input": "https://storage.googleapis.com/eleven-public-cdn/audio/marketing/nicole.mp3",
-  "source": "remote-audio-url",
-  "language": "eng",
-  "artifacts": {
-    "audio": "/abs/path/nicole.mp3",
-    "srt": "/abs/path/nicole.srt",
-    "txt": "/abs/path/nicole.txt"
-  }
-}
-```
-
-Typical JSON failure output on `stderr`:
-
-```json
-{
-  "ok": false,
-  "command": "transcribe",
-  "error": {
-    "code": "SOURCE_RESOLUTION_FAILED",
-    "category": "source",
-    "message": "Could not extract podcast audio from the provided page.",
-    "hints": [
-      "Pass the original episode page URL, a direct audio URL, or a local audio file.",
-      "If this site hides audio metadata, download the audio separately and rerun `transcribe` with the file path."
-    ]
-  }
-}
-```
-
-If you need machine-readable progress and terminal failures on the same stream, use `--progress jsonl`.
+Generate transcript artifacts from a podcast episode, audio file, or raw transcript, with an optional cleanup pass that uses episode-page context.
 
 ## Default Workflow
 
-Use this order by default:
+1. Choose a dedicated output directory such as `./out/<episode-slug>/`.
+2. Run `npx podcast-helper transcribe <input> --output-dir <dir> --json`.
+3. Add `--progress jsonl` only when machine-readable progress is needed.
+4. Report the generated artifact paths for audio, `.srt`, and `.txt`.
+5. Ask whether the user wants cleanup. Do not run cleanup implicitly.
 
-1. Transcribe with `podcast-helper`
-2. Report the generated artifact paths
-3. Ask whether the user also wants cleanup
-4. If yes, fetch episode-page context through Jina Reader and produce a cleaned sibling transcript
+If you are already inside this repository and `dist/cli.js` exists, `node dist/cli.js ...` is acceptable. Do not default to repository-local build steps outside this repository.
+If you are inside this repository and `dist/cli.js` is missing, run `pnpm run build` before using the repo-local entry point.
 
-Suggested follow-up question:
+## Gotchas
 
-```text
-Do you want me to clean the transcript as well?
-```
+- Prefer no-install entry points first: `npx`, then `pnpm dlx`, then a globally installed `podcast-helper`.
+- Let the CLI auto-select the engine unless the user explicitly requests a backend or needs offline Apple Silicon transcription.
+- Spotify URLs are unsupported because the audio is DRM-protected. Ask for an RSS-backed episode page, Apple Podcasts link, or direct audio URL instead.
+- YouTube inputs require `yt-dlp`.
+- Generic episode pages sometimes hide audio metadata. If source resolution fails, download the audio separately and rerun with the file path.
+- Hosted transcription failures usually come from a missing or wrong provider API key.
+- Local `mlx-whisper` runs require `ffmpeg`, `python3`, and a working runtime from `podcast-helper setup mlx-whisper`.
+- Keep the raw transcript untouched. Cleanup should write a sibling `*.cleaned.txt`.
 
-When cleanup is requested, keep the raw transcript unchanged and write a sibling file:
+## Command Forms
 
-- Raw: `episode.txt`
-- Cleaned: `episode.cleaned.txt`
-
-## Execution Strategy
-
-Use this order of preference:
-
-1. `npx podcast-helper transcribe ...`
-2. `pnpm dlx podcast-helper transcribe ...`
-3. `podcast-helper transcribe ...`
-4. In this repository: `node dist/cli.js transcribe ...`
-
-If the user explicitly wants local transcription on Apple Silicon, prefer `--engine mlx-whisper`.
-If the user explicitly wants a specific hosted backend, prefer `--engine <provider>`.
-Otherwise let the CLI choose based on the available provider API keys.
-
-Do not default to repository build instructions unless you are already working inside this repository.
-
-If you are inside the repository and `dist/cli.js` is missing, build first:
+Default:
 
 ```bash
-pnpm run build
+npx podcast-helper transcribe <input> --output-dir ./out/<slug> --json
 ```
 
-Then run:
+Fallbacks:
+
+- `pnpm dlx podcast-helper transcribe <input> --output-dir ./out/<slug> --json`
+- `podcast-helper transcribe <input> --output-dir ./out/<slug> --json`
+- `node dist/cli.js transcribe <input> --output-dir ./out/<slug> --json` only inside this repository
+
+For offline Apple Silicon:
 
 ```bash
-node dist/cli.js transcribe <input> --output-dir <dir> --json
+npx podcast-helper transcribe <input> --engine mlx-whisper --output-dir ./out/<slug> --json
 ```
 
-## Agent Guidance
+## Cleanup Branch
 
-- Prefer a small public audio file for smoke tests to reduce transcription cost.
-- Use `https://storage.googleapis.com/eleven-public-cdn/audio/marketing/nicole.mp3` for a cheap live verification unless the user explicitly wants a real podcast episode.
-- Use a dedicated output directory per task.
-- Report the generated artifact paths back to the user.
-- Prefer `npx` or `pnpm dlx` when the user does not already have the CLI installed.
-- If the user wants local or offline transcription on Apple Silicon, switch to `--engine mlx-whisper`.
-- If local setup is missing, run `podcast-helper doctor` first, then `podcast-helper setup mlx-whisper`.
-- If the user has not asked for a specific backend, check the available provider API keys and let the CLI choose automatically.
-- If the input is a Xiaoyuzhou episode or a public podcast episode page, the CLI resolves and downloads the source audio automatically.
-- After transcription, if the user appears to want a polished transcript, ask whether they also want cleanup.
+Only enter cleanup when the user asks for it or already has a raw transcript.
 
-## Cleanup Workflow
+1. Fetch episode context with `curl https://r.jina.ai/<podcast-url>`.
+2. Use the page as reference context for obvious ASR repairs, especially names and proper nouns.
+3. Do not summarize, invent missing content, or overwrite the raw transcript.
+4. Write a sibling `*.cleaned.txt` file.
 
-Use this branch when:
+If no episode URL is available, clean conservatively and explicitly say that external episode context was not used.
 
-- The user says yes to cleanup after transcription
-- The user already has a raw `.txt` transcript and wants it polished
+## References
 
-Recommended inputs:
-
-- The original podcast URL
-- The raw transcript file, usually `.txt`
-
-Optional but useful:
-
-- The `.srt` file
-- The original audio file
-
-Fetch the episode page through Jina Reader:
-
-```bash
-curl https://r.jina.ai/<podcast-url>
-```
-
-For example:
-
-```bash
-curl https://r.jina.ai/https://www.xiaoyuzhoufm.com/episode/69b4d2f9f8b8079bfa3ae7f2
-```
-
-Use the page content as reference context to:
-
-- Fix obvious homophone and ASR mistakes
-- Recover names, products, titles, and other proper nouns
-- Remove repeated filler words and disfluencies when they are clearly redundant
-- Normalize punctuation and paragraph breaks for readability
-
-Apply conservative cleanup:
-
-- Preserve speaker intent and factual content
-- Do not invent missing material
-- Do not summarize instead of cleaning
-- Do not overwrite the raw transcript
-
-If the episode URL is unavailable, clean conservatively using transcript-only evidence and state that no external episode context was used.
-
-## Failure Modes
-
-If transcription fails:
-
-- Verify which backend was selected
-- If a hosted backend was selected, verify the matching API key is present
-- If local `mlx-whisper` was selected, run `podcast-helper doctor`
-- If local `mlx-whisper` is missing, run `podcast-helper setup mlx-whisper`
-- Verify the input URL is reachable
-- Re-run with a fresh output directory
-- If using the repository build, run `pnpm run check` and `pnpm run build`
-
-If cleanup quality is uncertain:
-
-- Verify the podcast URL matches the transcript
-- Re-fetch the Jina Reader page and inspect whether it contains useful episode metadata
-- Prefer fewer edits when the page does not provide enough grounding
-
-## Install This Skill
-
-Project-local install:
-
-```bash
-npx skills add dairui1/podcast-helper --skill transcribe
-```
-
-Global install:
-
-```bash
-npx skills add dairui1/podcast-helper --skill transcribe -g
-```
+- Read `references/inputs-and-engines.md` for supported inputs, engine selection, and dependency notes.
+- Read `references/output-contract.md` for the JSON success and failure envelopes and progress handling.
+- Read `references/cleanup.md` for detailed cleanup rules and conservative editing guidance.
+- Read `references/verification.md` for smoke-test inputs and verification steps.
+- Read `references/setup.md` when installing this skill into Claude Code, OpenClaw, or other agents.
