@@ -1,0 +1,11 @@
+{
+  "owner": "openlark",
+  "slug": "xhs-suggest-keywords",
+  "displayName": "小红书搜索建议关键词收集工具",
+  "latest": {
+    "version": "1.0.1",
+    "publishedAt": 1774062122486,
+    "commit": null
+  },
+  "history": []
+}
