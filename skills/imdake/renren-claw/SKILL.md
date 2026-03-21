@@ -54,8 +54,8 @@ metadata: { "openclaw": { "requires": { "python": [ "requests>=2.31.0" ] }, "pri
 
 ### 请求方式
 
-- `GET` 查询数据类接口使用GET请求
-- `POST` 提交数据、操作类使用POST请求
+- **GET**：查询类接口
+- **POST**：提交数据 / 操作类接口，请求体以 `application/x-www-form-urlencoded` 格式提交
 
 #### 请求接口格式
 
@@ -65,13 +65,15 @@ RR_CLAW_BASE_URL + 接口地址
 
 #### 响应数据格式
 
-- 与后端约定必须返回 httpCode=200，所以禁止以 httpCode 作为接口调用成功或失败的唯一依据
-- 接口响应数据格式为 JSON
-- 约定 `{"error": 0, "message": "success", ...}` 格式，`error` 为业务错误码：`0` 表示调用成功，非 `0` 表示业务失败（此时 `message` 包含错误描述）
+- 所有接口统一返回 HTTP 200，**禁止以 HTTP 状态码判断成功或失败**
+- 响应格式为 JSON：`{"error": 0, "message": "success", ...}`
+- **必须检查 `error` 字段**：`0` = 成功，非 `0` = 业务失败（`message` 中包含错误描述）
 
 #### 脚本请求示例
 
 凭证由平台从 `~/.openclaw/openclaw.json` 注入，通过参数传递给客户端：
+
+可自行拼接 cURL 请求，或调用 `scripts/request_client.py` 封装的客户端：
 
 ```python
 from request_client import get_client
@@ -145,6 +147,19 @@ client.get("/some/path")
 
 ## 五、意图判断指南
 
+### 商城字段名词解释
+
+| 字段名          | 说明   |
+|--------------|------|
+| goods        | 商品   |
+| member       | 会员   |
+| order        | 订单   |
+| shop         | 店铺   |
+| mall         | 综合商城 |
+| communityBuy | 社区团购 |
+| siteApp      | 智慧轻站 |
+| promoter     | 推客带货 |
+
 ### 时间段判断
 
 | 用户提到          | period参数值 |
@@ -172,11 +187,11 @@ client.get("/some/path")
 | 优惠券               | 优惠券相关接口  |
 | 满额包邮              | 满额包邮相关接口 |
 
-### 注意事项
+### ⚠️ 危险操作（必须二次确认）
 
-以下接口需要先向用户确认再执行：
+以下接口会直接影响线上业务，**执行前必须向用户明确确认，禁止自动执行**：
 
-- POST /goods/operation/put-store（下架商品）
-- POST /order/operation/close（关闭订单）
-- POST /sales/coupon/manual-stop（停止发放优惠券）
-- POST /sales/full-free/close（关闭满额包邮）
+- `POST /goods/operation/put-store` — 下架商品（影响前台展示）
+- `POST /order/operation/close` — 关闭订单（不可逆）
+- `POST /sales/coupon/manual-stop` — 停止发放优惠券（立即生效）
+- `POST /sales/full-free/close` — 关闭满额包邮（立即生效）

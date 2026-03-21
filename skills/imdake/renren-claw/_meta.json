@@ -3,9 +3,15 @@
   "slug": "renren-claw",
   "displayName": "人人商城龙虾助手",
   "latest": {
-    "version": "1.0.5",
-    "publishedAt": 1773833492192,
-    "commit": "https://github.com/openclaw/skills/commit/9800831c48c791cdcf963bbb7747c8d7d5905858"
+    "version": "1.0.8",
+    "publishedAt": 1773839643854,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.5",
+      "publishedAt": 1773833492192,
+      "commit": "https://github.com/openclaw/skills/commit/9800831c48c791cdcf963bbb7747c8d7d5905858"
+    }
+  ]
 }
