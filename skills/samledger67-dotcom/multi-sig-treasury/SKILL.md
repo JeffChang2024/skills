@@ -7,7 +7,7 @@ description: >
   monitoring an existing treasury, generating spend proposals, or auditing signer
   activity. NOT for: individual wallets (use a personal wallet skill), smart contract
   audits (use solidity-audit-precheck), or tax reporting (use crypto-tax-agent).
-version: 1.0.0
+version: 1.0.1
 author: PrecisionLedger
 tags:
   - crypto
