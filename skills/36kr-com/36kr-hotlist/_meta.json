@@ -3,9 +3,15 @@
   "slug": "36kr-hotlist",
   "displayName": "[36kr]获取36氪官方24小时热榜文章数据",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1773745803439,
-    "commit": "https://github.com/openclaw/skills/commit/52737e3367ce7a0e0349ae0768a63c811f7b4e50"
+    "version": "1.0.4",
+    "publishedAt": 1773924675966,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1773745803439,
+      "commit": "https://github.com/openclaw/skills/commit/52737e3367ce7a0e0349ae0768a63c811f7b4e50"
+    }
+  ]
 }
