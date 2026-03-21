@@ -1,0 +1,11 @@
+{
+  "owner": "ckouder",
+  "slug": "taskboard-cli",
+  "displayName": "Taskboard Cli",
+  "latest": {
+    "version": "3.0.1",
+    "publishedAt": 1773950414990,
+    "commit": null
+  },
+  "history": []
+}
