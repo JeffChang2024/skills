@@ -2,9 +2,10 @@
 name: phy-i18n-audit
 description: i18n key coverage auditor for multi-locale codebases. Diffs every locale file against the base locale to find missing translation keys, untranslated values (value identical to source language), empty strings masquerading as translations, and orphaned keys that exist in secondary locales but not in the base. Supports JSON (i18next, react-intl, vue-i18n), YAML (Rails i18n), PO/POT (gettext), ARB (Flutter), and nested/namespaced key structures. Reports a per-locale coverage percentage, flags the highest-impact missing keys (used in the most templates), and generates a CI fail-gate command. Zero external API — pure local file analysis. Triggers on "missing translations", "i18n coverage", "untranslated keys", "locale audit", "which strings are not translated", "/i18n-audit".
 license: Apache-2.0
+homepage: https://canlah.ai
 metadata:
-  author: PHY041
-  version: "1.0.0"
+  author: Canlah AI
+  version: "1.0.1"
   tags:
     - i18n
     - internationalization
