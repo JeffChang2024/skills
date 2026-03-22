@@ -6,6 +6,28 @@ SherpaMind is a local-first SherpaDesk ingest, sync, enrichment, retrieval-prepa
 
 It keeps canonical SherpaDesk data in SQLite, derives rebuildable retrieval artifacts from that data, runs background maintenance through a local Python service, and exposes a CLI for sync, observability, analysis, and search.
 
+## Transparency summary
+
+SherpaMind is a real local backend, not just a passive instruction skill.
+
+For live use it can:
+- authenticate to the SherpaDesk API
+- create workspace-local runtime state under `.SherpaMind/`
+- create and maintain a local SQLite database plus generated public artifacts
+- create staged runtime dirs under `.SherpaMind/private/config/`, `.SherpaMind/private/secrets/`, `.SherpaMind/private/data/`, `.SherpaMind/private/state/`, `.SherpaMind/private/logs/`, `.SherpaMind/private/runtime/`, and `.SherpaMind/public/`
+- create a Python runtime venv under `.SherpaMind/private/runtime/venv`
+- install Python packages from PyPI during bootstrap
+- store the SherpaDesk API key locally in `.SherpaMind/private/secrets/sherpadesk_api_key.txt`
+- optionally store a SherpaDesk API user hint in `.SherpaMind/private/secrets/sherpadesk_api_user.txt`
+- store non-secret connection/runtime settings in `.SherpaMind/private/config/settings.env`
+- optionally install and run a **user-level** `systemd` background service for ongoing sync/enrichment
+
+Primary live staged credentials/config required:
+- API key file: `.SherpaMind/private/secrets/sherpadesk_api_key.txt`
+- org/instance settings: `.SherpaMind/private/config/settings.env`
+
+Persistent behavior is intentionally workspace-local and user-scoped; SherpaMind does not require system-wide privilege for its normal service model.
+
 ## Project stance
 
 SherpaMind follows a strict split:
@@ -110,7 +132,7 @@ SherpaMind is not just a paper design. It has been exercised against a real read
 Observed capability evidence includes:
 
 - successful live authentication against the SherpaDesk API
-- successful local persistence into the canonical SQLite store at `.SherpaMind/private/sherpamind.sqlite3`
+- successful local persistence into the canonical SQLite store at `.SherpaMind/private/data/sherpamind.sqlite3`
 - successful live ingestion of a non-trivial dataset including **43 accounts**, **495 users**, **2 technicians**, and **12,041 tickets** during observed runs
 - successful bounded detail enrichment producing **114 ticket details**, **752 ticket logs**, and **97 attachment metadata rows** during observed runs
 - successful retrieval materialization producing **12,040 ticket documents** and **12,081 ticket document chunks** during observed runs
@@ -178,17 +200,20 @@ For distribution, the important rule is that the repo root contains a valid `SKI
 
 ### Storage layout
 
-SherpaMind uses a skill-local split storage model:
+SherpaMind uses a workspace-local split storage model:
 
-- `.SherpaMind/private/`
+- `.SherpaMind/private/config/`
+  - staged non-secret connection/runtime settings
+- `.SherpaMind/private/secrets/`
+  - staged API key / optional API user secret files
+- `.SherpaMind/private/data/`
   - canonical SQLite database
-  - persistent config
-  - service state
-  - watch state
-  - logs
-  - runtime venv
-  - legacy migration leftovers when applicable
-
+- `.SherpaMind/private/state/`
+  - watch state, service state, sync-progress state
+- `.SherpaMind/private/logs/`
+  - local service logs
+- `.SherpaMind/private/runtime/`
+  - runtime venv and other purely local execution artifacts
 - `.SherpaMind/public/`
   - derived Markdown artifacts for OpenClaw/human inspection
   - JSONL exports for retrieval/indexing workflows
@@ -398,10 +423,11 @@ If any prerequisite is missing, the installer should stop and tell the user exac
 Recommended end-to-end sequence from the installed bundle root:
 
 ```bash
+python3 scripts/run.py bootstrap-audit
 python3 scripts/bootstrap.py
 python3 scripts/run.py setup
 python3 scripts/run.py doctor
-python3 scripts/run.py configure --api-key <token>
+python3 scripts/run.py stage-api-key --from-file <path-to-token-file>
 python3 scripts/run.py discover-orgs
 python3 scripts/run.py configure --org-key <org> --instance-key <instance>
 python3 scripts/run.py seed
@@ -411,6 +437,8 @@ python3 scripts/run.py dataset-summary
 python3 scripts/run.py insight-snapshot
 python3 scripts/run.py report-vector-index-status
 python3 scripts/run.py report-retrieval-readiness
+python3 scripts/run.py install-service
+python3 scripts/run.py service-status
 ```
 
 On a normal Linux host, `python3 scripts/run.py setup` is expected to:
@@ -419,7 +447,8 @@ On a normal Linux host, `python3 scripts/run.py setup` is expected to:
 - initialize the SQLite database
 - clean up any legacy SherpaMind OpenClaw cron jobs
 - generate an initial public snapshot
-- install and start the user-level `systemd` service
+
+Treat user-level `systemd` installation as a later, explicit operator decision after bootstrap, credential staging, discovery, and seed validation are complete.
 
 If the target host does not support usable `systemctl --user`, the install is still valid in fallback mode, but the operator/agent should say so plainly and use:
 
@@ -440,33 +469,41 @@ instead of claiming the background service was installed.
 Bootstrapping the local runtime:
 
 ```bash
+python3 scripts/run.py bootstrap-audit
 python3 scripts/bootstrap.py
 ```
 
 When SherpaMind is installed under an OpenClaw `skills/` directory, the default runtime root auto-resolves to the parent workspace so `.SherpaMind/` lives at the workspace level instead of inside the repo checkout.
 
-This creates the main skill-local layout:
+This creates the main workspace-local layout:
 
+- `.SherpaMind/private/config/settings.env`
+- `.SherpaMind/private/secrets/sherpadesk_api_key.txt`
+- `.SherpaMind/private/secrets/sherpadesk_api_user.txt`
+- `.SherpaMind/private/data/sherpamind.sqlite3`
+- `.SherpaMind/private/state/watch_state.json`
+- `.SherpaMind/private/logs/service.log`
 - `.SherpaMind/private/runtime/venv`
-- `.SherpaMind/private/config.env`
 - `.SherpaMind/public/exports`
 - `.SherpaMind/public/docs`
 
 Useful first-run sequence:
 
 ```bash
+python3 scripts/run.py bootstrap-audit
 python3 scripts/bootstrap.py
 python3 scripts/run.py setup
-python3 scripts/run.py configure --api-key <token>
+python3 scripts/run.py stage-api-key --from-file <path-to-token-file>
 python3 scripts/run.py discover-orgs
 python3 scripts/run.py configure --org-key <org> --instance-key <instance>
 python3 scripts/run.py seed
-python3 scripts/run.py install-service
 python3 scripts/run.py generate-public-snapshot
 python3 scripts/run.py generate-runtime-status
+python3 scripts/run.py install-service
+python3 scripts/run.py service-status
 ```
 
-Environment variables are documented in `.env.example`.
+Runtime control/environment overrides are documented in `.env.example`, but the normal staged secret/config flow for live installs is file-based under `.SherpaMind/`, not env-var-first.
 
 Important controls include:
 
@@ -516,6 +553,7 @@ Vector and retrieval readiness reporting includes:
 - filter-facet inventories for accounts, technicians, statuses, priorities, and categories
 - chunk-level and document-level metadata coverage for cleaned subject/issue summary/next-step/action-cue/log-type/resolution/attachment readiness plus class/submission/resolution taxonomy, human-readable department labels, account-location, confirmation, and intake-channel metadata
 - source-vs-materialized coverage for source-backed metadata fields such as support group, contract, location, department key, ticket identifiers, timing flags, and confirmation fields, including whether low coverage reflects upstream absence or backend materialization drift
+- entity-label quality summaries for account/user/technician/department facets so operators can see readable-vs-identifier-like label ratios and fallback-source pressure before trusting filters heavily
 - chunk-topology readiness signals such as chunks-per-document and multi-chunk-document ratio so vector-sidecar consumers can reason about chunk fanout cleanly
 - freshness windows for materialized chunks vs ticket update timestamps
 
@@ -540,7 +578,7 @@ One current live-state nuance matters:
 
 On update or re-bootstrap:
 
-- preserve `.SherpaMind/private`
+- preserve `.SherpaMind/{config,secrets,data,state,logs,runtime}`
 - preserve `.SherpaMind/public`
 - rerun bootstrap safely to refresh the runtime venv if needed
 - rerun `doctor`
@@ -557,6 +595,7 @@ Important ones:
 
 - `references/architecture-doctrine.md`
 - `references/architecture.md`
+- `references/bootstrap-onboarding.md`
 - `references/automation.md`
 - `references/openclaw-query-model.md`
 - `references/retrieval-architecture.md`
