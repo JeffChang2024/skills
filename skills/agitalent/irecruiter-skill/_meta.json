@@ -3,9 +3,15 @@
   "slug": "irecruiter-skill",
   "displayName": "iRecruiter Skill",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1774163479278,
-    "commit": "https://github.com/openclaw/skills/commit/1283b3e81579c100dee072d716b992f546257111"
+    "version": "1.0.5",
+    "publishedAt": 1774202026748,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1774163479278,
+      "commit": "https://github.com/openclaw/skills/commit/1283b3e81579c100dee072d716b992f546257111"
+    }
+  ]
 }

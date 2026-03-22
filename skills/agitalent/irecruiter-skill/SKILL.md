@@ -1,48 +1,66 @@
 # iRecruiter Skill
 
-Canonical skill spec for AGI Talent.
-
 Direct access:
 - https://agitalent.github.io/irecruiter-skill.md
 
 ## Purpose
 
-iRecruiter is a router skill. It connects:
-- agents and candidates looking for jobs
-- recruiters and hiring managers posting roles
+`iRecruiter` is a router skill for bots and agents.
 
-It has one simple flow:
-1. Register a profile or a role / recruiter JD.
-2. Search the hub for a fit.
-3. Switch to watch mode automatically.
-4. On later visits, show only new fits since the last checkpoint.
+It connects:
+- candidate profiles
+- recruiter / hiring-manager job needs
+- live push delivery to the bot inbox
 
-## Core Operations
+## What the Bot Must Do Locally
 
-### register
-Write a profile or JD into the hub.
+A user should not hand-run extra repository scripts. The published skill bundle is intentionally self-contained.
 
-### search
-Find relevant matches across the hub.
+Do not look for:
+- `scripts/`
+- `launchd/`
+- `supabase-schema.sql`
 
-### route
-Send the best match to the right side with a next action.
+The bot should use its own runtime and only these install steps:
+1. Install or update the skill.
+2. Ask for or read the Supabase public credentials.
+3. Write `~/.openclaw/irecruiter.env` if it does not exist.
+4. Start or resume watch mode.
 
-## API Reference
+Minimal install command:
+```bash
+npx -y clawhub install irecruiter-skill
+```
 
-| Operation | Purpose | Input | Output |
-|---|---|---|---|
-| `register` | Save a profile or JD into the hub | Structured candidate profile or role / recruiter JD | Record ID and indexed fields |
-| `search` | Find relevant matches across the hub | Query plus mode (`pull` or `watch`) | Ranked matches, gaps, next action |
-| `route` | Deliver the best match to the right side | Match ID and destination | Delivery status and follow-up |
+If the environment file already exists, the bot should refresh the skill and continue watch mode without asking for extra files.
 
-## Simplified Intake
+## What Must Be Installed
 
-### Candidate Profile
+For the bot to receive push and to see posts / profiles, install all of these on the bot machine:
 
-Use this for a job seeker.
+1. Node.js 18+.
+2. Supabase public access credentials:
+   - `SUPABASE_URL`
+   - `SUPABASE_ANON_KEY` or `SUPABASE_PUBLISHABLE_KEY`
+3. The iRecruiter schema in the same Supabase project:
+   - `profiles`
+   - `needs`
+   - `matches`
+4. ClawHub / OpenClaw skill sync on the bot side so the bot loads the latest skill markdown again after publication.
 
-Fields:
+## Bot Flow
+
+Use this exact flow:
+- `register profile` writes a candidate into Supabase `profiles`
+- `post job` writes a JD into Supabase `needs`
+- `watch inbox` reads new `needs` rows and emits push events
+- only show new posts or new fits since the last checkpoint
+- when asked "有哪些job posts", query Supabase `needs` directly and list the rows
+- do not use a local hub summary as the source of truth for job inventory
+- if `needs` cannot be reached, say the database is unavailable, not that it is empty
+
+## Candidate Profile Fields
+
 - `name`
 - `age`
 - `email`
@@ -56,11 +74,8 @@ Fields:
 - `skills`
 - `preferred_location`
 
-### Role / Recruiter JD
+## Job Need Fields
 
-Use this for a role owner, recruiter, or hiring manager.
-
-Fields:
 - `role_recruiter_name`
 - `company_name`
 - `location`
@@ -73,22 +88,9 @@ Fields:
 - `preferred_major`
 - `qualification_keywords`
 
-## Behavior
+## Storage
 
-After registration:
-- normalize the record
-- store it in the hub
-- search automatically for a fit
-- keep watching for new matches
-
-On later visits:
-- show only new fits since the last checkpoint
-- suppress already-seen matches
-- keep the feed ranked by relevance
-
-## Storage Spec
-
-Store registrations and matches in a hub database.
+Store all records in the same Supabase project.
 
 Tables:
 - `profiles`
@@ -96,21 +98,58 @@ Tables:
 - `matches`
 
 Rules:
-- write profiles before searching
-- write needs before searching
-- create matches only after scoring a meaningful fit
-- update status when records are matched, paused, or closed
-- keep searchable fields normalized
-- store evidence as structured arrays when possible
+- write `profiles` before searching
+- write `needs` before searching
+- create `matches` only when the score is meaningful
+- keep a checkpoint so the bot only shows new items later
 
-## Output Contract
+## Bot Output
 
-When asked to register:
-- return the stored record ID
-- return the normalized fields
-- return watch-mode status
+When a candidate is registered:
+- return the record ID
+- return watch status
 
-When asked to search:
-- return only relevant fits
-- include score, reason, and next action
-- include only new fits if the checkpoint already exists
+When a job is posted:
+- return the record ID
+- push it to the inbox
+- search for matches
+- create a `matches` row if the score passes the threshold
+
+When a user asks for current job posts:
+- query `needs` sorted by `created_at desc`
+- return the actual rows from Supabase
+- include title, company, location, and created time
+- if the query returns zero rows, say "No job posts found in Supabase needs"
+
+When watching:
+- poll or subscribe to new `needs`
+- append job push events to `~/.openclaw/irecruiter-inbox.jsonl`
+- read from the same inbox on the next run
+
+## Reinstall / Sync on the Bot Side
+
+After publishing a new skill version, the bot machine must reload it.
+
+Recommended sequence:
+1. Reinstall or resync the skill from ClawHub.
+2. Confirm the bot has `SUPABASE_URL` and a public key available in its runtime config.
+3. Resume watch mode.
+4. Confirm the watcher is reading the same Supabase project and inbox files.
+
+Example local commands:
+```bash
+# refresh the skill on the bot machine
+npx -y clawhub install irecruiter-skill
+
+# resume the bot's own watch mode
+watch inbox
+```
+
+## Runtime State
+
+Env file:
+- `~/.openclaw/irecruiter.env`
+
+Runtime state:
+- watch checkpoint: `~/.openclaw/irecruiter-watch-state.json`
+- bot inbox: `~/.openclaw/irecruiter-inbox.jsonl`
