@@ -1,39 +1,41 @@
-# 🧓 S2-Eldercare-mmWave-Monitor: Micro-Doppler Life-Safety Engine
-# S2 老年姿态与健康监测预警插件 (微多普勒生命安全引擎)
-*v1.0.0 | Enterprise DSP Edition (English / 中文)*
+# 🧓 S2-Eldercare-mmWave-Monitor: DSP & Secure Actuation Engine
+# S2 老年健康监测插件 (微多普勒 DSP 与安全物理致动版)
+*v1.1.0 | SecOps & Hardware Integration Edition (English / 中文)*
 
-Welcome to the **Sensory Tentacle Series (感知触角系列)** of the S2-SP-OS. 
-This SKILL represents the holy grail of eldercare technology: **Zero-Privacy-Invasion Fall and Apnea Detection**. 
-欢迎来到 S2 操作系统的感知触角系列。本插件代表了智慧养老科技的圣杯：**零隐私侵犯的跌倒与呼吸暂停监测**。
+Welcome to the **Sensory Tentacle Series** of the S2-SP-OS. This SKILL bridges high-resolution mmWave DSP with physical smart home actuation, heavily focused on user safety and zero-trust execution.
 
----
+🛡️ 1. Security & Safety First (安全与执行声明)
+**WARNING: Automatic actuation of physical environments (e.g., unlocking doors, overriding HVAC) carries inherent real-world risks.**
+**警告：自动触发物理环境动作（如解锁大门、强启空调）具有固有的现实世界风险。**
 
-### 🛡️ 1. The Privacy Mandate (隐私法理学)
-In eldercare environments (especially bathrooms and bedrooms), optical cameras are strictly prohibited due to privacy concerns. We utilize high-resolution 60GHz/77GHz mmWave radar, which provides exceptional spatial and velocity resolution while remaining entirely optical-free. 
-在养老环境（尤其是卫浴和卧室）中，严禁安装光学摄像头。我们采用高分辨率的 60GHz/77GHz 毫米波雷达，它在提供极高空间与速度分辨率的同时，做到了绝对的光学隔离。
+To comply with strict SecOps and safety standards, this SKILL operates in **Dry-Run (Safe Mode) by default**. 
+为了符合严苛的安全操作规范，本插件**默认运行在安全沙盒模式（Dry-Run）下**：
+* When `S2_ENABLE_REAL_ACTUATION=False` (Default), the system runs the entire DSP algorithm (STFT, Fall Detection) but intercepts all outbound HTTP REST requests to the Home Assistant API. It only prints the routing intents to the console.
+* 当环境变量为 False 时，系统将拦截所有发往物理网关的 HTTP 真实请求，仅在控制台打印模拟意图。
 
-### 🧮 2. The Micro-Doppler DSP Architecture (微多普勒 DSP 架构)
-Detecting a fall is vastly more complex than detecting a heartbeat. It requires analyzing the velocity of different body parts in real-time. This code implements a robust **Short-Time Fourier Transform (STFT)** pipeline:
-检测跌倒远比检测心跳复杂，它需要实时分析身体不同部位的速度。本代码实现了一套强壮的**短时傅里叶变换 (STFT)** 管线：
+**To enable REAL physical actuation (开启真实物理控制):**
+You must explicitly export the following environment variables. Do this *only* in a trusted local environment with user consent.
+您必须显式声明以下环境变量（请仅在受信任的且获得用户授权的本地局域网环境中开启）：
+bash
+export S2_ENABLE_REAL_ACTUATION="True"
+export HA_BASE_URL="http://your-ha-ip:8123/api"
+export HA_BEARER_TOKEN="your_ha_access_token"
 
-* **Micro-Doppler Synthesis**: The sandbox simulates a rapid negative frequency shift (e.g., -150Hz), representing the gravitational acceleration of a falling human body. (沙盒模拟了瞬间的剧烈负向频移，代表人体跌倒时的重力加速度)。
-* **Spectrogram Analysis (`scipy.signal.stft`)**: We convert the 1D time-domain echo into a 2D Time-Frequency Spectrogram. The DSP logic actively searches for high-energy density in the negative Doppler region to trigger the fall threshold. (将一维回波转为二维时频图，在负多普勒区域寻找高能量密度，从而触发跌倒判定阈值)。
+🧮 2. The Micro-Doppler DSP Architecture (微多普勒 DSP 架构)
 
-### 🚨 3. The Emergency IPC Routing (急救总线路由)
-When a critical event (Fall or Sleep Apnea) is verified by the DSP engine, the SKILL emits high-priority semantic intents into the S2 Message Bus:
-当 DSP 引擎核实了致命事件（跌倒或呼吸暂停）后，插件将向 S2 消息总线派发最高优先级的语义意图：
-1. **Agent:Sentinel**: Unlocks interior doors to allow rescuers entry. (自动解锁内门，方便急救人员进入)。
-2. **Agent:Lumina**: Overrides all sleep lighting to 100% Daylight mode. (强制将环境光切换至 100% 日光模式)。
-3. **B2B Service Bus**: Dispatches an immediate alert to the hotel/nursing station. (通过 B2B 总线向护士站派发急救警报)。
+This module simulates and processes Frequency Modulated Continuous Wave (FMCW) data to detect falls. We use scipy.signal.stft to convert the 1D echo into a 2D Time-Frequency Spectrogram, searching for rapid negative Doppler shifts indicative of a fall.
 
-### ⚙️ 4. Installation & Execution (部署与运行)
-**Install DSP Dependencies:**
-```bash
-pip install -r requirements.txt
+🔌 3. The Physical Actuator (物理执行层)
 
-Execute the Simulation:
+When a fall is verified by the DSP engine, the system dispatches HTTP POST payloads to the S2 Message Bus (via Home Assistant):
+
+    POST /api/services/lock/unlock -> Unlocks the front door for emergency responders.
+
+    POST /api/services/light/turn_on -> Overrides sleep lighting to 100% Daylight.
+
+⚙️ 4. Installation (依赖安装)
+
+Ensure all dependencies (numpy, scipy, matplotlib, requests) are installed:
 Bash
-
+pip install -r requirements.txt
 python skill.py
-
-(Execution will output a medical-grade elderly_fall_doppler_analysis.png containing the STFT Spectrogram, proving the radar algorithm's efficacy).
