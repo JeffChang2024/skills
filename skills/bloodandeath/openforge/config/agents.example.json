@@ -1,0 +1,24 @@
+{
+  "agents": {
+    "openforge-local": {
+      "provider": "ollama",
+      "model": "qwen2.5-coder:7b"
+    },
+    "openforge-cloud": {
+      "provider": "openai-codex",
+      "model": "gpt-5.4"
+    },
+    "openforge-cloud-fallback": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-6"
+    },
+    "openforge-review": {
+      "provider": "anthropic",
+      "model": "claude-opus-4-6"
+    },
+    "openforge-cheap": {
+      "provider": "anthropic",
+      "model": "claude-haiku-4-5"
+    }
+  }
+}
