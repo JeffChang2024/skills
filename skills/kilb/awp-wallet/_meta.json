@@ -1,0 +1,11 @@
+{
+  "owner": "kilb",
+  "slug": "awp-wallet",
+  "displayName": "AWP Wallet Skill",
+  "latest": {
+    "version": "0.12.3",
+    "publishedAt": 1774109355078,
+    "commit": null
+  },
+  "history": []
+}
