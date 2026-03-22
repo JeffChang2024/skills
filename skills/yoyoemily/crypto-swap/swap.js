@@ -1,17 +1,14 @@
+#!/usr/bin/env node
 /**
  * Crypto Exchange CLI - LightningEX API Client (Node.js)
- * Usage: node exchange.js [command] [options]
+ * Usage: crypto-swap [command] [options]
  */
-
 const https = require('https');
 const readline = require('readline');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
-
 const API_BASE = 'api.lightningex.io';
-
-// ANSI color codes - auto-disable if NO_COLOR env var is set or output is not TTY
 const useColor = !process.env.NO_COLOR && process.stdout.isTTY;
 const COLORS = {
   reset: useColor ? '\x1b[0m' : '',
@@ -19,8 +16,6 @@ const COLORS = {
   green: useColor ? '\x1b[32m' : '',
   brightGreen: useColor ? '\x1b[1;32m' : ''
 };
-
-// Status messages from API documentation
 const STATUS_MESSAGES = {
   'Awaiting Deposit': {
     title: '⏳ Awaiting Deposit',
@@ -80,8 +75,6 @@ const STATUS_MESSAGES = {
     ]
   }
 };
-
-// API Request helper
 function apiRequest(endpoint, method = 'GET', data = null, silent = false) {
   return new Promise((resolve, reject) => {
     const options = {
@@ -93,7 +86,6 @@ function apiRequest(endpoint, method = 'GET', data = null, silent = false) {
       },
       timeout: 30000
     };
-
     const req = https.request(options, (res) => {
       let body = '';
       res.on('data', (chunk) => body += chunk);
@@ -110,59 +102,46 @@ function apiRequest(endpoint, method = 'GET', data = null, silent = false) {
         }
       });
     });
-
     req.on('error', (e) => {
       if (!silent) console.error(`❌ Error: ${e.message}`);
       resolve({ code: 500, msg: e.message });
     });
-
     req.on('timeout', () => {
       req.destroy();
       if (!silent) console.error('❌ Request timeout');
       resolve({ code: 500, msg: 'Timeout' });
     });
-
     if (data) {
       req.write(JSON.stringify(data));
     }
     req.end();
   });
 }
-
-// Readline interface
 function createRL() {
   return readline.createInterface({
     input: process.stdin,
     output: process.stdout
   });
 }
-
-// Prompt helper
 function prompt(rl, question) {
   return new Promise((resolve) => {
     rl.question(question, (answer) => resolve(answer.trim()));
   });
 }
-
-// Print helpers
 function printHeader(title) {
   console.log(`\n${'='.repeat(60)}`);
   console.log(`  ${title}`);
   console.log(`${'='.repeat(60)}`);
 }
-
 function printStep(stepNum, total, title) {
   console.log(`\n📍 Step ${stepNum}/${total}: ${title}`);
   console.log('-'.repeat(40));
 }
-
-// Select from list
 async function selectFromList(items, titleKey, subtitleKey = null, promptText = 'Select') {
   if (!items || items.length === 0) {
     console.log('❌ No options available');
     return null;
   }
-
   console.log();
   items.forEach((item, i) => {
     const title = item[titleKey] || 'Unknown';
@@ -172,7 +151,6 @@ async function selectFromList(items, titleKey, subtitleKey = null, promptText = 
       console.log(`  ${i + 1}. ${title}`);
     }
   });
-
   const rl = createRL();
   while (true) {
     const choice = await prompt(rl, `\n${promptText} (1-${items.length}): `);
@@ -188,26 +166,19 @@ async function selectFromList(items, titleKey, subtitleKey = null, promptText = 
     console.log('❌ Invalid selection');
   }
 }
-
-// Format status message
 function formatStatusMessage(status, orderData) {
   if (!STATUS_MESSAGES[status]) {
     return `Status: ${status}`;
   }
-
   const msgInfo = STATUS_MESSAGES[status];
   const lines = msgInfo.lines.map(line => {
     return line.replace(/\{(\w+)\}/g, (match, key) => orderData[key] || match);
   });
   return '\n   ' + [msgInfo.title, ...lines.map(l => '• ' + l)].join('\n   ');
 }
-
-// Sleep helper
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
-
-// Wizard command
 async function cmdWizard() {
   console.log(`
 ╔══════════════════════════════════════════════════════════╗
@@ -218,7 +189,6 @@ async function cmdWizard() {
 ║                                                          ║
 ╚══════════════════════════════════════════════════════════╝
     `);
-
   // Step 1: Load currencies
   printStep(1, 8, 'Loading available currencies...');
   const result = await apiRequest('/exchange/currency/list');
@@ -226,13 +196,10 @@ async function cmdWizard() {
     console.log('❌ Failed to load currencies');
     return;
   }
-
   const currencies = result.data;
   const sendCurrencies = currencies.filter(c => c.sendStatusAll);
   const receiveCurrencies = currencies.filter(c => c.receiveStatusAll);
-
   console.log(`✓ Loaded ${sendCurrencies.length} send currencies, ${receiveCurrencies.length} receive currencies`);
-
   // Step 2: Select send currency
   printStep(2, 8, 'Select currency to send');
   const sendCurrency = await selectFromList(
@@ -243,7 +210,6 @@ async function cmdWizard() {
   );
   if (!sendCurrency) return;
   console.log(`${COLORS.brightGreen}✓ You selected send currency: ${sendCurrency.currency} (${sendCurrency.name})${COLORS.reset}`);
-
   // Step 3: Select send network
   printStep(3, 8, `Select network for ${sendCurrency.currency} send`);
   const sendNetworks = sendCurrency.networkList?.filter(n => n.sendStatus) || [];
@@ -255,7 +221,6 @@ async function cmdWizard() {
   );
   if (!sendNetwork) return;
   console.log(`${COLORS.brightGreen}✓ You selected send network: ${sendNetwork.name} (${sendNetwork.network})${COLORS.reset}`);
-
   // Step 4: Select receive currency
   printStep(4, 8, 'Select currency to receive');
   const receiveCurrency = await selectFromList(
@@ -266,17 +231,13 @@ async function cmdWizard() {
   );
   if (!receiveCurrency) return;
   console.log(`${COLORS.brightGreen}✓ You selected receive currency: ${receiveCurrency.currency} (${receiveCurrency.name})${COLORS.reset}`);
-
   // Step 5: Select receive network
   printStep(5, 8, `Select network for ${receiveCurrency.currency} receive`);
-
   const receiveNetworks = receiveCurrency.networkList?.filter(n => n.receiveStatus) || [];
-
   if (receiveNetworks.length === 0) {
     console.log(`❌ No receive networks available for ${receiveCurrency.currency}`);
     return;
   }
-
   const receiveNetwork = await selectFromList(
     receiveNetworks,
     'name',
@@ -285,7 +246,6 @@ async function cmdWizard() {
   );
   if (!receiveNetwork) return;
   console.log(`${COLORS.brightGreen}✓ You selected receive network: ${receiveNetwork.name} (${receiveNetwork.network})${COLORS.reset}`);
-
   // Step 6: Fetch pair info (now requires all 4 selections)
   printStep(6, 8, 'Fetching pair information...');
   console.log('\n📊 Loading exchange limits...');
@@ -295,12 +255,10 @@ async function cmdWizard() {
     `&sendNetwork=${sendNetwork.network}` +
     `&receiveNetwork=${receiveNetwork.network}`
   );
-
   if (pairResult.code !== 200) {
     console.log(`❌ Failed to get pair info: ${pairResult.msg || 'Unknown error'}`);
     return;
   }
-
   const pairInfo = pairResult.data;
   console.log(`
     ┌─────────────────────────────────────────┐
@@ -312,7 +270,6 @@ async function cmdWizard() {
     │  Processing: ${pairInfo.processingTime.padStart(17)} min  │
     └─────────────────────────────────────────┘
     `);
-
   // Step 7: Enter amount
   printStep(7, 8, 'Enter exchange amount');
   const rl = createRL();
@@ -325,7 +282,6 @@ async function cmdWizard() {
     const parsed = parseFloat(amountInput);
     const minAmt = parseFloat(pairInfo.minimumAmount);
     const maxAmt = parseFloat(pairInfo.maximumAmount);
-
     if (isNaN(parsed)) {
       console.log('❌ Please enter a valid number');
       continue;
@@ -342,7 +298,6 @@ async function cmdWizard() {
     console.log(`${COLORS.brightGreen}✓ You entered ${amount} ${sendCurrency.currency} to send${COLORS.reset}`);
     break;
   }
-
   // Get exchange rate
   console.log('\n📈 Fetching exchange rate...');
   const rateResult = await apiRequest(
@@ -352,13 +307,11 @@ async function cmdWizard() {
     `&receiveNetwork=${receiveNetwork.network}` +
     `&amount=${amount}`
   );
-
   if (rateResult.code !== 200) {
     console.log(`❌ Failed to get rate: ${rateResult.msg || 'Unknown error'}`);
     rl.close();
     return;
   }
-
   const rateInfo = rateResult.data;
   console.log(`
     ┌─────────────────────────────────────────┐
@@ -371,7 +324,6 @@ async function cmdWizard() {
     │  Network Fee:   ${rateInfo.networkFee.padStart(20)} ${receiveCurrency.currency}  │
     └─────────────────────────────────────────┘
     `);
-
   // Step 8: Enter receive address
   printStep(8, 8, 'Enter receive address');
   let address;
@@ -384,13 +336,11 @@ async function cmdWizard() {
       console.log('❌ Address cannot be empty');
       continue;
     }
-
     console.log('🔍 Validating address...');
     const valResult = await apiRequest(
       `/exchange/address/validate?currency=${receiveCurrency.currency}` +
       `&address=${address}&network=${receiveNetwork.network}`
     );
-
     if (valResult.code === 200 && valResult.data) {
       console.log(`${COLORS.brightGreen}✓ You entered receive address: ${address}${COLORS.reset}`);
       break;
@@ -398,7 +348,6 @@ async function cmdWizard() {
       console.log('❌ Invalid address. Please check and try again.');
     }
   }
-
   // Final confirmation
   printHeader('Order Summary');
   console.log(`
@@ -407,14 +356,12 @@ async function cmdWizard() {
     Rate:        1 ${sendCurrency.currency} = ${rateInfo.rate} ${receiveCurrency.currency}
     To Address:  ${address}
     `);
-
   const confirm = await prompt(rl, '\n✋ Confirm and place order? (yes/no): ');
   if (!['yes', 'y'].includes(confirm.toLowerCase())) {
     console.log('❌ Order cancelled');
     rl.close();
     return;
   }
-
   // Place order
   console.log('\n🚀 Placing order...');
   const orderData = {
@@ -425,25 +372,20 @@ async function cmdWizard() {
     amount: String(amount),
     receiveAddress: address
   };
-
   const orderResult = await apiRequest('/exchange/order/place', 'POST', orderData);
-
   if (orderResult.code !== 200) {
     console.log(`❌ Order failed: ${orderResult.msg || 'Unknown error'}`);
     rl.close();
     return;
   }
-
   const orderId = orderResult.data;
   console.log('\n📋 Fetching order details...');
   const orderDetails = await apiRequest(`/exchange/order/get?id=${orderId}`);
-
   if (orderDetails.code !== 200) {
     console.log(`⚠️  Order created but failed to get details. Order ID: ${orderId}`);
     rl.close();
     return;
   }
-
   const order = orderDetails.data;
   console.log(`
 ╔══════════════════════════════════════════════════════════╗
@@ -464,32 +406,25 @@ ${order.sendTag ? `║  Tag/MEMO:  ${order.sendTag.padEnd(42)} ║` : ''}
 ║  • Transaction will be processed after confirmation      ║
 ╚══════════════════════════════════════════════════════════╝
     `);
-
   // Auto-monitor
   console.log('\n📊 Auto-monitoring order progress...');
   console.log(`\n🔑 Order ID: ${orderId}`);
   console.log('   (Save this ID to check status later)\n');
   console.log('Press Ctrl+C to stop monitoring\n');
-
   const statusOrder = ['Awaiting Deposit', 'Confirming Deposit', 'Exchanging', 'Sending', 'Complete'];
   let lastStatus = null;
   rl.close();
-
   try {
     while (true) {
       const result = await apiRequest(`/exchange/order/get?id=${orderId}`, 'GET', null, true);
-
       if (result.code !== 200) {
         await sleep(15000);
         continue;
       }
-
       const data = result.data;
       const status = data.status;
-
       if (status !== lastStatus) {
         lastStatus = status;
-
         // Progress bar
         if (statusOrder.includes(status)) {
           const currentIdx = statusOrder.indexOf(status);
@@ -501,9 +436,7 @@ ${order.sendTag ? `║  Tag/MEMO:  ${order.sendTag.padEnd(42)} ║` : ''}
         } else {
           console.log(`\rStatus: ${status}`);
         }
-
         console.log(formatStatusMessage(status, data));
-
         // Additional info
         if (status === 'Awaiting Deposit') {
           console.log(`\n   🔑 Order ID: ${orderId}`);
@@ -523,7 +456,6 @@ ${order.sendTag ? `║  Tag/MEMO:  ${order.sendTag.padEnd(42)} ║` : ''}
             console.log(`   🔍 Explorer: ${explorerUrl}`);
           }
         }
-
         if (status === 'Complete') {
           console.log(`
 ╔══════════════════════════════════════════════════════════╗
@@ -553,7 +485,6 @@ ${order.sendTag ? `║  Tag/MEMO:  ${order.sendTag.padEnd(42)} ║` : ''}
           break;
         }
       }
-
       await sleep(15000);
     }
   } catch (e) {
@@ -564,8 +495,6 @@ ${order.sendTag ? `║  Tag/MEMO:  ${order.sendTag.padEnd(42)} ║` : ''}
     }
   }
 }
-
-// Currencies command
 async function cmdCurrencies() {
   const result = await apiRequest('/exchange/currency/list');
   console.log('\nSupported Currencies:');
@@ -584,44 +513,34 @@ async function cmdCurrencies() {
     }
   }
 }
-
-// Pair list command
 async function cmdPairList(args) {
   let params = `send=${args.send}&receive=${args.receive}`;
   if (args.send_network || args.sendNetwork) {
     params += `&sendNetwork=${args.send_network || args.sendNetwork}`;
   }
-
   const result = await apiRequest(`/exchange/pair/list?${params}`);
-
   if (result.code !== 200) {
     console.log(`❌ Failed to get pair list: ${result.msg || 'Unknown error'}`);
     return;
   }
-
   const pairs = result.data;
   console.log('\nSupported Currency Pairs');
   console.log('='.repeat(60));
-
   if (pairs.length === 0) {
     console.log('No pairs found for the specified criteria.');
     return;
   }
-
   pairs.forEach((pair, index) => {
     console.log(`  ${index + 1}. ${pair}`);
   });
   console.log(`\nTotal: ${pairs.length} pair(s)`);
 }
-
-// Pair command
 async function cmdPair(args) {
   let params = `send=${args.send}&receive=${args.receive}`;
   const sendNetwork = args.sendNetwork || args.send_network;
   const receiveNetwork = args.receiveNetwork || args.receive_network;
   if (sendNetwork) params += `&sendNetwork=${sendNetwork}`;
   if (receiveNetwork) params += `&receiveNetwork=${receiveNetwork}`;
-
   const result = await apiRequest(`/exchange/pair/info?${params}`);
   const data = result.data;
   console.log(`\nPair Info: ${args.send} → ${args.receive}`);
@@ -632,15 +551,12 @@ async function cmdPair(args) {
   console.log(`Confirmations: ${data.confirmations}`);
   console.log(`Processing Time: ${data.processingTime} minutes`);
 }
-
-// Rate command
 async function cmdRate(args) {
   let params = `send=${args.send}&receive=${args.receive}&amount=${args.amount}`;
   const sendNetwork = args.sendNetwork || args.send_network;
   const receiveNetwork = args.receiveNetwork || args.receive_network;
   if (sendNetwork) params += `&sendNetwork=${sendNetwork}`;
   if (receiveNetwork) params += `&receiveNetwork=${receiveNetwork}`;
-
   const result = await apiRequest(`/exchange/rate?${params}`);
   const data = result.data;
   console.log(`\nExchange Rate: ${args.send} → ${args.receive}`);
@@ -651,25 +567,18 @@ async function cmdRate(args) {
   console.log(`Network Fee: ${data.networkFee}`);
   console.log(`Processing Time: ${data.processingTime} minutes`);
 }
-
-// Validate command
 async function cmdValidate(args) {
   let params = `currency=${args.currency}&address=${args.address}`;
   if (args.network) params += `&network=${args.network}`;
-
   const result = await apiRequest(`/exchange/address/validate?${params}`);
   const valid = result.data;
   const status = valid ? '✓ Valid' : '✗ Invalid';
   console.log(`\nAddress Validation: ${status}`);
 }
-
-// Order command
 async function cmdOrder(args) {
   const sendNetwork = args.sendNetwork || args.send_network;
   const receiveNetwork = args.receiveNetwork || args.receive_network;
-
   const receiveAddress = args.address || args.receive_address || args.receiveAddress;
-
   const orderData = {
     send: args.send,
     receive: args.receive,
@@ -678,22 +587,18 @@ async function cmdOrder(args) {
   };
   if (sendNetwork) orderData.sendNetwork = sendNetwork;
   if (receiveNetwork) orderData.receiveNetwork = receiveNetwork;
-
   if (!args.yes) {
     let params = `send=${args.send}&receive=${args.receive}&amount=${args.amount}`;
     if (sendNetwork) params += `&sendNetwork=${sendNetwork}`;
     if (receiveNetwork) params += `&receiveNetwork=${receiveNetwork}`;
-
     const rateResult = await apiRequest(`/exchange/rate?${params}`);
     const rateData = rateResult.data;
-
     console.log('\nOrder Preview:');
     console.log('='.repeat(50));
     console.log(`Send: ${args.amount} ${args.send}`);
     console.log(`Receive: ${rateData.receiveAmount} ${args.receive}`);
     console.log(`To Address: ${receiveAddress}`);
     console.log(`Network Fee: ${rateData.networkFee}`);
-
     const rl = createRL();
     const confirm = await prompt(rl, '\nConfirm order? (yes/no): ');
     rl.close();
@@ -702,34 +607,27 @@ async function cmdOrder(args) {
       return;
     }
   }
-
   const result = await apiRequest('/exchange/order/place', 'POST', orderData);
   const orderId = result.data;
   console.log('\n✓ Order placed successfully!');
   console.log(`Order ID: ${orderId}`);
   console.log(`Track status: crypto-exchange monitor --id ${orderId}`);
 }
-
-// Status command
 async function cmdStatus(args) {
   const result = await apiRequest(`/exchange/order/get?id=${args.id}`);
   const data = result.data;
-
   console.log(`\nOrder Status: ${args.id}`);
   console.log('='.repeat(60));
   console.log(formatStatusMessage(data.status, data));
-
   if (data.statusNote) {
     console.log(`\nNote: ${data.statusNote}`);
   }
-
   console.log(`\n${'─'.repeat(60)}`);
   console.log(`Send: ${data.sendAmount} ${data.send} (${data.sendNetwork})`);
   console.log(`Receive: ${data.receiveAmount} ${data.receive} (${data.receiveNetwork})`);
   console.log(`\nDeposit Address: ${data.sendAddress}`);
   if (data.sendTag) console.log(`Deposit Tag: ${data.sendTag}`);
   console.log(`Receive Address: ${data.receiveAddress}`);
-
   if (data.hashIn?.length) {
     console.log(`\nIncoming TX: ${data.hashIn.join(', ')}`);
     if (data.hashInExplorer) {
@@ -748,28 +646,22 @@ async function cmdStatus(args) {
       }
     }
   }
-
   const created = new Date(data.createdAt).toLocaleString();
   console.log(`\nCreated: ${created}`);
 }
-
-// Monitor command
 async function cmdMonitor(args) {
   console.log(`Monitoring order ${args.id}...`);
   console.log('Press Ctrl+C to stop\n');
-
   let lastStatus = null;
   try {
     while (true) {
       const result = await apiRequest(`/exchange/order/get?id=${args.id}`);
       const data = result.data;
       const status = data.status;
-
       if (status !== lastStatus) {
         lastStatus = status;
         console.log(`\n${'='.repeat(60)}`);
         console.log(formatStatusMessage(status, data));
-
         if (status === 'Awaiting Deposit') {
           console.log(`\n💰 Send: ${data.sendAmount} ${data.send} (${data.sendNetwork})`);
           console.log(`📍 Send to: ${data.sendAddress}`);
@@ -780,7 +672,6 @@ async function cmdMonitor(args) {
           console.log(`\n🔗 Outgoing: ${data.hashOut[0]}`);
         }
       }
-
       if (['Complete', 'Failed', 'Action Request', 'Request Overdue'].includes(status)) {
         console.log(`\n${'='.repeat(60)}`);
         console.log(`Final Status: ${status}`);
@@ -795,31 +686,35 @@ async function cmdMonitor(args) {
         }
         break;
       }
-
       await sleep(15000);
     }
   } catch (e) {
     console.log('\n\nMonitoring stopped.');
   }
 }
-
-// UI command
 async function cmdUI(args) {
   const port = args.port || 8080;
-
   // Find UI directory (swap.js is in skill root, so __dirname is the skill dir)
   const skillDir = __dirname;
   const uiDir = path.join(skillDir, 'assets', 'ui');
-
   if (!fs.existsSync(uiDir)) {
     console.error(`Error: UI assets not found at ${uiDir}`);
     process.exit(1);
   }
-
   const server = http.createServer((req, res) => {
     // Remove query string from URL
     const urlPath = req.url.split('?')[0];
     let filePath = path.join(uiDir, urlPath === '/' ? 'index.html' : urlPath);
+    
+    // Prevent path traversal: ensure filePath is within uiDir
+    const resolvedPath = path.resolve(filePath);
+    const resolvedUiDir = path.resolve(uiDir);
+    if (!resolvedPath.startsWith(resolvedUiDir)) {
+      res.writeHead(403);
+      res.end('Forbidden');
+      return;
+    }
+    
     const ext = path.extname(filePath);
     const contentType = {
       '.html': 'text/html',
@@ -827,7 +722,6 @@ async function cmdUI(args) {
       '.css': 'text/css',
       '.json': 'application/json'
     }[ext] || 'application/octet-stream';
-
     fs.readFile(filePath, (err, content) => {
       if (err) {
         res.writeHead(404);
@@ -838,9 +732,7 @@ async function cmdUI(args) {
       res.end(content);
     });
   });
-
   server.listen(port);
-
   server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
       // Port in use, try random port
@@ -851,7 +743,6 @@ async function cmdUI(args) {
       process.exit(1);
     }
   });
-
   // Handle the 'listening' event for the fallback port
   server.on('listening', () => {
     const actualPort = server.address().port;
@@ -860,17 +751,13 @@ async function cmdUI(args) {
     console.log('Press Ctrl+C to stop');
   });
 }
-
-// Parse arguments
 function parseArgs() {
   const args = process.argv.slice(2);
   const result = { command: null, options: {} };
-
   if (args.length === 0) {
     result.command = 'wizard';
     return result;
   }
-
   result.command = args[0];
   let i = 1;
   while (i < args.length) {
@@ -897,17 +784,12 @@ function parseArgs() {
       i++;
     }
   }
-
   return result;
 }
-
-// Show help
 function showHelp() {
   console.log(`
 LightningEX Crypto Swap CLI
-
 Usage: crypto-swap [command] [options]
-
 Commands:
   wizard                    Start interactive exchange wizard (default)
   currencies                List supported currencies
@@ -918,7 +800,6 @@ Commands:
   status                    Get order status
   monitor                   Monitor order until complete
   ui                        Launch web UI
-
 Options:
   --send, -s               Currency to send
   --receive, -r            Currency to receive
@@ -931,31 +812,26 @@ Options:
   --port, -p               Port for UI (default: 8080)
   --yes, -y                Skip confirmation
   --sendNetwork            Send network (for pair-list)
-
 Examples:
-  node swap.js
-  node swap.js wizard
-  node swap.js currencies
-  node swap.js pair-list --send USDT --receive USDT
-  node swap.js pair-list --send USDT --receive USDT --send-network TRX
-  node swap.js pair --send USDT --receive USDT --send-network TRX --receive-network BSC
-  node swap.js rate --send USDT --receive USDT --send-network TRX --receive-network BSC --amount 100
-  node swap.js validate --currency USDT --network BSC --address 0x...
-  node swap.js status --id I1Y0...
-  node swap.js monitor --id I1Y0...
-  node swap.js ui --port 8080
+  crypto-swap
+  crypto-swap wizard
+  crypto-swap currencies
+  crypto-swap pair-list --send USDT --receive USDT
+  crypto-swap pair-list --send USDT --receive USDT --send-network TRX
+  crypto-swap pair --send USDT --receive USDT --send-network TRX --receive-network BSC
+  crypto-swap rate --send USDT --receive USDT --send-network TRX --receive-network BSC --amount 100
+  crypto-swap validate --currency USDT --network BSC --address 0x...
+  crypto-swap status --id I1Y0...
+  crypto-swap monitor --id I1Y0...
+  crypto-swap ui --port 8080
 `);
 }
-
-// Main function
 async function main() {
   const args = parseArgs();
-
   if (args.options.h || args.options.help) {
     showHelp();
     return;
   }
-
   try {
     switch (args.command) {
       case 'wizard':
@@ -998,7 +874,7 @@ async function main() {
         break;
       case 'order':
         console.log('❌ The "order" command is disabled. Please use the interactive wizard to place orders:');
-        console.log('   ./crypto-swap wizard');
+        console.log('   crypto-swap wizard');
         return;
       case 'status':
         if (!args.options.id) {
@@ -1026,5 +902,4 @@ async function main() {
     process.exit(1);
   }
 }
-
 main();
