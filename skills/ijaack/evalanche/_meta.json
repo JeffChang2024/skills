@@ -3,11 +3,16 @@
   "slug": "evalanche",
   "displayName": "Evalanche",
   "latest": {
-    "version": "1.4.0",
-    "publishedAt": 1773939775669,
-    "commit": "https://github.com/openclaw/skills/commit/fefb780da90b3a2ee1d005edd84aef293a17e2d1"
+    "version": "1.5.2",
+    "publishedAt": 1774023085431,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.4.0",
+      "publishedAt": 1773939775669,
+      "commit": "https://github.com/openclaw/skills/commit/fefb780da90b3a2ee1d005edd84aef293a17e2d1"
+    },
     {
       "version": "0.6.0",
       "publishedAt": 1772836791984,
