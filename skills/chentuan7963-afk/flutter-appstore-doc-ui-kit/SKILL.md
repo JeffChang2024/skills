@@ -45,7 +45,8 @@ Hard constraints to enforce:
 - Avoid over-saturated app categories and avoid risky claim patterns
 - No backend server required
 - No TODO placeholders or temporary/fake data sections
-- Focus on complete v1 only (no future-roadmap content)
+- Document scope must be **version 1.0.0 only**
+- Do **not** include roadmap/future updates/backlog/post-v1 plans
 - Can include general capabilities: i18n, dark mode, accessibility, privacy-first local storage
 - App icon must be **square-corner** (not rounded)
 
@@ -118,9 +119,11 @@ Before each approval gate, validate that stage artifacts are complete:
 Doc stage:
 - Both `zh-CN` and `en-US` docs exist and are semantically aligned.
 - Feature doc explicitly states FVM Flutter 3.35.1.
+- Feature doc version is explicitly marked `1.0.0`.
 - Camera + photo permissions appear in feature/privacy sections.
 - No backend dependency appears in architecture/data flow.
 - No TODO/TBD/temp/placeholder language.
+- No roadmap / future update sections are present.
 
 UI stage:
 - UI images are PNG outputs (AI-generated or user-generated from provided prompt package).
