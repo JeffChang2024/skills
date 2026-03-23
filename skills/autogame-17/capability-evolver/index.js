@@ -105,6 +105,9 @@ async function main() {
   const args = process.argv.slice(2);
   const command = args[0];
   const isLoop = args.includes('--loop') || args.includes('--mad-dog');
+  const isVerbose = args.includes('--verbose') || args.includes('-v') ||
+    String(process.env.EVOLVER_VERBOSE || '').toLowerCase() === 'true';
+  if (isVerbose) process.env.EVOLVER_VERBOSE = 'true';
 
   if (command === 'run' || command === '/evolve' || isLoop) {
     if (isLoop) {
@@ -130,7 +133,7 @@ async function main() {
         if (!process.env.EVOLVE_BRIDGE) {
           process.env.EVOLVE_BRIDGE = 'false';
         }
-        console.log(`Loop mode enabled (internal daemon, bridge=${process.env.EVOLVE_BRIDGE}).`);
+        console.log(`Loop mode enabled (internal daemon, bridge=${process.env.EVOLVE_BRIDGE}, verbose=${isVerbose}).`);
 
         const { getEvolutionDir } = require('./src/gep/paths');
         const solidifyStatePath = path.join(getEvolutionDir(), 'evolution_solidify_state.json');
@@ -236,7 +239,12 @@ async function main() {
 
           // Jitter to avoid lockstep restarts.
           const jitter = Math.floor(Math.random() * 250);
-          await sleepMs((currentSleepMs + jitter) * saturationMultiplier);
+          const totalSleepMs = (currentSleepMs + jitter) * saturationMultiplier;
+          if (isVerbose) {
+            const memMb = (process.memoryUsage().rss / 1024 / 1024).toFixed(1);
+            console.log(`[Verbose] cycle=${cycleCount} ok=${ok} dt=${dt}ms sleep=${totalSleepMs}ms (base=${currentSleepMs} jitter=${jitter} sat=${saturationMultiplier}x) rss=${memMb}MB signals=[${(function() { try { var st = readJsonSafe(solidifyStatePath); return st && st.last_run && Array.isArray(st.last_run.signals) ? st.last_run.signals.join(',') : ''; } catch(e) { return ''; } })()}]`);
+          }
+          await sleepMs(totalSleepMs);
 
           } catch (loopErr) {
             console.error('[Daemon] Unexpected loop error (recovering): ' + (loopErr && loopErr.message ? loopErr.message : String(loopErr)));
@@ -533,12 +541,38 @@ async function main() {
 
       if (!resp.ok) {
         const body = await resp.text().catch(() => '');
-        let msg = 'HTTP ' + resp.status;
-        try { const j = JSON.parse(body); msg = j.error || j.message || msg; } catch (_) {}
-        console.error('[fetch] Download failed: ' + msg);
-        if (resp.status === 404) console.error('  Skill not found or not publicly available.');
-        if (resp.status === 401) console.error('  Authentication failed. Try deleting ~/.evomap/node_secret and retry.');
-        if (resp.status === 402) console.error('  Insufficient credits.');
+        let errorDetail = '';
+        let errorCode = '';
+        try {
+          const j = JSON.parse(body);
+          errorDetail = j.detail || j.message || j.error || '';
+          errorCode = j.error || j.code || '';
+        } catch (_) {
+          errorDetail = body ? body.slice(0, 500) : '';
+        }
+        console.error('[fetch] Download failed (HTTP ' + resp.status + ')' + (errorCode ? ': ' + errorCode : ''));
+        if (errorDetail && errorDetail !== errorCode) {
+          console.error('  Detail: ' + errorDetail);
+        }
+        if (resp.status === 404) {
+          console.error('  Skill "' + skillId + '" not found or not publicly available.');
+          console.error('  Check the skill ID spelling, or browse available skills at https://evomap.ai');
+        } else if (resp.status === 401 || resp.status === 403) {
+          console.error('  Authentication failed. Try:');
+          console.error('    1. Delete ~/.evomap/node_secret and retry');
+          console.error('    2. Re-register: set A2A_NODE_ID and run fetch again');
+        } else if (resp.status === 402) {
+          console.error('  Insufficient credits. Check your balance at https://evomap.ai');
+        } else if (resp.status >= 500) {
+          console.error('  Server error. The Hub may be temporarily unavailable.');
+          console.error('  Try again in a few minutes. If the issue persists, report at:');
+          console.error('    https://github.com/autogame-17/evolver/issues');
+        }
+        if (isVerbose) {
+          console.error('[Verbose] Endpoint: ' + endpoint);
+          console.error('[Verbose] Status: ' + resp.status + ' ' + (resp.statusText || ''));
+          console.error('[Verbose] Response body: ' + (body || '(empty)').slice(0, 2000));
+        }
         process.exit(1);
       }
 
@@ -573,9 +607,12 @@ async function main() {
       }
     } catch (error) {
       if (error && error.name === 'TimeoutError') {
-        console.error('[fetch] Request timed out. Check your network and A2A_HUB_URL.');
+        console.error('[fetch] Request timed out (30s). Check your network and A2A_HUB_URL.');
+        console.error('  Hub URL: ' + hubUrl);
       } else {
-        console.error('[fetch] Error:', error && error.message || error);
+        console.error('[fetch] Error: ' + (error && error.message || error));
+        if (error && error.cause) console.error('  Cause: ' + (error.cause.message || error.cause.code || error.cause));
+        if (isVerbose && error && error.stack) console.error('[Verbose] Stack:\n' + error.stack);
       }
       process.exit(1);
     }
