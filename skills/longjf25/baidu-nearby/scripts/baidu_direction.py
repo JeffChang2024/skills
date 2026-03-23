@@ -334,15 +334,41 @@ def print_route(result, mode):
     if steps:
         print("详细路线:")
         print("-" * 40)
-        for i, step in enumerate(steps, 1):
-            if isinstance(step, dict):
+        step_num = 1
+        for step in steps:
+            # 公交路线的 steps 是嵌套列表 [[{}, {}], [{}, {}]]
+            # 驾车路线的 steps 是 ["指令", "指令"]
+            if isinstance(step, list):
+                # 公交路线：每个 step 包含多个子步骤
+                for sub_step in step:
+                    if isinstance(sub_step, dict):
+                        instruction = sub_step.get('instruction', '')
+                        step_distance = sub_step.get('distance', 0)
+                        step_type = sub_step.get('type', 0)
+                        vehicle = sub_step.get('vehicle', {})
+                        
+                        # 根据类型显示不同图标
+                        icon = '🚶'
+                        if step_type == 3:  # 公交
+                            icon = '🚌'
+                            vehicle_name = vehicle.get('name', '')
+                            if vehicle_name:
+                                instruction = f"乘坐{vehicle_name}: {instruction}"
+                        elif step_type == 5:  # 步行
+                            icon = '🚶'
+                        
+                        if instruction:
+                            print(f"{step_num}. {icon} {instruction} ({format_distance(step_distance)})")
+                            step_num += 1
+            elif isinstance(step, dict):
                 instruction = step.get('instruction', step.get('step_instruction', ''))
-                if not instruction:
-                    continue
-                step_distance = step.get('distance', 0)
-                print(f"{i}. {instruction} ({format_distance(step_distance)})")
+                if instruction:
+                    step_distance = step.get('distance', 0)
+                    print(f"{step_num}. {instruction} ({format_distance(step_distance)})")
+                    step_num += 1
             elif isinstance(step, str):
-                print(f"{i}. {step}")
+                print(f"{step_num}. {step}")
+                step_num += 1
     
     # 显示备选路线
     if len(routes) > 1:

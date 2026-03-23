@@ -4,6 +4,16 @@ description: |
   百度能力集合 - 提供百度搜索和百度地图路线规划功能。
   包含：百度网页搜索(baidu_search)、路线规划(baidu_direction)、附近场所推荐(baidu_nearby)。
   Use when: 需要搜索网页、规划出行路线、查找附近餐饮/景点/酒店等位置服务时。
+credentials:
+  env:
+    BAIDU_API_KEY:
+      description: 百度 LBS 开放平台 API Key（AK），用于地图路线规划和附近场所搜索功能
+      required: true
+      sensitive: true
+      sources:
+        - env: BAIDU_API_KEY
+        - env: BAIDU_AK
+      docs: https://lbsyun.baidu.com/apiconsole/key
 ---
 
 # Baidu Skills for OpenClaw
