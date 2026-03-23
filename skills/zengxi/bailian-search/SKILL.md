@@ -180,6 +180,18 @@ MIT License - See LICENSE file for details
 
 Contributions are welcome! Please submit issues or pull requests via ClawHub.
 
+## Version History
+
+### v1.1.0 (2026-03-23)
+- **Fixed**: Complete MCP protocol implementation (initialize + notifications/initialized)
+- **Fixed**: Correct tool name `bailian_web_search` instead of `websearch`
+- **Fixed**: Proper parameter passing from bash to Python
+- **Improved**: Better error handling and debugging
+- **Improved**: More robust SSE connection management
+
+### v1.0.0 (Initial Release)
+- Initial release with basic search functionality
+
 ## Acknowledgments
 
 - Alibaba Cloud Bailian (DashScope) for providing the MCP service

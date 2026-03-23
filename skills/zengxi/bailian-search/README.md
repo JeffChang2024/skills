@@ -1,6 +1,7 @@
-# Bailian Search
+# Bailian Search v1.1.0
 
 Real-time web search powered by Alibaba Cloud Bailian (DashScope).
+*Fixed MCP protocol implementation - 2026-03-23*
 
 ## Quick Start
 
