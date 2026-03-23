@@ -6,12 +6,12 @@ description: >-
   Use when user asks to generate images, generate videos, manage projects,
   upload files, download assets, manage materials, or interact with
   ZenStudio platform via command line.
-version: 1.2.2
+version: 1.2.3
 license: MIT-0
 author: ZenStudio Team
 homepage: https://ai.tvi.v.qq.com/zenstudio
 user-invocable: true
-metadata: {"openclaw":{"emoji":"🎬","requires":{"bins":["zencli"],"env":["ZENSTUDIO_API_KEY"]},"primaryEnv":"ZENSTUDIO_API_KEY","category":"AIGC","tags":["zenstudio","aigc","cli","video-generation","image-generation","ai-tools"]}}
+metadata: {"openclaw":{"emoji":"🎬","requires":{"bins":["zencli"],"env":["ZENSTUDIO_API_KEY","ZENSTUDIO_ENDPOINT","ZENCLI_NO_UPDATE_CHECK"]},"primaryEnv":"ZENSTUDIO_API_KEY","credentials":{"storage":"~/.zencli/config.json","description":"zencli auth login 写入的 API Key 持久化文件，JSON 格式，仅存储 api_key 和 endpoint"},"install":"npm install -g zenstudio-cli","category":"AIGC","tags":["zenstudio","aigc","cli","video-generation","image-generation","ai-tools"]}}
 ---
 
 # ZenStudio CLI (zencli)
