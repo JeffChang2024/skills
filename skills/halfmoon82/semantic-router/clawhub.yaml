@@ -1,8 +1,8 @@
 ---
-# Semantic Router v7.9.6 - Fine-Grained Permission Declaration
+# Semantic Router v8.0.0 - Layer-Parallel Architecture + B+ Drift Counter
 
 name: semantic-router
-version: 7.9.6
+version: 8.0.0
 
 metadata:
   title: "Semantic Router — 让你的 AI 代理学会自己选模型"
@@ -259,6 +259,27 @@ testing:
     - Verify configuration merging
 
 changelog:
+  "8.0.0":
+    date: 2026-03-22
+    breaking_changes:
+      - "keyword_match() behavior changed: Layer2 (trigger_groups_all) now runs before Layer1 (keywords). If Layer2 hits, Layer1 is skipped entirely. Existing single-keyword rules remain functional as Layer1 fallback."
+    new_features:
+      - "layer2_match(): Multi-word non-contiguous matching (trigger_groups_all) as first-priority pool selector. Determines target pool independently of session state."
+      - "layer1_match(): Single-keyword matching as fallback when Layer2 produces no hit. Includes soft_keywords (ambiguous terms) that downgrade to B+ instead of forcing C."
+      - "Layer3 (embedding) now always runs in parallel: context_relevance_score() executes unconditionally at function entry. score/grade available throughout all branches."
+      - "B+ consecutive drift counter: bplus_record/reset/check() backed by cooldown JSON store. 3rd consecutive B+ appends drift warning to declaration; 4th forces C-auto (bplus_force)."
+      - "_return_bplus(): Unified B+ exit point integrating counter logic. All B+ paths go through this function."
+      - "soft_keywords field in tasks.json: Ambiguous terms (e.g. '安排'/'路由'/'调度'/'规则') that hit only soft_keywords return is_soft=True and are downgraded to B+ rather than triggering hard pool switch."
+    improvements:
+      - "coordination task: '路由'/'调度'/'规则' moved to soft_keywords to prevent dev-context phrases ('路由逻辑', '调度函数') from being misrouted to Highspeed."
+      - "development task: Added '重构'/'函数'/'类'/'接口'/'模块'/'逻辑'/'实现'/'封装' as strong keywords to improve Intelligence pool coverage for code-related discussions."
+      - "content_generation task: Added 26 novel/story-specific keywords ('小说'/'故事'/'情节'/'角色'/'人物'/'剧情'/'章节'/'世界观'/'主角' etc.) to ensure creative writing discussions correctly route to Humanities pool."
+      - "B+ counter resets on: B branch (clear continuation), C/C-auto branch (topic switch confirmed), explicit continuation keywords ('继续'/'接着')."
+      - "drift_warn flag in declaration action triggers 💡 advisory appended to generate_declaration() output."
+    bug_fixes:
+      - "Fixed: Novel/story discussion stuck in Highspeed pool — '情节怎么安排' was hitting coordination via '安排' (strong keyword) before content_generation could match. Fixed by moving '安排' to soft_keywords."
+      - "Fixed: Dev-context messages with '路由'/'规则' misrouted to Highspeed coordination instead of Intelligence development pool."
+
   "7.9.6":
     date: 2026-03-16
     breaking_changes: []

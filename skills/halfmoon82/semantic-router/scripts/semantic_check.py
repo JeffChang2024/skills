@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# [OC-WM] licensed-to: macmini@MacminideMac-mini | bundle: vendor-suite | ts: 2026-03-09T17:30:16Z
 """
 Semantic Router - 可配置的语义检查与模型路由脚本
 支持从配置文件读取模型池和任务类型
@@ -45,10 +44,14 @@ if os.environ.get('SEMANTIC_CHECK_DISABLE_PROXY') == '1':
 # 获取脚本目录
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# 配置目录：先检查 ~/.openclaw/workspace/.lib，再检查脚本同目录
+# 配置目录：唯一入口 ~/.openclaw/workspace/.lib/pools.json
+# 维护时只需修改该文件，skills/semantic-router/config/pools.json 是指向它的 symlink
 CONFIG_DIR = os.path.expanduser('~/.openclaw/workspace/.lib')
 if not os.path.exists(os.path.join(CONFIG_DIR, 'pools.json')):
-    CONFIG_DIR = SCRIPT_DIR
+    raise RuntimeError(
+        "❌ pools.json 未找到！期望位置: ~/.openclaw/workspace/.lib/pools.json\n"
+        "这是唯一维护入口，请勿在其他位置单独维护 pools.json 副本。"
+    )
 
 def load_json(filename, default=None):
     """加载 JSON 配置文件"""
@@ -126,7 +129,7 @@ def _select_context_layers(messages: list[str], limit: int) -> list[str]:
     return out
 
 
-def get_recent_messages(limit: int = 9, exclude_input: str = None, session_key: str = None) -> list:
+def get_recent_messages(limit: int = 5, exclude_input: str = None, session_key: str = None) -> list:
     """从会话 jsonl 获取用户上下文（会话隔离 + 分层窗口）。"""
     import glob
 
@@ -229,6 +232,15 @@ CONTINUATION_INDICATORS = {
     "confirmations": ["对的", "是的", "同意", "就这样"],
     "references": ["按照", "根据", "按你", "用你", "基于刚才"]
 }
+
+# Fork recovery signals：用户从子任务返回主线任务的明确信号
+_FORK_RECOVERY_SIGNALS = [
+    "之前在做", "原来在做", "本来在做",
+    "回到主线", "回到原来", "回到之前",
+    "主线任务", "原始任务", "最开始",
+    "一开始我们", "最初的任务", "初始目标",
+    "解决了卡点", "分叉任务", "插队任务",
+]
 
 import re as _re
 
@@ -515,8 +527,29 @@ def _contains_term_with_boundary(text: str, term: str, strict_short_cjk: bool = 
     return bool(_re.search(r'(?<![\u4e00-\u9fffA-Za-z0-9_])' + _re.escape(t) + r'(?![\u4e00-\u9fffA-Za-z0-9_])', text))
 
 
-def keyword_match(user_input: str, include_continue: bool = True, include_non_continue: bool = True):
-    """关键词匹配（v7.7：支持 continue/non-continue 分流 + trigger_groups_all 非连续命中）。"""
+def parse_target_pool_from_input(user_input: str) -> str:
+    """从用户的模型切换指令中解析目标池名称。"""
+    text = user_input.lower()
+    if any(k in text for k in ["智能", "intelligence", "智能池"]):
+        return "Intelligence"
+    if any(k in text for k in ["人文", "humanities", "人文池"]):
+        return "Humanities"
+    if any(k in text for k in ["代理", "agentic", "代理池"]):
+        return "Agentic"
+    if any(k in text for k in ["高速", "highspeed", "高速池", "快"]):
+        return "Highspeed"
+    # 兜底：用户说"更好的模型"/"更强的模型"→ Intelligence
+    if any(k in text for k in ["更好", "更强", "好点", "强点"]):
+        return "Intelligence"
+    return "Intelligence"  # 默认切智能池
+
+
+def layer2_match(user_input: str, include_continue: bool = True, include_non_continue: bool = True):
+    """层2：多词非连续命中（trigger_groups_all）→ 决定目标模型池。
+
+    优先级高于层1（keywords）。只要层2命中，层1不再运行。
+    返回: (task_type, action, pool, is_continue_task) 或 (None, None, None, False)
+    """
     text = user_input.lower().strip()
 
     for task_type, config in TASK_PATTERNS.items():
@@ -526,51 +559,74 @@ def keyword_match(user_input: str, include_continue: bool = True, include_non_co
         if (not is_continue_task) and not include_non_continue:
             continue
 
+        for word_group_pair in config.get("trigger_groups_all", []):
+            if not word_group_pair or not isinstance(word_group_pair, list):
+                continue
+            all_groups_hit = True
+            for group in word_group_pair:
+                if not isinstance(group, list) or not group:
+                    continue
+                if not any(_contains_term_with_boundary(text, tok.lower().strip()) for tok in group if tok):
+                    all_groups_hit = False
+                    break
+            if all_groups_hit and len(word_group_pair) >= 2:
+                return task_type, config.get("action"), config.get("pool"), is_continue_task
+
+    return None, None, None, False
+
+
+def layer1_match(user_input: str, include_continue: bool = True, include_non_continue: bool = True):
+    """层1：单词关键词命中（keywords / soft_keywords）→ 仅在层2无命中时调用。
+
+    soft_keywords 语义：泛用词（如"安排"），命中后标记 is_soft=True，
+    调用方将其降级为 B+ 延续，不执行 C 分支强切换。
+    返回: (task_type, action, pool, is_continue_task, is_soft)
+    """
+    text = user_input.lower().strip()
+
+    # ── 强关键词（keywords）────────────────────────────────────────────────
+    for task_type, config in TASK_PATTERNS.items():
+        is_continue_task = task_type == "continue"
+        if is_continue_task and not include_continue:
+            continue
+        if (not is_continue_task) and not include_non_continue:
+            continue
+
         is_standalone = config.get("standalone", False)
-
-        # ── 新增：trigger_groups_all 非连续分组命中（优先级高于 keywords 精确匹配）──
-        # 结构：list of rules，每条 rule = list of groups，每个 group = list of tokens
-        # 一条 rule 命中 = rule 内所有 groups 都有 token 命中（AND）
-        # 多条 rules 取 OR：任意一条命中即触发
-        groups_rules = config.get("trigger_groups_all", [])
-        if groups_rules and not is_standalone:
-            # 判断第一个元素是否为 list-of-list（多规则）还是 list-of-str（单规则单分组）
-            first = groups_rules[0] if groups_rules else None
-            if first is not None and isinstance(first, list) and first and isinstance(first[0], list):
-                rules_to_check = groups_rules          # list of rules (each rule = list of groups)
-            else:
-                rules_to_check = [groups_rules]        # 单条规则，包成列表
-
-            for rule in rules_to_check:
-                rule_hit = True
-                for group in rule:
-                    if not isinstance(group, list) or not group:
-                        rule_hit = False
-                        break
-                    if not any((tok or "").lower().strip() in text for tok in group):
-                        rule_hit = False
-                        break
-                if rule_hit:
-                    return task_type, config.get("action"), config.get("pool"), is_continue_task
-
         for kw in config.get("keywords", []):
             kw_norm = (kw or "").lower().strip()
             if not kw_norm:
                 continue
-
             if is_standalone:
                 if text == kw_norm or text.startswith(kw_norm + " ") or text.startswith(kw_norm + "?"):
-                    return task_type, config.get("action"), config.get("pool"), is_continue_task
+                    return task_type, config.get("action"), config.get("pool"), is_continue_task, False
                 continue
+            if _contains_term_with_boundary(text, kw_norm):
+                return task_type, config.get("action"), config.get("pool"), is_continue_task, False
 
-            if kw_norm in _WORD_BOUNDARY_KEYWORDS:
-                if _contains_term_with_boundary(text, kw_norm):
-                    return task_type, config.get("action"), config.get("pool"), is_continue_task
-            else:
-                if _contains_term_with_boundary(text, kw_norm):
-                    return task_type, config.get("action"), config.get("pool"), is_continue_task
+    # ── 软关键词（soft_keywords，降权）────────────────────────────────────
+    for task_type, config in TASK_PATTERNS.items():
+        is_continue_task = task_type == "continue"
+        if is_continue_task and not include_continue:
+            continue
+        if (not is_continue_task) and not include_non_continue:
+            continue
+        for kw in config.get("soft_keywords", []):
+            kw_norm = (kw or "").lower().strip()
+            if not kw_norm:
+                continue
+            if _contains_term_with_boundary(text, kw_norm):
+                return task_type, config.get("action"), config.get("pool"), is_continue_task, True
 
-    return None, None, None, False
+    return None, None, None, False, False
+
+
+def keyword_match(user_input: str, include_continue: bool = True, include_non_continue: bool = True):
+    """兼容入口：层2优先，层2无命中再走层1。返回5元组 (task_type, action, pool, is_continue, is_soft)。"""
+    l2 = layer2_match(user_input, include_continue, include_non_continue)
+    if l2[0] is not None:
+        return l2[0], l2[1], l2[2], l2[3], False  # 层2命中，is_soft=False
+    return layer1_match(user_input, include_continue, include_non_continue)
 
 
 def indicator_match(user_input: str) -> bool:
@@ -627,6 +683,30 @@ _LOCAL_MODEL_PATH = os.path.expanduser(
 
 _st_model = None  # lazy singleton
 
+# ── Ollama BGE-M3 embedding (P1b: 1024-dim, multilingual) ────────────────────
+_OLLAMA_EMBED_URL   = "http://localhost:11434/api/embeddings"
+_OLLAMA_EMBED_MODEL = "bge-m3"
+_ollama_embed_available: bool | None = None   # None = not yet probed
+
+def _check_ollama_embed() -> bool:
+    """Probe Ollama BGE-M3 availability (lazy, cached). Returns True if usable."""
+    global _ollama_embed_available
+    if _ollama_embed_available is not None:
+        return _ollama_embed_available
+    try:
+        import urllib.request as _ur, json as _j
+        payload = _j.dumps({"model": _OLLAMA_EMBED_MODEL, "prompt": "test"}).encode()
+        req = _ur.Request(_OLLAMA_EMBED_URL, data=payload,
+                          headers={"Content-Type": "application/json"}, method="POST")
+        with _ur.urlopen(req, timeout=1) as r:  # fail-fast: 1s; if cold → local model
+            resp = _j.load(r)
+        emb = resp.get("embedding", [])
+        _ollama_embed_available = len(emb) > 100
+    except Exception:
+        _ollama_embed_available = False
+    return _ollama_embed_available
+
+
 def _get_local_model():
     """Lazy-load local sentence-transformers model (bge-base-zh-v1.5, 768-dim)."""
     global _st_model
@@ -648,21 +728,45 @@ def _get_local_model():
         return None
 
 
+# ── Ollama qwen3-embedding (P1: 4096-dim, 中文优化, 2026-03-13) ──────────────
+_OLLAMA_EMBED_MODEL_QWEN = "qwen3-embedding:8b"
+_ollama_qwen_available: bool | None = None
+
+def _check_ollama_qwen() -> bool:
+    """Probe Ollama qwen3-embedding availability (lazy, cached)."""
+    global _ollama_qwen_available
+    if _ollama_qwen_available is not None:
+        return _ollama_qwen_available
+    try:
+        import urllib.request as _ur, json as _j
+        payload = _j.dumps({"model": _OLLAMA_EMBED_MODEL_QWEN, "prompt": "test"}).encode()
+        req = _ur.Request(_OLLAMA_EMBED_URL, data=payload,
+                          headers={"Content-Type": "application/json"}, method="POST")
+        with _ur.urlopen(req, timeout=2) as r:
+            resp = _j.load(r)
+        emb = resp.get("embedding", [])
+        _ollama_qwen_available = len(emb) > 1000  # qwen3-embedding is 4096-dim
+    except Exception:
+        _ollama_qwen_available = False
+    return _ollama_qwen_available
+
+
 def get_embedding_client():
-    """获取 embedding 客户端 - 优先本地模型，无需 API key"""
+    """获取 embedding 客户端 - 优先 qwen3-embedding，备用 bge-base-zh-v1.5
+    # 2026-03-13 更新: 基于真实历史路由测试，qwen3-embedding 准确率 34% > bge-base-zh 26%
+    """
+    # P1: Ollama qwen3-embedding (4096-dim, 中文优化) — 最高优先级
+    if _check_ollama_qwen():
+        return None, "qwen3-embedding"
+
+    # 本地 HuggingFace bge-base-zh-v1.5 (768-dim, 中文专项)
     model = _get_local_model()
     if model is not None:
         return model, "local"
 
-    # Fallback: try OpenAI API (legacy path)
-    api_key = os.environ.get("OPENAI_API_KEY", "")
-    api_base = os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1")
-    try:
-        from openai import OpenAI
-        if api_key:
-            return OpenAI(api_key=api_key, base_url=api_base), "openai"
-    except ImportError:
-        pass
+    # 备用: Ollama BGE-M3 (1024-dim, 多语言)
+    if _check_ollama_embed():
+        return None, "bge-m3-ollama"
 
     print("Warning: No embedding backend available, falling back to Jaccard", file=sys.stderr)
     return None, "fallback"
@@ -671,7 +775,7 @@ def get_embedding_client():
 def embed_text(text: str, client=None, provider: str = "local") -> list:
     """
     获取文本的向量表示。
-    Local model: bge-base-zh-v1.5 (768-dim), ~1.6ms/call, zero API cost.
+    Priority: Ollama BGE-M3 (1024-dim) > local bge-base-zh-v1.5 (768-dim) > OpenAI.
     Returns: list of floats or None on failure.
     """
     if not text or not text.strip():
@@ -680,11 +784,47 @@ def embed_text(text: str, client=None, provider: str = "local") -> list:
     if client is None:
         client, provider = get_embedding_client()
 
-    if client is None:
-        return None
-
     try:
-        if provider == "local":
+        if provider == "qwen3-embedding":
+            # P1: Ollama qwen3-embedding via HTTP (4096-dim, 中文优化, 2026-03-13)
+            import urllib.request as _ur, json as _j
+            payload = _j.dumps({"model": _OLLAMA_EMBED_MODEL_QWEN, "prompt": text.strip()}).encode()
+            req = _ur.Request(_OLLAMA_EMBED_URL, data=payload,
+                              headers={"Content-Type": "application/json"}, method="POST")
+            try:
+                with _ur.urlopen(req, timeout=3) as r:
+                    resp = _j.load(r)
+                emb = resp.get("embedding", [])
+                if emb:
+                    return emb
+            except Exception:
+                pass
+            # Fallback: use local model
+            local_model = _get_local_model()
+            if local_model is not None:
+                return local_model.encode(text.strip()).tolist()
+            return None
+        elif provider == "bge-m3-ollama":
+            # P1b: Ollama BGE-M3 via HTTP (1024-dim, multilingual, fully local)
+            # 2s timeout per call: if Ollama is overloaded, gracefully fall back to local model
+            import urllib.request as _ur, json as _j
+            payload = _j.dumps({"model": _OLLAMA_EMBED_MODEL, "prompt": text.strip()}).encode()
+            req = _ur.Request(_OLLAMA_EMBED_URL, data=payload,
+                              headers={"Content-Type": "application/json"}, method="POST")
+            try:
+                with _ur.urlopen(req, timeout=2) as r:
+                    resp = _j.load(r)
+                emb = resp.get("embedding", [])
+                if emb:
+                    return emb
+            except Exception:
+                pass
+            # Graceful fallback: Ollama slow/down → use local HuggingFace
+            local_model = _get_local_model()
+            if local_model is not None:
+                return local_model.encode(text.strip()).tolist()
+            return None
+        elif provider == "local":
             # sentence-transformers model - returns numpy array
             vec = client.encode(text.strip())
             return vec.tolist()
@@ -733,13 +873,66 @@ def jaccard_similarity(text1: str, text2: str) -> float:
     union = len(tokens1 | tokens2)
     return intersection / union if union > 0 else 0.0
 
+
+# ── Fix-A: Suggested pool via pool-description cosine similarity ────────────
+# Cache pool description embeddings (computed once per process lifetime).
+_pool_desc_embeddings: dict = {}
+
+def _compute_suggested_pool(user_input: str) -> str:
+    """
+    Fix-A: 计算 user_input 与各 pool description 的余弦相似度，返回最佳匹配 pool 名。
+    结果用于 B/B+ 分支的 suggested_pool 字段（Fix-A 强制重评估）。
+    Fix-B: 同逻辑也用于 C-auto 初始池分配推断。
+    相似度全部 < 0.15 时回退到 Highspeed（默认低复杂度会话）。
+    """
+    global _pool_desc_embeddings
+    try:
+        client, provider = get_embedding_client()
+        if not client and provider not in ("bge-m3-ollama", "local"):
+            return "Highspeed"
+
+        user_emb = embed_text(user_input, client, provider)
+        if not user_emb:
+            return "Highspeed"
+
+        best_pool = "Highspeed"
+        best_score = -1.0
+        POOL_SIMILARITY_FALLBACK = 0.10  # 低于此值时回退 Humanities（从 0.15 降低）
+
+        for pool_key, pool_info in MODEL_POOLS.items():
+            if not isinstance(pool_info, dict):
+                continue  # skip non-dict entries (e.g. "version" key)
+            desc = pool_info.get("description", "")
+            if not desc:
+                continue
+            # Lazy-compute and cache pool description embeddings
+            if pool_key not in _pool_desc_embeddings:
+                desc_emb = embed_text(desc, client, provider)
+                if desc_emb:
+                    _pool_desc_embeddings[pool_key] = desc_emb
+            desc_emb = _pool_desc_embeddings.get(pool_key)
+            if not desc_emb:
+                continue
+            score = cosine_similarity(user_emb, desc_emb)
+            if score > best_score:
+                best_score = score
+                best_pool = pool_key
+
+        # Only override default if similarity is meaningful
+        if best_score < POOL_SIMILARITY_FALLBACK:
+            return "Highspeed"
+        return best_pool
+    except Exception:
+        return "Highspeed"
+
+
 # ── Context Relevance (双通道: Embedding (Primary) + Entity Overlap (Secondary)) ──────────
 
 # Thresholds for graded session action (based on embedding cosine similarity or Jaccard fallback)
 # ── B策略优化 (0.50/0.30) ──────────────────────────────────────────────
 # 准确率: 95.2% | 误切: 1条 | 漏切: 0 | 极端短消息补丁+指代词保护
-THRESHOLD_CONTINUE = 0.50   # ≥ 0.50 → 延续（B策略，平衡点）
-THRESHOLD_WARN = 0.30       # 0.30~0.50 → 延续但警告；<0.30 进入 new_session
+THRESHOLD_CONTINUE = 0.62   # ≥ 0.62 → 延续（进一步降低粘连）
+THRESHOLD_WARN = 0.42       # 0.42~0.62 → 延续但警告；<0.42 进入 new_session
 # < 0.30 → /new (Branch C-auto)
 
 # ── C-auto 防死循环机制 (v7.7) ──────────────────────────────────────────
@@ -799,7 +992,45 @@ def c_auto_record_trigger(session_key: str = "default"):
     triggers.append(now)
     sk["trigger_times"] = triggers
     sk["msg_since_reset"] = 0  # reset 计数器
+    # C-auto 触发 → 重置 B+ 连续计数器
+    sk["bplus_streak"] = 0
     _save_cooldown(cd)
+
+
+# ── B+ 连续计数器 ──────────────────────────────────────────────────────────
+# 设计：
+#   - 每次结果为 B+ 时调用 bplus_record()，计数 +1
+#   - 每次结果为 B 或 C / C-auto 或用户说"继续/接着"时调用 bplus_reset()
+#   - bplus_check() 返回 (streak, should_warn, should_force_cauto)
+#     should_warn=True     → 第3次，在回复末尾追加提示
+#     should_force_cauto=True → 第4次及以后，强制跳入 C-auto
+
+BPLUS_WARN_AT = 3    # 第几次 B+ 时追加提示
+BPLUS_FORCE_AT = 4   # 第几次 B+ 时强制 C-auto
+
+def bplus_record(session_key: str = "default") -> int:
+    """记录一次 B+，返回当前连续次数。"""
+    cd = _load_cooldown()
+    sk = cd.setdefault(session_key, {})
+    sk["bplus_streak"] = sk.get("bplus_streak", 0) + 1
+    _save_cooldown(cd)
+    return sk["bplus_streak"]
+
+def bplus_reset(session_key: str = "default"):
+    """重置 B+ 连续计数器（出现 B / C / C-auto / 用户主动延续时调用）。"""
+    cd = _load_cooldown()
+    sk = cd.setdefault(session_key, {})
+    sk["bplus_streak"] = 0
+    _save_cooldown(cd)
+
+def bplus_check(session_key: str = "default") -> tuple:
+    """查询当前 B+ 连续状态，不修改计数。
+    Returns: (streak: int, should_warn: bool, should_force_cauto: bool)
+    """
+    cd = _load_cooldown()
+    sk = cd.get(session_key, {})
+    streak = sk.get("bplus_streak", 0)
+    return streak, streak == BPLUS_WARN_AT, streak >= BPLUS_FORCE_AT
 
 def c_auto_record_message(session_key: str = "default"):
     """记录一条消息（用于冷却期计数）"""
@@ -856,30 +1087,6 @@ def detect_task_type_fast(text: str) -> str | None:
     return None
 
 
-def is_context_dependent_question(text: str) -> bool:
-    """
-    判断是否为"高度依赖上下文的疑问句"。
-
-    特征：
-      1. 以疑问标点结尾（？/ ? / 吗 / 呢 / 啊 / 嘛）
-      2. 主语缺失或为指代词（我的/这个/它/那/这/那个/他/她/您）
-      3. 消息长度 < 30 字（短追问）
-
-    这类句子在语义空间与上下文距离远，但实际强依赖上下文。
-    """
-    text = text.strip()
-    # 条件1：疑问结尾
-    question_endings = ('？', '?', '吗', '呢', '啊', '嘛', '吧')
-    is_question = any(text.endswith(e) for e in question_endings) or '?' in text or '？' in text
-    if not is_question:
-        return False
-    # 条件2：主语缺失/指代词开头 或 消息长度短
-    pronoun_starts = ('我的', '这个', '它', '那', '这', '那个', '他', '她', '您', '你的', '他的')
-    has_pronoun_start = any(text.startswith(p) for p in pronoun_starts)
-    is_short = len(text) < 30
-    return has_pronoun_start or is_short
-
-
 def task_jump_penalty(current_input: str, context_messages: list) -> float:
     """
     计算任务类型跳变惩罚系数（方案C实现）。
@@ -890,16 +1097,11 @@ def task_jump_penalty(current_input: str, context_messages: list) -> float:
       3. 若当前类型 != 主导类型 → 返回惩罚系数（默认 0.55）
          同类型 → 返回 1.0（不惩罚）
          任一侧无法判断 → 返回 1.0（保守，不惩罚）
-      ⚠️ v7.9: 疑问句豁免 — 问句本质是追问，不是任务跳变，强制返回 1.0
 
     Returns:
         penalty: float (0.55 if jump detected, else 1.0)
     """
     if not context_messages:
-        return 1.0
-
-    # v7.9: 疑问句豁免 — 疑问句高度依赖上下文，不应施加跳变惩罚
-    if is_context_dependent_question(current_input):
         return 1.0
 
     current_type = detect_task_type_fast(current_input)
@@ -1018,14 +1220,6 @@ def context_relevance_score(user_input: str, context_messages: list) -> tuple:
                 best_score = combined
                 method = "jaccard_fallback"
 
-    # ── v7.9: 依赖上下文补偿 ──────────────────────────────────────
-    # 疑问句+省略主语/短追问：这类消息语义上与上下文距离远，
-    # 但实际强依赖上下文。在分级判定前加 +0.25 补偿，
-    # 补偿在 task_jump_penalty 之后施加，不会被 penalty 抵消。
-    if is_context_dependent_question(user_input) and context_messages:
-        best_score = min(1.0, best_score + 0.25)
-        method = method + "+ctx_question_boost"
-
     # ── 分级判定（v7.3 分层 Fallback） ──────────
     if best_score >= THRESHOLD_CONTINUE:
         grade = "continue"
@@ -1060,69 +1254,121 @@ def detect_task_type(user_input: str, context_messages: list = None):
         return "continue", "系统信号(透传)", None, "B", "system_passthrough", 1.0, "continue"
 
     ctx_msgs = context_messages or []
+
+    # ── 层3（embedding）永远先跑：独立决定"换不换会话" ────────────────
+    # score/grade 全程可用，与层2/层1的池决策完全并行
+    # grade: "continue"(≥0.62) / "warn"(0.42~0.62) / "new_session"(<0.42)
     score, method, grade = context_relevance_score(user_input, ctx_msgs)
+    session_key = os.environ.get("SESSION_KEY", "default")
 
     # ── v7.7: C-auto 旁路保护 ──────────────────────────────────────
-    # 在所有 C-auto 出口前检查，被阻止时降级为 B+（warn）
     def _c_auto_or_bypass(pool_hint, detection, sc, gr):
         """尝试返回 C-auto，如果被旁路保护阻止则降级为 B+"""
         blocked, reason = c_auto_is_blocked(
-            session_key=os.environ.get("SESSION_KEY", "default"),
+            session_key=session_key,
             context_count=len(ctx_msgs),
         )
         if blocked:
             return "continue", f"延续(C-auto被旁路:{reason})", None, "B+", detection, sc, "warn"
-        return "new_topic", "自动/new+切池", pool_hint or "Highspeed", "C-auto", detection, sc, gr
+        if pool_hint:
+            inferred_pool = pool_hint
+        else:
+            inferred_pool = _compute_suggested_pool(user_input) or "Highspeed"
+        return "new_topic", "自动/new+切池", inferred_pool, "C-auto", detection, sc, gr
 
-    # A. 明确延续意图：仅 continue 关键词优先（v7.8.2: 精简为4个强信号词）
-    cont_type, cont_action, cont_pool, _ = keyword_match(
+    # ── 公共 B+ 返回辅助：记录计数，必要时升级为 C-auto ──────────────
+    def _return_bplus(task_type_val, action_val, pool_val, detection_val, sc, gr_val, extra_note=""):
+        """统一 B+ 出口：维护连续计数，第3次追加警告，第4次强制 C-auto。"""
+        streak = bplus_record(session_key)
+        _, should_warn, should_force = bplus_check(session_key)
+        if should_force:
+            # 强制 C-auto：话题连续漂移超限
+            bplus_reset(session_key)
+            return _c_auto_or_bypass(pool_val, f"bplus_force(streak={streak})", sc, "new_session")
+        note = extra_note
+        if should_warn:
+            note = f"{extra_note}|drift_warn" if extra_note else "drift_warn"
+        return "continue", f"延续(话题漂移警告{':' + note if note else ''})", pool_val, "B+", detection_val, sc, gr_val
+
+    # A. 明确延续意图：continue 关键词（层1）
+    # continue/接着 是强信号，不走层2多词逻辑，直接层1专属通道
+    cont_type, cont_action, cont_pool, _, _soft = layer1_match(
         user_input,
         include_continue=True,
         include_non_continue=False,
     )
     if cont_type:
+        bplus_reset(session_key)  # 明确延续 → 重置 B+ 计数器
+        is_fork_recovery = any(s in user_input for s in _FORK_RECOVERY_SIGNALS)
         if grade == "new_session":
-            return "continue", "延续(低关联警告)", cont_pool, "B+", "keyword_continue", score, "warn"
-        return cont_type, cont_action, cont_pool, "B", "keyword_continue", max(score, 1.0), "continue"
+            result_action = "延续(低关联警告)" + (" [fork_recovery]" if is_fork_recovery else "")
+            return "continue", result_action, cont_pool, "B+", "keyword_continue", score, "warn"
+        result_action = cont_action + (" [fork_recovery]" if is_fork_recovery else "")
+        return "continue", result_action, cont_pool, "B", "keyword_continue", max(score, 1.0), "continue"
 
     # A+. bonus_keywords: 降级延续词，仅做 embedding score +0.10 加权
-    # 不直接触发 A 分支，让 embedding 最终决定 B/C-auto
     bonus_keywords = TASK_PATTERNS.get("continue", {}).get("bonus_keywords", [])
     if any(kw in user_input for kw in bonus_keywords):
         score = min(score + 0.10, 1.0)
         grade = "continue" if score >= THRESHOLD_CONTINUE else ("warn" if score >= THRESHOLD_WARN else "new_session")
 
-    # B. 非 continue 任务关键词优先于指示词（修复"这个+动作词"误延续）
-    task_type, action, pool, _ = keyword_match(
+    # ── 层2优先：多词非连续命中 → 决定目标池 ──────────────────────────
+    l2_type, l2_action, l2_pool, l2_is_cont = layer2_match(
         user_input,
         include_continue=False,
         include_non_continue=True,
     )
-    if task_type:
-        # 方案A (v7.8.1): 关键词只负责池映射，C-auto 由 embedding score 决定
-        # 不再因为关键词命中就强制延续，解耦"任务识别"和"话题延续"判断
-        # v7.8.2 Fix: 仅当关联度极低(<0.30/new_session)时才切 C-auto，0.30~0.50 走 C 分支(切模型保留上下文)
-        if grade == "new_session":
-            return _c_auto_or_bypass(pool, "keyword", score, grade)
-        return task_type, action, pool, "C", "keyword", score, grade
 
-    # C. 指示词仅在无任务关键词时生效
+    # ── 层1备用：层2无命中时才运行 ──────────────────────────────────
+    if l2_type is not None:
+        task_type, action, pool, is_soft = l2_type, l2_action, l2_pool, False
+        detection_src = "layer2"
+    else:
+        l1 = layer1_match(user_input, include_continue=False, include_non_continue=True)
+        task_type, action, pool, _, is_soft = l1
+        detection_src = "layer1"
+
+    # B. 非 continue 任务命中处理
+    if task_type:
+        # soft_keywords 命中：降级为 B+，不强切模型池
+        if is_soft:
+            return _return_bplus(task_type, action, None, f"keyword_soft({detection_src})", score, grade)
+
+        # model_switch：直接解析目标池，C 分支切模型不重置会话
+        if task_type == "model_switch":
+            bplus_reset(session_key)
+            target_pool = parse_target_pool_from_input(user_input)
+            return "model_switch", "切换模型池", target_pool, "C", "keyword", max(score, 1.0), "continue"
+
+        # 层3（embedding）决定是否切会话：
+        #   new_session → C-auto（切池+重置会话）
+        #   warn/continue → C（切池，保留会话）
+        if grade == "new_session":
+            bplus_reset(session_key)
+            return _c_auto_or_bypass(pool, detection_src, score, grade)
+        bplus_reset(session_key)
+        return task_type, action, pool, "C", detection_src, score, grade
+
+    # C. 指示词仅在层2/层1均无命中时生效
     if indicator_match(user_input):
         if grade == "new_session":
-            return "continue", "延续(低关联警告)", None, "B+", "indicator", score, "warn"
+            return _return_bplus(None, "延续(低关联警告)", None, "indicator", score, "warn")
+        bplus_reset(session_key)
         return "continue", "延续", None, "B", "indicator", max(score, 1.0), "continue"
 
-    # D. 无关键词，完全由上下文新颖度决定
+    # D. 层3：完全由上下文新颖度决定（embedding）
     if grade == "continue":
+        bplus_reset(session_key)
         return "continue", "延续", None, "B", f"context_{method}", score, grade
     if grade == "warn":
-        # ── 短消息异常补丁（仅作用于user_input） ──
-        # 注意：此时 user_input 是用户消息（来自CLI或消息队列），不是agent输出
         is_anomaly, adjusted_grade, patch_reason = _short_message_anomaly_patch(user_input, score, grade)
         if is_anomaly:
-            return "continue", f"延续(短消息保护:{patch_reason})", None, "B+", f"context_{method}_patched", score, adjusted_grade
-        return "continue", "延续(话题可能漂移)", None, "B+", f"context_{method}", score, grade
+            return _return_bplus(None, f"短消息保护:{patch_reason}", None,
+                                 f"context_{method}_patched", score, adjusted_grade)
+        return _return_bplus(None, "话题可能漂移", None, f"context_{method}", score, grade)
 
+    # grade == new_session，且无任何关键词/指示词命中 → C-auto
+    bplus_reset(session_key)
     return _c_auto_or_bypass("Highspeed", f"context_{method}", score, grade)
 
 def get_pool_info(pool_name: str):
@@ -1134,60 +1380,48 @@ def get_current_pool():
     return os.environ.get("CURRENT_POOL", "Highspeed")
 
 def generate_declaration(result: dict, current_pool: str, current_model: str = None) -> str:
-    task_type = result["task_type"]
-    action = result["action"]
+    """生成语义检查声明（v7.9.3+ 简化格式）
+    
+    新格式：【语义检查】模型池:【XXX】｜实际模型:XXX｜延续/新会话
+    - 去掉 P级别、偏移量图标、分数
+    - 只保留模型池、实际模型、会话状态（延续/新会话）
+    """
     branch = result.get("branch", "C")
-    detection_method = result.get("detection_method", "unknown")
-    ctx_score = result.get("context_score", 0)
-
-    p_level = {
-        "development": "P1", "automation": "P1", "system_ops": "P1",
-        "info_retrieval": "P2", "coordination": "P2", "web_search": "P2",
-        "content_generation": "P3", "reading": "P3", "q_and_a": "P3", "training": "P3", "multimodal": "P3",
-        "continue": "P2", "new_session": "P4"
-    }.get(task_type, "P2")
-
-    # 标记检测方法（embed/jaccard_fallback/keyword/indicator/system）
-    method_marker = {
-        "context_embed": "📊",
-        "embed": "📊",
-        "context_jaccard_fallback": "⚙️",
-        "jaccard_fallback": "⚙️",
-        "context_token": "⚙️",
-        "keyword_continue": "🔑",
-        "indicator": "🔍",
-        "keyword": "🔑",
-        "no_context": "○",
-        "system_passthrough": "🛡️"
-    }.get(detection_method, "")
-
-    if branch == "B":
-        # B分支: 延续（高关联度 ≥0.40）
-        pool_chinese = MODEL_POOLS.get(current_pool, {}).get("name", current_pool)
-        model_short = (current_model or "").split("/")[-1] or current_pool
-        score_str = f" {ctx_score:.2f}" if ctx_score > 0 else ""
-        return f"【语义检查】{p_level}-延续{method_marker}{score_str}｜模型池:【{pool_chinese}】｜实际模型:{model_short}"
-    elif branch == "B+":
-        # B+分支: 延续但警告话题漂移（中关联度 0.20~0.40）
-        pool_chinese = MODEL_POOLS.get(current_pool, {}).get("name", current_pool)
-        model_short = (current_model or "").split("/")[-1] or current_pool
-        return f"【语义检查】{p_level}-延续(漂移⚠️{method_marker}{ctx_score:.2f})｜模型池:【{pool_chinese}】｜实际模型:{model_short}"
-    elif branch == "C-auto":
-        # C-auto分支: 低关联度（<0.30），自动 /new + 切换到目标池 primary
+    
+    # 获取模型池中文名
+    if branch in ("C", "C-auto"):
+        # C/C-auto 分支：使用目标池
         target_pool_key = result.get("pool", "Highspeed")
         pool_info = get_pool_info(target_pool_key)
-        pool_chinese = pool_info.get("name", target_pool_key) if pool_info else (target_pool_key or "高速池")
-        primary = result.get("primary_model", "")
-        model_short = primary.split("/")[-1] if primary else "未知"
-        return f"【语义检查】{p_level}-新话题({method_marker}{ctx_score:.2f}<0.30)｜/new→{pool_chinese}｜实际模型:{model_short}"
-    else:
-        # C分支: 新任务类型（关键词匹配），建议切模型但不切会话
-        target_pool_key = result.get("pool")
-        pool_info = get_pool_info(target_pool_key)
         pool_chinese = pool_info.get("name", target_pool_key) if pool_info else (target_pool_key or "未知池")
+        # 使用 primary_model 作为实际模型
         primary = result.get("primary_model", "")
         model_short = primary.split("/")[-1] if primary else "未知"
-        return f"【语义检查】{p_level}-{action}({method_marker})｜新池→{pool_chinese}｜实际模型:{model_short}"
+    else:
+        # B/B+ 分支：优先使用当前模型；若未显式传入，则回退到当前池的 primary，而不是池名本身
+        pool_chinese = MODEL_POOLS.get(current_pool, {}).get("name", current_pool)
+        fallback_model = MODEL_POOLS.get(current_pool, {}).get("primary", "")
+        model_short = (current_model or fallback_model).split("/")[-1] or "未知"
+    
+    # 确定会话状态：延续 或 新会话
+    if branch in ("B", "B+"):
+        session_state = "延续"
+    else:
+        # C 和 C-auto 分支都是新会话
+        session_state = "新会话"
+    
+    base_decl = f"【语义检查】模型池:【{pool_chinese}】｜实际模型:{model_short}｜{session_state}"
+
+    # Fork recovery 提示
+    action = result.get("action", "")
+    if "[fork_recovery]" in str(action):
+        base_decl += "\n⚠️ 原始任务恢复：正从分叉子任务返回，请回忆本次对话的主线任务目标，而非最近的子任务"
+
+    # B+ 连续漂移警告（第3次时追加，让模型在回复末尾给用户提示）
+    if branch == "B+" and "drift_warn" in str(action):
+        base_decl += "\n💡 [系统提示] 话题已持续漂移，如需保留当前上下文请回复「继续」，否则将在下次自动开启新会话"
+
+    return base_decl
 
 def ensure_declaration_first_line(reply_text: str, declaration: str) -> str:
     """Outbound 安全门禁：确保声明在首行，不重复注入。"""
@@ -1341,7 +1575,7 @@ def main():
         sys.exit(2)
 
     context_messages = args.context_messages if args.context_messages else get_recent_messages(
-        limit=9,
+        limit=5,
         exclude_input=raw_input,
         session_key=session_key,
     )
@@ -1447,6 +1681,9 @@ def main():
         "detection_method": detection,
         "context_score": ctx_score,
         "context_grade": ctx_grade,
+        # Fix-A: pool most semantically aligned with user_input (for B/B+ forced re-eval).
+        # For C/C-auto branches, this mirrors pool (already correct).
+        "suggested_pool": pool_name if branch in ("C", "C-auto") else _compute_suggested_pool(user_input),
         "fallback_chain": [
             target_model,
             pool_info.get("fallback_1"),

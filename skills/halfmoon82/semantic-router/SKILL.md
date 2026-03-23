@@ -1,9 +1,9 @@
 ---
 name: semantic-router
-description: 让 AI 代理根据对话内容自动选择最合适的模型。四层识别（系统过滤→关键词→指示词→语义相似度），四池架构（高速/智能/人文/代理），五分支路由，全自动 Fallback 回路。支持 trigger_groups_all 非连续词组命中。
-version: 7.9.6
+description: 让 AI 代理根据对话内容自动选择最合适的模型。层2（多词非连续命中）+ 层1（单词兜底）并行决定模型池；层3（embedding）永远独立运行决定会话切换。B+ 连续漂移计数器（第3次警告，第4次强制 C-auto）。soft_keywords 泛用词降权机制。四池架构（高速/智能/人文/代理），五分支路由，全自动 Fallback 回路。
+version: 8.0.0
 author: halfmoon82
-tags: [semantic, routing, model-pools, task-classification, fallback, system-passthrough, production]
+tags: [semantic, routing, model-pools, task-classification, fallback, system-passthrough, production, layer-parallel]
 requires_approval: true
 ---
 
