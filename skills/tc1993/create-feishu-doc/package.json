@@ -1,0 +1,30 @@
+{
+  "name": "create-feishu-doc",
+  "version": "1.0.2",
+  "description": "创建飞书文档并填充完整内容。使用飞书文档工具创建文档，创建成功后等待2秒才开始追加内容。",
+  "main": "scripts/create_feishu_doc.py",
+  "scripts": {
+    "test": "python scripts/create_feishu_doc.py"
+  },
+  "keywords": [
+    "feishu",
+    "document",
+    "create",
+    "append",
+    "batch"
+  ],
+  "author": "PMBot",
+  "license": "MIT",
+  "dependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/openclaw/clawhub/create-feishu-doc"
+  },
+  "homepage": "https://clawhub.com/skills/create-feishu-doc",
+  "bugs": {
+    "url": "https://github.com/openclaw/clawhub/issues"
+  },
+  "engines": {
+    "python": ">=3.6"
+  }
+}
