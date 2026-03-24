@@ -1,6 +1,7 @@
 ---
 name: deep-current
 description: Persistent research thread manager with a CLI for tracking topics, notes, sources, and findings. Pair with a nightly cron job to build a personal research digest over time. The shipped code is a local Python CLI for thread management — research is performed by the agent using its standard web_search and web_fetch tools.
+metadata: {"openclaw":{"requires":{"bins":["python3"]},"permissions":{"filesystem":"read/write within workspace deep-current-reports/ and deep-current-threads/ directories"},"homepage":"https://github.com/meimakes/deep-current","author":"Mei Park (@meimakes)"}}
 ---
 
 # Deep Current
