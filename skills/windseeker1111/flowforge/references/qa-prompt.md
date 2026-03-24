@@ -40,3 +40,36 @@ One paragraph summary. Is this ready to ship?
 - **≥95%** — Ship it
 - **80–94%** — Minor gaps, document and proceed
 - **<80%** — Needs another coding pass
+
+## Session Context Save (mandatory, after QA)
+
+After scoring, write a `project-context.md` to the forge workspace. This becomes L1 context for the next build session on this project.
+
+```markdown
+# Project Context — <task name>
+
+**Date:** YYYY-MM-DD
+**Build:** <commit hash or description>
+**QA Score:** X/Y
+
+## What Was Built
+- File 1 — purpose
+- File 2 — purpose
+
+## Key Decisions Made
+- Decision 1 and why
+- Decision 2 and why
+
+## Design Tokens / Patterns Established
+- Pattern or token that future sessions must follow
+
+## What the Next Session Needs to Know
+- Gotcha 1
+- Dependency or constraint to be aware of
+
+## Open Items
+- [ ] Thing that wasn't finished
+- [ ] Follow-up task
+```
+
+This file is the handoff note to future-you. Write it as if you won't remember anything from this session — because you won't.

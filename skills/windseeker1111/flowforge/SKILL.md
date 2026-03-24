@@ -38,21 +38,34 @@ bash ~/clawd/skills/flowforge/scripts/init_forge.sh "<task_description>" "<repo_
 
 Creates `~/.forge/<timestamp>/` with `task.md`.
 
-### 2. Run the pipeline
+### 2. Clarification checkpoint (required before spec)
+
+Before running the pipeline, ask 2–4 targeted questions to resolve ambiguity. Do not ask for information already in `task.md`. Focus on:
+
+- **Scope edge cases** — "Does this include X, or is that a separate shape?"
+- **Constraints** — "Any files that are frozen / must not be touched?"
+- **Integration points** — "Which existing module owns this responsibility?"
+- **Success definition** — "What does passing look like — a test, a manual check, a metric?"
+
+Present questions in a numbered list. Wait for answers before proceeding. If the task is unambiguous (e.g., a single-file fix from a clear issue), skip this step and note "No clarification needed."
+
+Save answers to `~/.forge/<timestamp>/clarifications.md` for reference during spec + plan phases.
+
+### 3. Run the pipeline
 
 ```bash
 bash ~/clawd/skills/flowforge/scripts/run_forge.sh ~/.forge/<timestamp>/
 ```
 
 This chains 4 Claude Code calls:
-1. **Spec** — generates `spec.md` (high thinking)
+1. **Spec** — generates `spec.md` incorporating clarifications (high thinking)
 2. **Plan** — generates `implementation_plan.json` (high thinking)
 3. **Code** — executes each subtask with verification (medium thinking)
 4. **QA** — reviews output, scores against spec (high thinking)
 
 Each step saves output to the workspace directory. Claude Code does ALL the work.
 
-### 3. Monitor
+### 4. Monitor
 
 Poll workspace for completion:
 ```bash
@@ -86,9 +99,11 @@ Then run the pipeline normally.
 ## Output
 
 On completion, workspace contains:
-- `spec.md` — full specification
+- `clarifications.md` — pre-spec Q&A (scope, constraints, integration points)
+- `spec.md` — full specification (incorporates clarifications)
 - `implementation_plan.json` — phases + subtasks with status
 - `qa_report.md` — QA review and score
+- `project-context.md` — session handoff note (decisions made, patterns established, what next session needs to know)
 - `progress.log` — timestamped execution log
 
 ## Optional: Rubric Scoring (200 criteria)
