@@ -67,6 +67,12 @@ node scripts/setup.mjs
 
 ### Step 2: 素材采集
 
+**2pre. 交接文件检查**
+先检查 `<WORKSPACE>/temp/handoffs/collector-to-writing.md` 是否存在：
+- 有 → 读取，筛选与当前选题相关的素材条目，纳入写作参考
+- 消费后删除已使用的条目（如果文件清空则删除文件）
+- 没有 → 跳过，正常流程
+
 **2a. 收藏库检索（优先）**
 先从个人收藏库中检索相关素材——这是让文章有"人味"的关键（详见 writing-techniques.md §五）：
 1. 标签匹配：`grep -i "关键词" <WORKSPACE>/collections/tags.md`
@@ -82,6 +88,8 @@ node scripts/setup.mjs
 3. `web_fetch` 抓取 2-4 篇高质量参考文章
 4. 可选：`node scripts/smart_collect.mjs` 从 20+ 数据源采集相关热点
 5. 提取关键事实、数据、观点备用
+
+**⚠️ 中间存盘规则**：每 2-3 轮 web_search/web_fetch 后，立刻把已获得的关键发现写到 `<WORKSPACE>/temp/wemp-findings-{slug}.md`（选题 slug），防止连续采集时前面的信息在 context 中被挤掉。采集完成后此文件可删除。
 
 **2c. 素材整理**
 合并收藏库 + 外部素材，按相关度排序，标注来源
