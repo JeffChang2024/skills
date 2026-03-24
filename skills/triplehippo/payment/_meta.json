@@ -3,9 +3,15 @@
   "slug": "payment",
   "displayName": "Shopping Claw | Is your claw a shopaholic?",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1773174327590,
-    "commit": "https://github.com/openclaw/skills/commit/3fff353c35dedb61636df7b5caad92c5f78fcfae"
+    "version": "2.9.0",
+    "publishedAt": 1774305246365,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1773174327590,
+      "commit": "https://github.com/openclaw/skills/commit/3fff353c35dedb61636df7b5caad92c5f78fcfae"
+    }
+  ]
 }
