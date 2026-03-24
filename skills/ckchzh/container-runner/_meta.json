@@ -3,11 +3,16 @@
   "slug": "container-runner",
   "displayName": "Container Runner",
   "latest": {
-    "version": "1.0.7",
-    "publishedAt": 1773665418628,
-    "commit": "https://github.com/openclaw/skills/commit/5bb98437521c06a262ab915986c210ac1436292f"
+    "version": "3.0.2",
+    "publishedAt": 1774314806089,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.7",
+      "publishedAt": 1773665418628,
+      "commit": "https://github.com/openclaw/skills/commit/5bb98437521c06a262ab915986c210ac1436292f"
+    },
     {
       "version": "1.0.0",
       "publishedAt": 1773450819840,

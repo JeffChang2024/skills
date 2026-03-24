@@ -1,51 +1,35 @@
 ---
-version: "2.0.0"
-name: Podman
-description: "Podman: A tool for managing OCI containers and pods. container-runner, go, containers, docker, kubernetes, linux, oci. Use when you need container-runner capabilities. Triggers on: container-runner."
-author: BytesAgain
+name: "container-runner"
+version: "3.0.1"
+description: "Reference tool for devtools — covers intro, quickstart, patterns and more. Quick lookup for Container Runner concepts, best practices, and implementation pat..."
+author: "BytesAgain"
+homepage: "https://bytesagain.com"
+source: "https://github.com/bytesagain/ai-skills"
+tags: [container,runner, reference]
+category: "devtools"
 ---
 
-# Podman
+# Container Runner
 
-Podman: A tool for managing OCI containers and pods. ## Commands
+Reference tool for devtools — covers intro, quickstart, patterns and more. Quick lookup for Container Runner concepts, best practices, and implementation pat... No API keys or credentials required.
 
-- `help` - Help
-- `run` - Run
-- `info` - Info
-- `status` - Status
+## Commands
 
-## Features
+| Command | Description |
+|---------|-------------|
+| `intro` | intro reference |
+| `quickstart` | quickstart reference |
+| `patterns` | patterns reference |
+| `debugging` | debugging reference |
+| `performance` | performance reference |
+| `security` | security reference |
+| `migration` | migration reference |
+| `cheatsheet` | cheatsheet reference |
 
-- Core functionality from containers/container-runner
+## Output Format
 
-## Usage
+All commands output plain-text reference documentation via heredoc. No external API calls, no credentials needed, no network access.
 
-Run any command: `container-runner <command> [args]`
 ---
-💬 Feedback & Feature Requests: https://bytesagain.com/feedback
-Powered by BytesAgain | bytesagain.com
 
-## Examples
-
-```bash
-# Show help
-container-runner help
-
-# Run
-container-runner run
-```
-
-- Run `container-runner help` for commands
-- No API keys needed
-
-- Run `container-runner help` for all commands
-
-- Run `container-runner help` for all commands
-
-## Output
-
-Results go to stdout. Save with `container-runner run > output.txt`.
-
-## Configuration
-
-Set `CONTAINER_RUNNER_DIR` to change data directory. Default: `~/.local/share/container-runner/`
+*Powered by BytesAgain | bytesagain.com | hello@bytesagain.com*
