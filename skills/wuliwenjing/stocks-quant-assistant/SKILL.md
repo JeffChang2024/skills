@@ -1,134 +1,146 @@
 ---
 name: stock-monitor
-version: 2.0.0
-description: A股股票量化监控与每日推送系统。用户配置股票池后自动分析 MA/MACD/RSI/布林带，生成信号评分和操作建议，每日4次定时推送。支持持仓跟踪、板块轮动、北向资金、美股隔夜。
+version: 3.0.5
+description: A股股票量化监控与每日推送系统。用户配置股票池后自动分析 MA/MACD/RSI/布林带，生成信号评分和操作建议，每日4次定时推送。支持持仓跟踪、板块轮动、美股隔夜。下载后只需填写配置文件，即可每日自动推送到飞书/Telegram。
 ---
 
 # 📈 stock-monitor
 
 **A 股量化监控 + 定时推送系统**
 
-下载后即自动安装（首次运行自动装依赖 + 注册定时任务），用户只需编辑配置文件指定股票，即可每日定时收到飞书/Telegram推送。
+首次运行自动安装依赖 + 注册定时任务，每日 4 次自动推送。
 
 ---
 
-## 安装（一键）
+## ⚠️ 安装后必读：3 步完成配置
 
-```bash
-clawhub install stock-monitor
-```
+### 第一步：获取飞书凭证
 
-首次运行自动完成：
-- ✅ 安装 Python 依赖（akshare、pyyaml）
-- ✅ 注册 macOS 定时任务（launchd）或 Linux 定时任务（cron）
-- ✅ 生成默认配置文件
+**如果你已经有飞书应用（app_id + app_secret），跳过此步。**
 
-**无需手动执行任何命令。**
+1. 打开 [飞书开放平台](https://open.feishu.cn/app) → 创建应用
+2. 在「凭证与基础信息」复制 `App ID` 和 `App Secret`
+3. 在「权限管理」中申请：`im:message:send_as_bot`
+4. 在「应用发布」→「版本管理与发布」中发布应用
+5. 在群里添加「自定义机器人」，复制 `chat_id`（格式：`oc_xxxx`）
 
----
+### 第二步：编辑配置文件
 
-## 快速开始
-
-### 1. 编辑配置文件
-
-```bash
-nano ~/.openclaw/workspace/skills/stock-monitor/config.yaml
-```
+打开 `config.yaml`（或 `config.local.yaml`），填写你的股票和凭证：
 
 ```yaml
 stocks:
-  - code: "000001"
-    name: "平安银行"
-    market: "sz"
-    emoji: "🏦"
-    position:
-      cost: 12.50
-      quantity: 1000
-
-  - code: "600519"
-    name: "贵州茅台"
-    market: "sh"
-    emoji: "🍶"
-    position:
-      cost: 1600.0
-      quantity: 50
+  - code: "000001"          # 股票代码（6位数字）
+    name: "平安银行"         # 显示名称
+    market: "sz"             # sz=深交所，sh=上交所
+    emoji: "🏦"              # 自定义图标
+    position:                # 持仓（可选）
+      cost: 12.50            # 成本价
+      quantity: 1000         # 股数
 
 push:
-  channel: "feishu"
+  channel: "feishu"          # 推送渠道：feishu / telegram / console
+  feishu:
+    app_id: "cli_xxxxxxxx"   # ← 填入你的 app_id
+    app_secret: "xxxxxxxx"   # ← 填入你的 app_secret
+    chat_id: "oc_xxxxxxx"    # ← 填入你的 chat_id
   times:
-    - "09:15"
-    - "10:30"
-    - "13:00"
-    - "14:50"
+    - "09:15"               # 开盘前
+    - "10:30"               # 早盘
+    - "13:00"               # 午后
+    - "14:50"               # 尾盘
 ```
 
-### 2. 手动测试
+**配置文件优先级：`config.local.yaml` > `config.yaml`**
+（私人配置写 `config.local.yaml`，不会被 skill 发布覆盖）
+
+### 第三步：测试推送
 
 ```bash
-python3 ~/.openclaw/workspace/skills/stock-monitor/stock_monitor.py
+python3 ~/.openclaw/workspace/skills/stocks-quant-assistant/stock_monitor.py morning
 ```
 
-### 3. 让 AI 帮你改配置（最简单）
+看到股票分析输出 + 飞书收到消息 = 配置成功 ✅
 
+---
+
+## 常见问题排查
+
+### ❌ 报错 "Feishu push failed" / 飞书没收到
+
+**原因：凭证填写不完整**
+
+请确认 `config.yaml` 中 `feishu` 区块三个字段都有值：
+- `app_id`（格式：`cli_xxxxxxxx`）
+- `app_secret`
+- `chat_id`（格式：`oc_xxxxxxxx`）
+
+**检查方法：**
+```bash
+grep -A5 "feishu:" ~/.openclaw/workspace/skills/stocks-quant-assistant/config.yaml
 ```
-用户：帮我把科创50ETF加入监控，成本0.94，4000股
-AI：   → 更新 config.yaml → 确认完成
 
-用户：现在监控了哪些股票？
-AI：   → 读取 config.yaml → 列出股票池
+### ❌ 报错 "launchd 注册失败" / 定时推送没收到
+
+**原因：macOS 权限限制，launchd 需要手动授权**
+
+手动运行以下命令：
+```bash
+launchctl load ~/Library/LaunchAgents/com.openclaw.stock-monitor.plist
+```
+
+如果提示「需要管理员权限」，加上 `sudo`：
+```bash
+sudo launchctl load ~/Library/LaunchAgents/com.openclaw.stock-monitor.plist
+```
+
+**检查定时任务是否运行：**
+```bash
+launchctl list | grep stock
+```
+
+### ❌ 提示「实时数据获取失败」
+
+网络波动导致。新浪财经接口偶尔超时，不影响后续推送。下次定时任务会自动恢复。
+
+### ❌ 报告里没有大盘指数/技术指标
+
+可能是新浪接口响应慢，数据获取超时。系统会自动降级为简化模式（只显示实时价格）。
+
+---
+
+## 定时任务状态检查
+
+```bash
+# macOS - 查看 launchd 任务
+launchctl list | grep stock
+
+# 查看最近一次推送日志
+cat ~/.openclaw/workspace/skills/stocks-quant-assistant/logs/launchd.log
+cat ~/.openclaw/workspace/skills/stocks-quant-assistant/logs/launchd.err
 ```
 
 ---
 
-## 推送消息示例
+## 手动触发推送
 
-运行后你会收到类似这样的分析报告：
+```bash
+# 开盘前（09:15）
+python3 stock_monitor.py morning
 
-```
-📊 股票参考 - 早盘 2026-03-22
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📈 A股大盘: 上证指数 3380(+0.5%) | 创业板指 2050(-0.3%)
-🌏 昨夜美股: 道琼斯 +0.8% | 纳斯达克 +1.2% | 标普500 +0.9%
-📈 强势板块: 白酒(+2.1%) | 银行(+1.5%) | 半导体(+1.2%)
-📉 弱势板块: 房地产(-1.8%) | 教育(-1.1%)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🏦 平安银行（000001）
-   现价: 13.25  今日: +1.20%
-   信号: 🟢 买入 (+6分)
-   技术: 多头 | MACD:金叉↑ | RSI:58 | 量比:1.45
-   布林: 12.50~14.20（中轨）
-   支撑/压力: 12.80 / 14.00
-   💰 持仓: 成本12.50 | +750元(+6.0%)
-   💡 持有，等涨到14.37再考虑减仓；跌回11.50考虑止损
+# 早盘（10:30）
+python3 stock_monitor.py noon
 
-🍶 贵州茅台（600519）
-   现价: 1580.00  今日: -0.80%
-   信号: 🟡 持有 (-1分)
-   技术: 震荡 | MACD:纠缠 | RSI:52 | 量比:0.85
-   布林: 1550~1620（中轨）
-   支撑/压力: 1550 / 1650
-   📰 03-21 茅台经销商大会召开 | 03-20 机构下调盈利预测
-   💡 技术面中性，建议观望；MACD刚死叉，短线要小心
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⚠️ 仅供参考，不构成投资建议
-生成时间: 10:30:05
+# 午后（13:00）
+python3 stock_monitor.py afternoon
+
+# 尾盘（14:50）
+python3 stock_monitor.py evening
 ```
 
 ---
 
 ## 信号评分规则
-
-分数从 **-10 到 +10**，综合以下维度计算：
-
-| 维度 | 加分条件 | 减分条件 |
-|------|---------|---------|
-| **均线多头** | MA5>MA10>MA20>MA60（多头排列）+2 | MA5<MA10<MA20<MA60（空头排列）-2 |
-| **MACD** | 金叉 +2，死叉 -2，红柱 +1 | 绿柱 -1 |
-| **RSI** | <35 超卖 +2，<45 偏低 +1 | >65 超买 -2，>55 偏高 +1 |
-| **布林带** | 价格触及下轨 +2 | 价格触及上轨 -2 |
-| **量价配合** | 上涨+放量 +1 | 下跌+缩量 -1 |
-
-**信号等级：**
 
 | 分数 | 信号 | 含义 |
 |------|------|------|
@@ -140,180 +152,29 @@ AI：   → 读取 config.yaml → 列出股票池
 
 ---
 
-## 指标通俗解释
+## 技术指标通俗解释
 
 | 指标 | 是什么 | 怎么看 |
 |------|--------|--------|
-| **MA（均线）** | 过去N天的平均价格连线 | 多头排列（短>长）= 上涨趋势；空头排列 = 下跌趋势 |
-| **MACD** | 由快线(DIF)、慢线(DEA)、红绿柱组成 | **金叉**（DIF上穿DEA）= 买入信号；**死叉**（DIF下穿DEA）= 卖出信号 |
-| **RSI** | 衡量价格涨跌强度的指标，范围 0~100 | >70 超买（可能回调）；<30 超卖（可能反弹）；50 中性 |
-| **布林带** | 由上轨、中轨、下轨组成的"通道" | 价格碰下轨可能反弹；碰上轨可能回落 |
-| **量比** | 今日成交量 / 过去5日平均成交量 | >1.5 放量；<0.7 缩量；放量上涨更可靠 |
+| **MA（均线）** | 过去N天平均价格连线 | 多头排列（短>长）= 上涨；空头排列 = 下跌 |
+| **MACD** | 快线、慢线、红绿柱 | **金叉**=买入信号；**死叉**=卖出信号 |
+| **RSI** | 涨跌强度，0~100 | >70超买可能回调；<30超卖可能反弹 |
+| **布林带** | 价格通道（上轨/中轨/下轨） | 价格碰下轨可能反弹；碰上轨可能回落 |
 
 ---
 
-## 配置文件说明
-
-### 股票条目
-
-```yaml
-stocks:
-  - code: "600519"        # 股票代码（6位数字）
-    name: "贵州茅台"       # 显示名称
-    market: "sh"          # sh=上交所，sz=深交所
-    emoji: "🍶"           # 自定义图标
-    position:             # 持仓（可选，不填则不显示盈亏）
-      cost: 1600.0        # 成本价
-      quantity: 50        # 持股数量
-```
-
-### 市场代码
+## 市场代码
 
 | 市场 | 代码 | 示例 |
 |------|------|------|
-| 上交所 | `sh` | 600519（茅台）、600036（招行） |
-| 深交所 | `sz` | 000001（平安）、300750（宁德） |
+| 上交所 | `sh` | 600519（茅台）、588080（科创50ETF） |
+| 深交所 | `sz` | 000001（平安）、002131（利欧） |
 | 北交所 | `bj` | 8开头股票 |
 
-### 推送渠道
-
-```yaml
-push:
-  channel: "feishu"       # console=本地打印, feishu=飞书, telegram=TG
-  times:
-    - "09:15"             # 开盘前
-    - "10:30"             # 早盘
-    - "13:00"             # 午后
-    - "14:50"             # 尾盘
-```
-
 ---
 
-## 飞书推送配置
+## ⚠️ 注意事项
 
-1. 在飞书开放平台创建自定义机器人：
-   - 群设置 → 群机器人 → 添加机器人 → 自定义
-   - 复制 Webhook 地址
-
-2. 在 `config.yaml` 中配置：
-
-```yaml
-push:
-  channel: "feishu"
-  feishu:
-    chat_id: ""           # 飞书 Webhook 地址（通常以 https://open.feishu.cn 开头）
-```
-
-> **注意：** 飞书机器人 Webhook 在 `config.yaml` 中公开，为避免泄露，可在 `config.local.yaml` 中配置（此文件不会随 skill 发布）。
-
----
-
-## Telegram 推送配置
-
-1. 联系 @BotFather 创建机器人，获取 `bot_token`
-2. 向机器人发送消息后，访问 `https://api.telegram.org/bot<TOKEN>/getUpdates` 获取 `chat_id`
-
-```yaml
-push:
-  channel: "telegram"
-  telegram:
-    bot_token: "123456:ABC-DEF..."   # 从 @BotFather 获取
-    chat_id: "987654321"             # 你的 Telegram ID
-```
-
----
-
-## 手动运行模式
-
-```bash
-python3 stock_monitor.py              # 自动检测时段
-python3 stock_monitor.py morning     # 开盘前（09:15）
-python3 stock_monitor.py noon        # 早盘（10:30）
-python3 stock_monitor.py afternoon   # 午后（13:00）
-python3 stock_monitor.py evening     # 尾盘（14:50）
-```
-
----
-
-## 定时任务管理
-
-### macOS（launchd）
-
-```bash
-# 查看状态
-launchctl list | grep stock-monitor
-
-# 停止
-launchctl unload ~/Library/LaunchAgents/com.openclaw.stock-monitor.plist
-
-# 启动
-launchctl load ~/Library/LaunchAgents/com.openclaw.stock-monitor.plist
-```
-
-### Linux（cron）
-
-```bash
-crontab -e
-# 添加：
-# 15 9,10,13,14 * * * /usr/bin/python3 /path/to/stock_monitor.py morning >> logs/cron.log 2>&1
-```
-
----
-
-## 推送脚本说明
-
-`push_stock_report.py` 是 launchd/cron 定时调用的推送入口，负责：
-1. 读取配置文件
-2. 执行 `stock_monitor.py` 获取分析结果
-3. 将结果推送到飞书/Telegram
-
-用户一般不需要直接运行此脚本。
-
----
-
-## 数据来源与限制
-
-| 数据源 | 说明 |
-|--------|------|
-| **实时行情** | 新浪财经 HQ 接口（免费） |
-| **历史K线** | akshare 库（东方财富/新浪） |
-| **行业板块** | 腾讯行情（免费） |
-| **美股隔夜** | akshare 库（免费） |
-| **北向资金** | 东方财富/同花顺（免费） |
-
-> 系统依赖网络获取实时数据，如数据获取失败将跳过该维度。akshare 为第三方库，数据仅供参考。
-
----
-
-## 本地配置与发布版隔离
-
-如果你在本地做了定制，不想让这些信息随 skill 发布：
-
-1. 把私人配置写在 `config.local.yaml`（不会被发布）
-2. `config.yaml` 保持干净模板（发布时用）
-
-Skill 加载配置的优先级：`config.local.yaml` > `config.yaml`
-
----
-
-## 功能列表
-
-| 模块 | 说明 |
-|------|------|
-| 📊 **技术指标** | MA5/10/20/60 均线、MACD 金叉死叉、RSI、布林带、量比 |
-| 💰 **持仓跟踪** | 成本价、盈亏金额/比例、止损建议 |
-| 🏆 **信号评分** | -10 ~ +10 分，自动评级买入/持有/卖出 |
-| 📈 **板块轮动** | 腾讯行业板块强弱排名（前5/后5） |
-| 🌍 **外围市场** | 美股隔夜（道琼斯/纳斯达克/标普500） |
-| 💵 **北向资金** | 沪深港通净买入额 |
-| 📰 **个股新闻** | 东方财富最新新闻 |
-| 🔔 **定时推送** | 每日4次，自动推送到飞书/Telegram |
-
----
-
-## 注意事项
-
-1. 本系统仅作为投资决策参考，不构成投资建议
+1. 本系统仅作为投资参考，不构成投资建议
 2. 历史数据不代表未来走势
-3. 系统依赖网络获取实时数据，如数据获取失败将跳过该维度
-4. 每次推送仅供参考，决策需自行判断
+3. 依赖网络获取实时数据，网络波动时可能降级为简化模式

@@ -1,11 +1,17 @@
 {
   "owner": "wuliwenjing",
   "slug": "stocks-quant-assistant",
-  "displayName": "股票量化智能助手",
+  "displayName": "Stocks Quant Assistant",
   "latest": {
-    "version": "2.0.0",
-    "publishedAt": 1774171758979,
-    "commit": "https://github.com/openclaw/skills/commit/163c08d7aceca59f30ac403eae9e7cb6cc5d8b65"
+    "version": "3.0.5",
+    "publishedAt": 1774317120311,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "2.0.0",
+      "publishedAt": 1774171758979,
+      "commit": "https://github.com/openclaw/skills/commit/163c08d7aceca59f30ac403eae9e7cb6cc5d8b65"
+    }
+  ]
 }

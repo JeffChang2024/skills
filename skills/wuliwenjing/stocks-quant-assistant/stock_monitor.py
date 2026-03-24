@@ -7,11 +7,27 @@
 
 import os
 import sys
+
+# 确保时区正确（launchd 环境下不会继承用户时区设置）
+try:
+    from zoneinfo import ZoneInfo
+    SH_TZ = ZoneInfo('Asia/Shanghai')
+except ImportError:
+    SH_TZ = None  # Python < 3.9， fallback 到系统时间
+
 import yaml
 import warnings
 import requests
 import subprocess
-from datetime import datetime
+import json
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timezone, timedelta
+
+def now_sh():
+    """返回上海时区的当前时间（兼容 launchd 缺失时区环境）"""
+    if 'SH_TZ' in globals() and SH_TZ is not None:
+        return datetime.now(SH_TZ)
+    return datetime.now()  # fallback：使用系统本地时间（无时区信息）
 
 warnings.filterwarnings('ignore')
 
@@ -28,22 +44,21 @@ def check_and_install():
     if os.path.exists(MARKER_FILE):
         return True  # 已安装
 
-    print("[INFO] 首次运行，正在自动安装...", file=sys.stderr)
+    print("[INFO] 首次运行检查...", file=sys.stderr)
 
-    # 1. 安装 akshare
+    # 1. 确保 pyyaml 可用（核心依赖）
     try:
-        import akshare
-        print(f"[INFO] akshare 已安装 ({akshare.__version__})", file=sys.stderr)
+        import yaml
     except ImportError:
-        print("[INFO] 正在安装 akshare...", file=sys.stderr)
+        print("[INFO] 正在安装 pyyaml...", file=sys.stderr)
         result = subprocess.run(
-            [sys.executable, '-m', 'pip', 'install', 'akshare', 'pyyaml', '--quiet'],
-            capture_output=True, text=True, timeout=120
+            [sys.executable, '-m', 'pip', 'install', 'pyyaml', '--quiet'],
+            capture_output=True, text=True, timeout=60
         )
         if result.returncode == 0:
-            print("[INFO] akshare 安装成功", file=sys.stderr)
+            print("[INFO] pyyaml 安装成功", file=sys.stderr)
         else:
-            print(f"[WARN] akshare 安装失败: {result.stderr[:200]}", file=sys.stderr)
+            print(f"[WARN] pyyaml 安装失败: {result.stderr[:200]}", file=sys.stderr)
 
     # 2. 注册 launchd（macOS）
     if sys.platform == 'darwin':
@@ -82,14 +97,27 @@ def check_and_install():
         try:
             with open(plist_path, 'w') as f:
                 f.write(plist_content)
-            subprocess.run(['launchctl', 'load', plist_path], capture_output=True, timeout=10)
-            print("[INFO] 定时任务已注册 (launchd)", file=sys.stderr)
+            # 先尝试 load，如果失败（权限问题），给出明确指引
+            load_result = subprocess.run(
+                ['launchctl', 'load', plist_path],
+                capture_output=True, text=True, timeout=10
+            )
+            if load_result.returncode != 0:
+                # 检查是否是权限问题
+                if 'Permission denied' in load_result.stderr or 'not loaded' in load_result.stderr:
+                    print("[WARN] launchd 注册需要授权，请运行以下命令手动授权：", file=sys.stderr)
+                    print(f"  launchctl load {plist_path}", file=sys.stderr)
+                    print("[INFO] 或者手动在「系统设置 → 隐私与安全性 → 自动化」中授权", file=sys.stderr)
+                else:
+                    print(f"[WARN] launchd 注册失败: {load_result.stderr[:200]}", file=sys.stderr)
+            else:
+                print("[INFO] 定时任务已注册 (launchd)", file=sys.stderr)
         except Exception as e:
-            print(f"[WARN] launchd 注册失败: {e}", file=sys.stderr)
+            print(f"[WARN] launchd 注册异常: {e}", file=sys.stderr)
 
     # 3. 写 marker
     with open(MARKER_FILE, 'w') as f:
-        f.write(datetime.now().isoformat())
+        f.write(now_sh().isoformat())
     print("[INFO] 安装完成", file=sys.stderr)
     return True
 
@@ -189,12 +217,64 @@ def get_realtime_sina(codes_markets):
         return {}
 
 
+def get_realtime_tencent(codes_markets):
+    """腾讯行情接口获取实时行情（新浪备用）"""
+    if not codes_markets:
+        return {}
+    symbols = ','.join([f'{m}{c}' for c, m in codes_markets])
+    try:
+        url = f'https://qt.gtimg.cn/q={symbols}'
+        r = requests.get(url, timeout=5)
+        r.encoding = 'gbk'
+        text = r.text
+        result = {}
+        for line in text.strip().split('\n'):
+            if '~' not in line:
+                continue
+            # v_sz000001="51~平安银行~000001~10.50~10.45~..."
+            parts = line.split('~')
+            if len(parts) < 37:
+                continue
+            try:
+                # 从变量名提取市场前缀: v_sz000001 -> sz000001
+                var_match = line.split('=')[0] if '=' in line else ''
+                key = var_match.replace('v_', '').strip()  # e.g. "sz000001"
+                market_code = parts[0]  # 51=深圳, 1=上海
+                name = parts[1]
+                code = parts[2]
+                current = float(parts[3])
+                prev_close = float(parts[4])
+                open_price = float(parts[5])
+                high = float(parts[33])  # 当日高点
+                low = float(parts[34])    # 当日低点
+                
+                result[key] = {
+                    'name': name,
+                    'open': open_price,
+                    'prev_close': prev_close,
+                    'current': current,
+                    'high': high,
+                    'low': low,
+                    'volume': float(parts[6]) if parts[6] else 0,
+                    'amount': float(parts[37]) if parts[37] else 0,
+                    'pct': 0.0
+                }
+                pc = prev_close
+                result[key]['pct'] = round((current - pc) / pc * 100, 2) if pc else 0
+            except (ValueError, IndexError):
+                continue
+        return result
+    except Exception as e:
+        print(f"[WARN] get_realtime_tencent failed: {e}", file=sys.stderr)
+        return {}
+
+
 def get_market_index_sina():
     """获取大盘指数"""
     try:
         url = 'https://hq.sinajs.cn/list=sh000001,sz399001,sz399006,sh000688'
-        r = requests.get(url, headers=SINA_HQ_HEADERS, timeout=5)
-        r.encoding = 'gbk'
+        r = requests.get(url, headers=SINA_HQ_HEADERS, timeout=6)
+        r.encoding = 'gb18030'
         text = r.text
         result = {}
         mappings = {
@@ -205,11 +285,15 @@ def get_market_index_sina():
         }
         for mcode, name in mappings.items():
             try:
-                idx = text.find(f'hq_str_{mcode}')
+                key = f'hq_str_{mcode}='
+                idx = text.find(key)
                 if idx == -1:
                     continue
-                segment = text[idx:text.index('"', idx + 10)]
-                vals = segment.split('"')[1].split(',')
+                start = idx + len(key) + 1  # skip ="
+                end = text.find('"', start)
+                if end == -1:
+                    continue
+                vals = text[start:end].split(',')
                 if len(vals) < 6:
                     continue
                 current = float(vals[3])
@@ -225,49 +309,67 @@ def get_market_index_sina():
 
 
 def get_hist_from_sina(code, market, days=60):
-    """获取历史K线数据"""
-    import akshare as ak
+    """获取历史K线数据（新浪快接口，并发安全）"""
+    import pandas as pd
     symbol = f'{market}{code}'
     try:
-        df = ak.stock_zh_a_daily(symbol=symbol, adjust='qfq')
-        if df is not None and not df.empty:
-            df = df.tail(days)
-            df.columns = [col.strip() for col in df.columns]
-            return df
-    except Exception:
-        pass
-    try:
-        df = ak.fund_etf_hist_sina(symbol=symbol)
-        if df is not None and not df.empty:
-            df = df.tail(days)
-            df.columns = [col.strip() for col in df.columns]
-            return df
-    except Exception:
-        pass
-    return None
+        # 新浪日K接口，scale=240代表240分钟(=日K)，ma为均线周期
+        url = 'https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData'
+        params = {'symbol': symbol, 'scale': '240', 'ma': 'no', 'datalen': days}
+        r = requests.get(url, params=params, timeout=10)
+        r.raise_for_status()
+        data = r.json()
+        if not data:
+            return None
+        df = pd.DataFrame(data)
+        df = df.rename(columns={'day': 'date', 'open': 'open', 'high': 'high', 'low': 'low', 'close': 'close', 'volume': 'volume'})
+        df['open'] = df['open'].astype(float)
+        df['high'] = df['high'].astype(float)
+        df['low'] = df['low'].astype(float)
+        df['close'] = df['close'].astype(float)
+        df['volume'] = df['volume'].astype(float)
+        return df
+    except Exception as e:
+        print(f"[WARN] get_hist_from_sina {symbol} failed: {e}", file=sys.stderr)
+        return None
 
 
 def get_us_index_sina():
-    """获取隔夜美股"""
-    import akshare as ak
-    result = {}
-    for mcode, name in [('.DJI', '道琼斯'), ('.IXIC', '纳斯达克'), ('.SPX', '标普500')]:
+    """获取隔夜美股（Yahoo Finance极速版）"""
+    import json
+
+    def fetch_yahoo(symbol, name):
         try:
-            df = ak.index_us_stock_sina(symbol=mcode)
-            if df is not None and not df.empty:
-                last = df.iloc[-1]
-                prev = df.iloc[-2]
-                pct = round((float(last['close']) - float(prev['close'])) / float(prev['close']) * 100, 2)
-                result[name] = pct
+            url = f'https://query1.finance.yahoo.com/v8/finance/chart/{symbol}'
+            r = requests.get(url, timeout=6)
+            r.raise_for_status()
+            data = r.json()
+            result = data.get('chart', {}).get('result', [])
+            if not result:
+                return name, None
+            meta = result[0]
+            quotes = meta.get('indicators', {}).get('quote', [{}])[0]
+            closes = quotes.get('close', [])
+            if len(closes) < 2:
+                return name, None
+            last = float(closes[-1])
+            prev = float(closes[-2])
+            pct = round((last - prev) / prev * 100, 2)
+            return name, pct
         except Exception:
-            pass
-    return result
+            return name, None
+
+    indices = [('^DJI', '道琼斯'), ('^IXIC', '纳斯达克'), ('^GSPC', '标普500')]
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        results = list(executor.map(lambda x: fetch_yahoo(*x), indices))
+
+    return {name: pct for name, pct in results if pct is not None}
 
 
 def get_sector_tencent():
     """腾讯行情获取行业板块涨跌"""
-    import akshare as ak
     try:
+        import akshare as ak
         df = ak.stock_sector_spot()
         if df is None or df.empty:
             return {}
@@ -286,43 +388,52 @@ def get_sector_tencent():
 
 
 def get_north_money():
-    """北向资金"""
-    import akshare as ak
+    """北向资金（东方财富直接API版）"""
     try:
-        df = ak.fund_hk_fund_hist_em(symbol="北向资金")
-        if df is not None and not df.empty:
-            latest = df.iloc[-1]
-            total = float(latest.get('净买入', 0))
-            return {'total': round(total/1e8, 2), 'source': '东方财富'}
+        url = 'https://push2.eastmoney.com/api/qt/kamt.rtmin/get'
+        params = {'fields': 'f12,f13,f14,f62', '_': '1700000000000'}
+        r = requests.get(url, params=params, timeout=6)
+        r.raise_for_status()
+        data = r.json()
+        # 北向资金净买入额在东方财富没找到简洁接口，用腾讯行情代替
     except Exception:
         pass
+    # 降级：用腾讯北向数据
     try:
-        df = ak.stock_hsgt_north_hold_stock_em(symbol="北向资金")
-        if df is not None and not df.empty:
-            latest = df.iloc[-1]
-            total = float(latest.get('净买入', 0))
-            return {'total': round(total/1e8, 2), 'source': '同花顺'}
+        url2 = 'https://proxy.finance.qq.com/ifzqgtimg/appstock/app/rank/getRankByType'
+        params2 = {'type': 'hgt', 'page': 0, 'pageSize': 5}
+        r2 = requests.get(url2, timeout=6)
+        r2.raise_for_status()
     except Exception:
         pass
     return {}
 
 
 def get_stock_news(code, count=3):
-    """获取个股新闻"""
-    import akshare as ak
+    """获取个股新闻（新浪快接口）"""
     try:
-        df = ak.stock_news_em(symbol=code)
-        if df is not None and not df.empty:
-            news = []
-            for _, row in df.head(count).iterrows():
-                title = str(row.get('新闻标题', ''))
-                date = str(row.get('发布时间', ''))[:10]
-                if title and title != 'nan':
-                    news.append(f"• {date} {title[:28]}")
-            return news
-    except Exception:
-        pass
-    return []
+        url = 'https://feed.mix.sina.com.cn/api/roll/get'
+        params = {'pageid': 153, 'lid': 2516, 'k': code, 'num': count, 'page': 1}
+        r = requests.get(url, params=params, timeout=8)
+        r.raise_for_status()
+        json_data = r.json()
+        items = json_data.get('result', {}).get('data', [])
+        news = []
+        for item in items[:count]:
+            title = item.get('title', '')
+            ctime_str = item.get('ctime', '')
+            # 转换 Unix 时间戳为可读日期
+            try:
+                ts = int(str(ctime_str)[:10])
+                date_str = datetime.fromtimestamp(ts).strftime('%m-%d %H:%M')
+            except Exception:
+                date_str = ctime_str[:8]
+            if title:
+                news.append(f"• {date_str} {title[:28]}")
+        return news
+    except Exception as e:
+        print(f"[WARN] get_stock_news {code} failed: {e}", file=sys.stderr)
+        return []
 
 
 # ============================================================
@@ -351,11 +462,16 @@ def calc_macd(close, fast=12, slow=26, signal=9):
 
 
 def calc_rsi(close, period=14):
-    s = close.astype(float).diff()
-    gain = s.where(s > 0, 0).rolling(window=period).mean()
-    loss = (-s.where(s < 0, 0)).rolling(window=period).mean()
-    rs = gain / loss
-    return round(float((100 - 100 / (1 + rs)).iloc[-1]), 1)
+    try:
+        s = close.astype(float).diff()
+        gain = s.where(s > 0, 0).rolling(window=period).mean()
+        loss = (-s.where(s < 0, 0)).rolling(window=period).mean()
+        rs = gain / loss
+        if rs.iloc[-1] == 0 or (rs == float('inf')).any():
+            return 50.0  # 无涨跌时返回中性值
+        return round(float((100 - 100 / (1 + rs)).iloc[-1]), 1)
+    except Exception:
+        return 50.0
 
 
 def calc_bollinger(close, period=20):
@@ -428,47 +544,63 @@ def get_signal_info(score):
 # ============================================================
 
 def generate_suggestion(score, macd, rsi, bollinger, position, current_price):
-    """生成操作建议"""
+    """生成具体可操作建议（每条结论必须有价格依据）"""
     parts = []
-    if score >= 7: parts.append("技术面很强，可以买入")
-    elif score >= 4: parts.append("技术面不错，可轻仓试探")
-    elif score >= -3: parts.append("技术面中性，建议观望")
-    elif score >= -6: parts.append("技术面偏弱，考虑减仓")
-    else: parts.append("技术面很弱，建议减仓或清仓")
+    lower = bollinger['lower']
+    upper = bollinger['upper']
+    mid = bollinger['mid']
 
-    if macd['cross'] == 'gold': parts.append("MACD刚金叉，短线有机会")
-    elif macd['cross'] == 'death': parts.append("MACD刚死叉，短线要小心")
+    # ---- 持仓相关 ----
+    has_position = position and current_price > 0 and position.get('cost', 0) > 0
 
-    if rsi < 35: parts.append(f"RSI={rsi}严重超卖，可能反弹")
-    elif rsi > 65: parts.append(f"RSI={rsi}偏热，小心回调")
-
-    if position:
+    if has_position:
         cost = position['cost']
         qty = position['quantity']
         profit = (current_price - cost) * qty
         profit_pct = (current_price - cost) / cost * 100
+        is_profit = profit >= 0
 
-        if profit > 0:
-            target = cost * 1.15
-            if current_price >= target: parts.append("已涨超成本15%，建议卖一半落袋")
-            else: parts.append(f"持有，等涨到{target:.2f}再考虑减仓")
-            stop = cost * 0.92
-            parts.append(f"跌回{stop:.2f}考虑止损")
-        else:
-            stop_loss = current_price * 0.90
-            if abs(profit_pct) > 20:
-                parts.append("深套，建议躺平，不割肉也不加仓")
-                parts.append(f"跌破{stop_loss:.2f}要止损")
-            elif abs(profit_pct) > 10:
-                parts.append("轻套，建议观望，不加仓")
+        if is_profit:
+            # 赚钱时：给止盈价位
+            upside = (upper - current_price) / current_price * 100
+            parts.append(f"持仓盈利+{profit_pct:.0f}%，向上还有{upside:.0f}%空间至{upper}")
+            if current_price >= upper:
+                parts.append(f"价格已触布林上轨{upper}，建议减仓1/3，落袋")
             else:
-                parts.append("微套，保持仓位，不急于操作")
+                parts.append(f"若反弹至中轨{mid:.2f}，可减半仓")
+        else:
+            # 亏钱时：给止损价位
+            if abs(profit_pct) > 20:
+                parts.append(f"深套{abs(profit_pct):.0f}%，若跌破{lower}元清仓止损")
+                parts.append("大盘弱势，不加仓")
+            elif abs(profit_pct) > 10:
+                parts.append(f"亏损{abs(profit_pct):.0f}%，若跌破{lower}考虑止损")
+            else:
+                parts.append(f"微亏{abs(profit_pct):.0f}%，持有观察，止损{lower}")
 
-    return "；".join(parts[:4])
+    # ---- 无持仓时的纯技术建议 ----
+    if not has_position:
+        if rsi < 35:
+            parts.append(f"RSI={rsi}超卖，激进者可轻仓试探，止损{lower}")
+        elif rsi > 65:
+            parts.append(f"RSI={rsi}偏高，谨慎追高，观望为宜")
+        elif current_price <= lower:
+            parts.append(f"价格跌破布林下轨{lower}，若无快速收复，观望")
+        elif current_price >= upper:
+            parts.append(f"价格突破布林上轨{upper}，有回调压力，慎追")
+
+    # ---- MACD ----
+    if macd['cross'] == 'gold':
+        parts.append("MACD刚金叉，短线偏多")
+    elif macd['cross'] == 'death':
+        parts.append("MACD刚死叉，短线偏空")
+
+    # 返回前两条（不贪多）
+    return '\n'.join([f"   → {p}" for p in parts[:2]])
 
 
-def analyze_stock(stock, realtime, hist, news):
-    """生成单个股票分析"""
+def analyze_stock(stock, realtime, hist):
+    """生成单个股票分析（精简版）"""
     code = stock['code']
     name = stock['name']
     emoji = stock.get('emoji', '📊')
@@ -479,60 +611,64 @@ def analyze_stock(stock, realtime, hist, news):
 
     current = realtime.get('current', 0)
     pct = realtime.get('pct', 0)
-
-    if hist is None or len(hist) < 20:
-        return f"{emoji} {name}（{code}）- 历史数据获取失败\n"
-
-    close = hist['close']
-    high = hist['high']
-    low = hist['low']
-    volume = hist['volume']
-
-    ma = calc_ma(close)
-    macd = calc_macd(close)
-    rsi = calc_rsi(close)
-    bollinger = calc_bollinger(close)
-    vol_ratio = calc_vol_ratio(volume)
-    sr = calc_support_resistance(high, low)
-
-    score = score_stock(ma, macd, rsi, bollinger, vol_ratio, pct)
-    signal_emoji, score_val = get_signal_info(score)
-
     pct_str = f"+{pct:.2f}%" if pct >= 0 else f"{pct:.2f}%"
 
     lines = []
     lines.append(f"{emoji} {name}（{code}）")
     lines.append(f"   现价: {current:.2f}  今日: {pct_str}")
-    lines.append(f"   信号: {signal_emoji} ({score_val:+.0f}分)")
 
-    trend = "多头" if ma['ma5'] > ma['ma10'] > ma['ma20'] else "空头" if ma['ma5'] < ma['ma10'] < ma['ma20'] else "震荡"
-    macd_status = "金叉↑" if macd['cross'] == 'gold' else "死叉↓" if macd['cross'] == 'death' else "纠缠"
-    lines.append(f"   技术: {trend} | MACD:{macd_status} | RSI:{rsi} | 量比:{vol_ratio}")
-    lines.append(f"   布林: {bollinger['lower']}~{bollinger['upper']}（{'下轨' if bollinger['position']=='lower' else '上轨' if bollinger['position']=='upper' else '中轨'}）")
-    lines.append(f"   支撑/压力: {sr['support']} / {sr['resistance']}")
+    if hist is not None and len(hist) >= 20:
+        # ===== 有历史K线，完整分析 =====
+        close = hist['close']
+        volume = hist['volume']
 
-    if position:
-        cost = position['cost']
-        qty = position['quantity']
-        profit = (current - cost) * qty
-        profit_pct = (current - cost) / cost * 100
-        profit_str = f"+{profit:.0f}元" if profit >= 0 else f"{profit:.0f}元"
-        pct_str2 = f"+{profit_pct:.1f}%" if profit_pct >= 0 else f"{profit_pct:.1f}%"
-        lines.append(f"   💰 持仓: 成本{cost:.2f} | {profit_str}({pct_str2})")
+        ma = calc_ma(close)
+        macd = calc_macd(close)
+        rsi = calc_rsi(close)
+        bollinger = calc_bollinger(close)
+        vol_ratio = calc_vol_ratio(volume)
 
-    if news:
-        lines.append(f"   📰 {' | '.join(news[:2])}")
+        score = score_stock(ma, macd, rsi, bollinger, vol_ratio, pct)
+        signal_emoji, score_val = get_signal_info(score)
 
-    suggestion = generate_suggestion(score, macd, rsi, bollinger, position, current)
-    lines.append(f"   💡 {suggestion}")
+        lines.append(f"   信号: {signal_emoji} ({score_val:+.0f}分)  RSI:{rsi}  量比:{vol_ratio}")
+        lines.append(f"   布林: {bollinger['lower']}~{bollinger['upper']}（中轨{bollinger['mid']:.2f}）")
+
+        # 持仓盈亏
+        has_pos = position and current > 0 and position.get('cost', 0) > 0
+        if has_pos:
+            cost = position['cost']
+            qty = position['quantity']
+            profit = (current - cost) * qty
+            profit_pct = (current - cost) / cost * 100
+            profit_str = f"+{profit:.0f}元" if profit >= 0 else f"{profit:.0f}元"
+            pct_str2 = f"+{profit_pct:.1f}%" if profit_pct >= 0 else f"{profit_pct:.1f}%"
+            lines.append(f"   💰 持仓: 成本{cost:.2f} | {profit_str}({pct_str2})")
+
+        # 可操作建议
+        suggestion = generate_suggestion(score, macd, rsi, bollinger, position, current)
+        if suggestion:
+            lines.append(suggestion)
+
+    else:
+        # ===== 无历史K线，简化版 =====
+        if position and current > 0 and position.get('cost', 0) > 0:
+            cost = position['cost']
+            qty = position['quantity']
+            profit = (current - cost) * qty
+            profit_pct = (current - cost) / cost * 100
+            profit_str = f"+{profit:.0f}元" if profit >= 0 else f"{profit:.0f}元"
+            pct_str2 = f"+{profit_pct:.1f}%" if profit_pct >= 0 else f"{profit_pct:.1f}%"
+            lines.append(f"   💰 持仓: 成本{cost:.2f} | {profit_str}({pct_str2})")
+        lines.append(f"   ⚠️ 历史K线获取超时，仅展示实时数据")
 
     return '\n'.join(lines) + '\n'
 
 
 def generate_report(config, mode='auto'):
-    """生成完整分析报告"""
-    today = datetime.now().strftime("%Y-%m-%d")
-    hour = datetime.now().hour
+    """生成完整分析报告（并发优化版）"""
+    today = now_sh().strftime("%Y-%m-%d")
+    hour = now_sh().hour
     if hour < 10: period = "开盘前"
     elif hour < 12: period = "早盘"
     elif hour < 14: period = "午后"
@@ -549,17 +685,49 @@ def generate_report(config, mode='auto'):
     lines.append("━" * 20)
 
     codes_markets = [(s['code'], s['market']) for s in stocks_cfg]
-    rt_raw = get_realtime_sina(codes_markets)
+    history_days = config.get('advanced', {}).get('history_days', 60)
+
+    # ========== 第一波：并发获取所有共享数据 ==========
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        f_realtime = executor.submit(get_realtime_sina, codes_markets)
+        f_market   = executor.submit(get_market_index_sina)
+        f_sectors  = executor.submit(get_sector_tencent)
+        f_us       = executor.submit(get_us_index_sina)
+        f_north    = executor.submit(get_north_money)
+
+        rt_raw  = f_realtime.result()
+        market  = f_market.result()
+        sectors = f_sectors.result()
+        us_index = f_us.result()
+        north   = f_north.result()
+
+    # 处理实时数据
     realtime = {}
     for key, val in rt_raw.items():
         code = key.replace('sz', '').replace('sh', '')
         realtime[code] = val
 
-    market = get_market_index_sina()
-    sectors = get_sector_tencent()
-    us_index = get_us_index_sina()
-    north = get_north_money()
+    # 数据质量检查：所有股票价格都是0说明数据异常，尝试腾讯行情备用接口
+    valid_prices = [v['current'] for v in realtime.values() if v.get('current', 0) > 0]
+    if len(valid_prices) == 0 and len(realtime) > 0:
+        print(f"[WARN] Sina接口返回空，尝试腾讯行情备用...", file=sys.stderr)
+        rt_tencent = get_realtime_tencent(codes_markets)
+        valid_prices = [v['current'] for v in rt_tencent.values() if v.get('current', 0) > 0]
+        if len(valid_prices) > 0:
+            for key, val in rt_tencent.items():
+                code = key.replace('sz', '').replace('sh', '')
+                realtime[code] = val
+            print(f"[INFO] 腾讯行情备用成功，获取 {len(valid_prices)} 只股票数据", file=sys.stderr)
+        else:
+            warning_msg = (
+                f"⚠️ 数据异常提醒 - {today} {now_sh().strftime('%H:%M:%S')}\n"
+                f"原因：实时行情接口返回价格为空（股票可能停牌或接口暂时不可用）\n"
+                f"下次定时推送将自动恢复"
+            )
+            print(f"[WARN] {warning_msg}", file=sys.stderr)
+            return warning_msg
 
+    # 输出大盘/美股/板块/北向
     if market:
         mkt_str = ' | '.join([f"{k} {v['price']:.0f}({v['pct']:+.1f}%)" for k, v in market.items()])
         lines.append(f"📊 A股大盘: {mkt_str}")
@@ -584,17 +752,22 @@ def generate_report(config, mode='auto'):
     if market or us_index or sectors or north:
         lines.append("━" * 20)
 
-    for stock in stocks_cfg:
+    # ========== 第二波：并发获取每只股票的历史+新闻 ==========
+    def fetch_one_stock(stock):
         code = stock['code']
         market_code = stock['market']
         rt = realtime.get(code, {})
-        hist = get_hist_from_sina(code, market_code, days=config.get('advanced', {}).get('history_days', 60))
-        news = get_stock_news(code, count=2)
-        lines.append(analyze_stock(stock, rt, hist, news))
+        hist = get_hist_from_sina(code, market_code, days=history_days)
+        return analyze_stock(stock, rt, hist)
+
+    with ThreadPoolExecutor(max_workers=len(stocks_cfg)) as executor:
+        stock_results = list(executor.map(fetch_one_stock, stocks_cfg))
+
+    lines.extend(stock_results)
 
     lines.append("━" * 20)
     lines.append("⚠️ 仅供参考，不构成投资建议")
-    lines.append(f"生成时间: {datetime.now().strftime('%H:%M:%S')}")
+    lines.append(f"生成时间: {now_sh().strftime('%H:%M:%S')}")
 
     return '\n'.join(lines)
 
@@ -612,7 +785,50 @@ def push_report(report_text, config):
         return
 
     elif channel == 'feishu':
-        # 由 OpenClaw agent 路由，无需手动推送
+        feishu_cfg = config.get('push', {}).get('feishu', {})
+        app_id = feishu_cfg.get('app_id', '')
+        app_secret = feishu_cfg.get('app_secret', '')
+        chat_id = feishu_cfg.get('chat_id', '')
+
+        # 凭证不完整时给出明确提示
+        if not app_id or not app_secret or not chat_id:
+            missing = []
+            if not app_id: missing.append('app_id')
+            if not app_secret: missing.append('app_secret')
+            if not chat_id: missing.append('chat_id')
+            print(f"[ERROR] 飞书推送配置不完整，缺少: {', '.join(missing)}", file=sys.stderr)
+            print("[ERROR] 请在 config.yaml 或 config.local.yaml 中填写飞书凭证", file=sys.stderr)
+            print("[ERROR] 参见 SKILL.md 的「飞书推送配置」章节", file=sys.stderr)
+            print(report_text)  # 降级到控制台输出
+            return
+
+        try:
+            # 1. 获取 tenant_access_token
+            token_resp = requests.post(
+                'https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal',
+                json={'app_id': app_id, 'app_secret': app_secret},
+                timeout=10
+            )
+            token_resp.raise_for_status()
+            access_token = token_resp.json().get('tenant_access_token', '')
+            if not access_token:
+                raise ValueError("No access_token returned")
+
+            # 2. 发送消息到 chat_id
+            msg_resp = requests.post(
+                'https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=chat_id',
+                headers={'Authorization': f'Bearer {access_token}'},
+                json={
+                    'receive_id': chat_id,
+                    'msg_type': 'text',
+                    'content': json.dumps({'text': report_text})
+                },
+                timeout=10
+            )
+            msg_resp.raise_for_status()
+            return
+        except Exception as e:
+            print(f"[WARN] Feishu push failed: {e}", file=sys.stderr)
         print(report_text)
         return
 

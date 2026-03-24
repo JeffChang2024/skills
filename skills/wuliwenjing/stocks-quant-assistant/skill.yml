@@ -1,8 +1,9 @@
 name: stock-monitor
-version: 2.0.0
+version: 3.0.5
 description: |
   A股股票量化监控与每日推送系统。用户配置股票池后自动分析 MA/MACD/RSI/布林带，
-  生成信号评分和操作建议，每日4次定时推送。支持持仓跟踪、板块轮动、北向资金、美股隔夜。
+  生成信号评分和操作建议，每日4次定时推送。支持持仓跟踪、板块轮动、美股隔夜。
+  下载后只需填写配置文件，即可每日自动推送到飞书/Telegram。
 short_description: A股量化监控 + 定时推送
 author: Owen
 homepage: https://clawhub.com
