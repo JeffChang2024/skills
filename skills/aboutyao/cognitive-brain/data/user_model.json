@@ -5,11 +5,18 @@
     "timezone": "Asia/Shanghai"
   },
   "preferences": {
-    "topics": {}
+    "topics": {
+      "AI": 0.4,
+      "记忆": 0.5,
+      "聊天": 0.7
+    }
   },
   "patterns": {
     "activeHours": [
-      21
+      10,
+      21,
+      8,
+      9
     ],
     "commonTasks": {}
   },
@@ -18,7 +25,7 @@
     "expertiseAreas": []
   },
   "stats": {
-    "totalInteractions": 1,
-    "lastInteraction": 1774012063117
+    "totalInteractions": 14,
+    "lastInteraction": 1774059357865
   }
 }

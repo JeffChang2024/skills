@@ -6,7 +6,7 @@ metadata:
     "openclaw":
       {
         "emoji": "🧠",
-        "events": ["message:preprocessed"],
+        "events": ["agent:bootstrap", "message:preprocessed"],
         "requires": { "bins": ["node"] }
       }
   }
@@ -14,13 +14,13 @@ metadata:
 
 # Cognitive Recall Hook
 
-Automatically recalls user context from Cognitive Brain's PostgreSQL memory store when processing messages, enabling cross-session memory continuity.
+Automatically recalls user context from Cognitive Brain's PostgreSQL memory store at session bootstrap, enabling cross-session memory continuity.
 
 ## What It Does
 
-1. Triggers on every inbound message after preprocessing
+1. Triggers on agent bootstrap (session start)
 2. Queries Cognitive Brain for user preferences, important facts, recent episodes
-3. Injects memory context into the message for the agent to see
+3. Injects memory context into the bootstrap files for the agent to see
 
 ## Requirements
 

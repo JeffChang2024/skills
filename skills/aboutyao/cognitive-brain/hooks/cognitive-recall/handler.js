@@ -6,6 +6,13 @@ const { createLogger } = require('../../src/utils/logger.cjs');
 // 创建模块级 logger
 const logger = createLogger('cognitive-recall');
 
+// 强制日志：验证 hook 是否被触发
+const HOOK_TRIGGER_LOG = '/tmp/cognitive-recall-triggered.log';
+const logTrigger = () => {
+  const timestamp = new Date().toISOString();
+  fs.appendFileSync(HOOK_TRIGGER_LOG, `[${timestamp}] Hook triggered!\n`);
+};
+
 // Cognitive Brain config
 const HOME = process.env.HOME || '/root';
 const SKILL_DIR = path.join(HOME, '.openclaw/workspace/skills/cognitive-brain');
@@ -89,7 +96,7 @@ async function getLessonsFromSharedMemory() {
 
   if (sharedMemory) {
     try {
-      const lessons = await sharedMemory.getLessons();
+    const lessons = await sharedMemory.getLessons();
       return lessons.map(l => ({
         summary: l.content.substring(0, 100),
         content: l.content,
@@ -97,12 +104,26 @@ async function getLessonsFromSharedMemory() {
         source: 'shared_memory'
       }));
     } catch (e) {
-      logger.info('[cognitive-recall] Shared memory query failed, no fallback enabled');
+      logger.info('[cognitive-recall] Shared memory query failed, trying episodes fallback');
     }
   }
 
-  // Fallback disabled - database only mode
-  return [];
+  // Fallback: 直接从 episodes 表获取最近的记忆
+  try {
+    const pool = getDbPool();
+    const result = await pool.query('SELECT id, content, created_at FROM episodes ORDER BY created_at DESC LIMIT 10');
+    logger.info('[cognitive-recall] Retrieved', result.rows.length, 'episodes from database');
+    return result.rows.map(r => ({
+      summary: r.content.substring(0, 100),
+      content: r.content,
+      importance: 0.5,
+      source: 'episodes',
+      created_at: r.created_at
+    }));
+  } catch (e) {
+    logger.error('[cognitive-recall] Episodes fallback failed:', e.message);
+    return [];
+  }
 }
 
 // ============================================================================
@@ -955,31 +976,144 @@ const { predictAndPreload } = require(path.join(SKILL_DIR, 'scripts/core/predict
 // ============================================================================
 
 const handler = async (event) => {
-  // Handle preprocessed - recall memory for user message
-  if (event.type === 'message' && event.action === 'preprocessed') {
+  // Handle agent:bootstrap - inject memory context at session start
+  if (event.type === 'agent' && event.action === 'bootstrap') {
+    return handleBootstrap(event);
+  }
+  
+  // Handle message:preprocessed - recall memory for each message
+  if (event.type === 'message' && event.stage === 'preprocessed') {
     return handlePreprocessed(event);
   }
 };
 
-// Handle preprocessed event - recall memory
+// Handle bootstrap event - inject memory context
+const handleBootstrap = async (event) => {
+  // 强制日志：验证 hook 被触发
+  logTrigger();
+
+  logger.info('[cognitive-recall] handleBootstrap called');
+
+  // Skip if no context
+  if (!event.context) return;
+
+  const context = event.context;
+  const sessionKey = context.sessionKey || '';
+
+  // 只在私聊会话中注入记忆
+  if (sessionKey.includes(':group:') || sessionKey.includes('group')) {
+    logger.info('[cognitive-recall] Skipping group session');
+    return;
+  }
+
+  try {
+    // 使用多个查询获取更多记忆
+    const brain = getBrain();
+    let memories = [];
+    
+    if (brain) {
+      try {
+        // 多个语义查询
+        const queries = ['用户偏好', '重要配置', '教训', 'master', '定时任务'];
+        const results = await Promise.all(queries.map(q => brain.recall(q, { limit: 3 })));
+        
+        // 去重
+        const uniqueMemories = new Map();
+        results.flat().forEach(m => {
+          if (!uniqueMemories.has(m.id)) {
+            uniqueMemories.set(m.id, m);
+          }
+        });
+        memories = Array.from(uniqueMemories.values());
+        logger.info('[cognitive-recall] Brain recall found:', memories.length, 'memories');
+      } catch (e) {
+        logger.warn('[cognitive-recall] Brain recall failed:', e.message);
+      }
+    }
+    
+    // 如果 brain 失败，直接查询数据库
+    if (memories.length === 0) {
+      try {
+        const pool = getDbPool();
+        if (pool) {
+          const result = await pool.query(`
+            SELECT id, summary, content, type, importance, created_at 
+            FROM episodes 
+            ORDER BY importance DESC, created_at DESC 
+            LIMIT 10
+          `);
+          memories = result.rows;
+          logger.info('[cognitive-recall] DB fallback found:', memories.length, 'memories');
+        }
+      } catch (e) {
+        logger.error('[cognitive-recall] DB query failed:', e.message);
+      }
+    }
+
+    if (!memories || memories.length === 0) {
+      logger.info('[cognitive-recall] No memories found');
+      return;
+    }
+
+    // 构建记忆内容
+    const memoryContent = memories.slice(0, 10).map((m, i) => {
+      const text = m.summary || m.content || '';
+      return `${i + 1}. ${text.substring(0, 150)}${text.length > 150 ? '...' : ''}`;
+    }).join('\n');
+
+    const injectedContent = `## 🧠 Cognitive Brain Memory Context
+
+Important context from previous sessions:
+
+${memoryContent}
+
+---
+
+`;
+
+    // 写入临时文件
+    const tmpFile = path.join('/tmp', `cognitive-memory-${Date.now()}.md`);
+    fs.writeFileSync(tmpFile, injectedContent, 'utf8');
+
+    // 添加到 bootstrapFiles
+    if (!context.bootstrapFiles) {
+      context.bootstrapFiles = [];
+    }
+    context.bootstrapFiles.push({
+      path: tmpFile,
+      basename: 'COGNITIVE_MEMORY.md',
+      content: injectedContent
+    });
+
+    logger.info('[cognitive-recall] Injected', memories.length, 'memories into bootstrap');
+
+  } catch (err) {
+    logger.error('[cognitive-recall] Bootstrap error:', err.message || String(err));
+  }
+};
+
+// Handle preprocessed event - recall memory (保留但不再作为主入口)
 const handlePreprocessed = async (event) => {
+  // 强制日志：验证 hook 被触发
+  logTrigger();
+
   // Debug: log all events for debugging
   const channel = event.context?.channel || 'unknown';
   logger.info('[cognitive-recall] handlePreprocessed called, channel:', channel);
   logger.info('[cognitive-recall] Debug - event.context keys:', Object.keys(event.context || {}));
-  
+
   // Skip if no context
   if (!event.context) return;
-  
+
   // Only recall for direct messages (not groups)
   if (event.context.isGroup || event.context.groupId) return;
-  
+
   // Skip if bodyForAgent is empty
   if (!event.context.bodyForAgent) return;
-  
+
   // Get dynamic keywords
   const keywords = keywordState.getKeywords();
-  
+
   // 教训关键词 - 始终检索
   const lessonKeywords = ['教训', '规则', '记住', '必须', '不要'];
   

@@ -4,7 +4,7 @@
 > 
 > 让 AI 拥有像人类一样的记忆、思考和预测能力
 
-**Version: 5.3.30** | **License: MIT**
+**Version: 7.0.1** | **License: MIT**
 
 ---
 
@@ -339,7 +339,14 @@ node scripts/tools/health_check.cjs
 
 ## 📈 版本历史
 
-### v5.3.25 (2026-03-20)
+### v7.0.1 (2026-03-21)
+- 🔧 **记忆系统重构** - 修复 Hook 触发问题，改用 Cron 方案
+- ✨ **记忆读取** - `agent:bootstrap` Hook 即时注入记忆
+- ✨ **记忆写入** - Cron 每 1 分钟扫描会话文件
+- 🗑️ **清理无用脚本** - 删除 20+ 不常用脚本
+- 📝 **文档更新** - 简化架构说明
+
+### v5.3.32 (2026-03-21)
 - 🐛 **修复类型验证** - `type: 'conversation'` 改为有效类型 `'episodic'`
 - 🐛 **修复 Embedding 路径** - embed.py 路径错误导致 embedding 生成失败
 
