@@ -1,6 +1,10 @@
 ---
+version: "2.0.0"
 name: deploy-helper
-description: "One-command deployment assistant. Generate Dockerfiles, docker-compose configs, Nginx configs, CI/CD pipelines, Vercel/Netlify configs, Kubernetes manifests, and SSL certificate setups. Commands: docker, compose, nginx, ci, vercel, netlify, k8s, ssl. Use for deployment, DevOps, containerization, infrastructure."
+description: "One-command deployment assistant. Generate Dockerfiles, docker-compose configs, Nginx configs, CI/CD pipelines, Vercel/Netlify configs, Kubernetes manifests."
+author: BytesAgain
+homepage: https://bytesagain.com
+source: https://github.com/bytesagain/ai-skills
 ---
 
 # 🚀 Deploy Helper
@@ -42,3 +46,6 @@ Side project  → Vercel / Netlify (zero config)
 Small team    → Docker Compose + Nginx
 Production    → K8s + CI/CD + SSL
 ```
+---
+💬 Feedback & Feature Requests: https://bytesagain.com/feedback
+Powered by BytesAgain | bytesagain.com
