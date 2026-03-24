@@ -381,20 +381,52 @@ CRON_PREFIX = "cycle-companion-notify"
 ALL_PHASE_KEYS = ["menstruation", "follicular", "ovulation", "luteal", "pms"]
 
 
+SCRIPTS_DIR = "/home/mc-admin/.openclaw/workspace/skills/cycle-companion/scripts"
+
+
 def build_cron_payload(config, status):
-    """Build the cron job payload for the next phase transition notification."""
+    """Build the cron job payload for the next phase transition notification.
+
+    Uses an isolated agentTurn so the agent self-heals: it sends the briefing
+    AND schedules the following cron, without depending on the main session.
+    """
     lang = config.get("language", "fr")
     notification_time = config.get("notification_time", "08:00")
 
+    next_phase_name = status["next_phase_name"]
+    telegram_chat_id = config.get("telegram_chat_id", "8019069544")
+
     if lang == "fr":
-        msg = (
-            f"[Cycle Companion] Rappel : demain commence la phase '{status['next_phase_name']}'. "
-            f"Lance cycle.py status pour le briefing complet."
+        agent_msg = (
+            f"[Cycle Companion] Rappel automatique : demain commence la phase '{next_phase_name}'.\n\n"
+            f"Instructions (executer dans l'ordre) :\n\n"
+            f"1. Recupere le statut complet du cycle :\n"
+            f"   python3 {SCRIPTS_DIR}/cycle.py status\n\n"
+            f"2. Formate et envoie un briefing Telegram (chat ID {telegram_chat_id}) avec :\n"
+            f"   - Phase de demain, energie, humeur, fertilite\n"
+            f"   - Conseils pratiques (tips + avoid)\n"
+            f"   - Fenetre de fertilite si pertinente\n"
+            f"   - Prochaine transition\n\n"
+            f"3. Planifie le prochain cron de notification :\n"
+            f"   python3 {SCRIPTS_DIR}/cycle.py schedule-cron\n"
+            f"   Puis cree le cron via l'outil cron (action=add) avec le JSON retourne.\n\n"
+            f"Ne pas sauter l'etape 3 : c'est elle qui assure la continuite des notifications."
         )
     else:
-        msg = (
-            f"[Cycle Companion] Reminder: tomorrow starts the '{status['next_phase_name']}' phase. "
-            f"Run cycle.py status for the full briefing."
+        agent_msg = (
+            f"[Cycle Companion] Automatic reminder: tomorrow starts the '{next_phase_name}' phase.\n\n"
+            f"Instructions (run in order):\n\n"
+            f"1. Get full cycle status:\n"
+            f"   python3 {SCRIPTS_DIR}/cycle.py status\n\n"
+            f"2. Format and send a Telegram briefing (chat ID {telegram_chat_id}) with:\n"
+            f"   - Tomorrow's phase, energy, mood, fertility\n"
+            f"   - Practical tips (tips + avoid)\n"
+            f"   - Fertility window if relevant\n"
+            f"   - Next transition\n\n"
+            f"3. Schedule the next notification cron:\n"
+            f"   python3 {SCRIPTS_DIR}/cycle.py schedule-cron\n"
+            f"   Then create the cron via the cron tool (action=add) with the returned JSON.\n\n"
+            f"Do not skip step 3: it ensures notification continuity."
         )
 
     notif_date = date.fromisoformat(status["next_transition_date"]) - timedelta(days=1)
@@ -403,8 +435,14 @@ def build_cron_payload(config, status):
     return {
         "name": f"{CRON_PREFIX}-{status['next_phase']}",
         "schedule": {"kind": "at", "at": notif_iso},
-        "payload": {"kind": "systemEvent", "text": msg},
-        "sessionTarget": "main",
+        "payload": {
+            "kind": "agentTurn",
+            "message": agent_msg,
+            "model": "anthropic/claude-haiku-4-5",
+            "timeoutSeconds": 60,
+        },
+        "sessionTarget": "isolated",
+        "delivery": {"mode": "none"},
     }
 
 
