@@ -1,51 +1,35 @@
 ---
-version: "2.0.0"
-name: Autohotkey
-description: "AutoHotkey - macro-creation and automation-oriented scripting utility for Windows. autohotkey, c++, autohotkey, automation, c-plus-plus, hotkeys, scripting. Use when you need autohotkey capabilities. Triggers on: autohotkey."
-author: BytesAgain
+name: "autohotkey"
+version: "3.0.1"
+description: "Reference tool for devtools — covers intro, quickstart, patterns and more. Quick lookup for Autohotkey concepts, best practices, and implementation patterns."
+author: "BytesAgain"
+homepage: "https://bytesagain.com"
+source: "https://github.com/bytesagain/ai-skills"
+tags: [autohotkey, reference]
+category: "devtools"
 ---
 
 # Autohotkey
 
-AutoHotkey - macro-creation and automation-oriented scripting utility for Windows. ## Commands
+Reference tool for devtools — covers intro, quickstart, patterns and more. Quick lookup for Autohotkey concepts, best practices, and implementation patterns. No API keys or credentials required.
 
-- `help` - Help
-- `run` - Run
-- `info` - Info
-- `status` - Status
+## Commands
 
-## Features
+| Command | Description |
+|---------|-------------|
+| `intro` | intro reference |
+| `quickstart` | quickstart reference |
+| `patterns` | patterns reference |
+| `debugging` | debugging reference |
+| `performance` | performance reference |
+| `security` | security reference |
+| `migration` | migration reference |
+| `cheatsheet` | cheatsheet reference |
 
-- Core functionality from AutoHotkey/AutoHotkey
+## Output Format
 
-## Usage
+All commands output plain-text reference documentation via heredoc. No external API calls, no credentials needed, no network access.
 
-Run any command: `autohotkey <command> [args]`
 ---
-💬 Feedback & Feature Requests: https://bytesagain.com/feedback
-Powered by BytesAgain | bytesagain.com
 
-## Examples
-
-```bash
-# Show help
-autohotkey help
-
-# Run
-autohotkey run
-```
-
-- Run `autohotkey help` for commands
-- No API keys needed
-
-- Run `autohotkey help` for all commands
-
-- Run `autohotkey help` for all commands
-
-## Output
-
-Results go to stdout. Save with `autohotkey run > output.txt`.
-
-## Configuration
-
-Set `AUTOHOTKEY_DIR` to change data directory. Default: `~/.local/share/autohotkey/`
+*Powered by BytesAgain | bytesagain.com | hello@bytesagain.com*
