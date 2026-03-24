@@ -121,7 +121,6 @@ Telegram user IDs are numeric. Find yours:
 | Commands partially work | `pairing` / `allowFrom` | Authorize sender identity even when `groupPolicy: "open"` |
 | `setMyCommands failed` | DNS/HTTPS error | Check outbound access to `api.telegram.org` |
 | `TypeError: fetch failed` | Network error | Recoverable — OpenClaw retries. If persistent, use proxy |
-| Duplicate replies to same DM | Multiple agent routes match | v2026.3.8 fix: Telegram DM deduplication now prevents duplicate replies when same DM triggers multiple agent routes |
 | IPv6 connectivity issues | Intermittent failures | Set `OPENCLAW_TELEGRAM_DISABLE_AUTO_SELECT_FAMILY=1` |
 | Allowlist with `@username` not working | Username mismatch | Use numeric ID, not `@username`. Run `openclaw doctor --fix` |
 
@@ -154,7 +153,6 @@ Validate DNS: `dig +short api.telegram.org A && dig +short api.telegram.org AAAA
 - Custom commands via `channels.telegram.customCommands`
 - Native commands: `commands.native: "auto"` (default for Telegram)
 - Forum topics isolate sessions with `:topic:<threadId>`
-- v2026.3.8+: Media download timeout applies only to stalled reads; slow downloads continue streaming
 
 ## Discord Deep Troubleshooting
 

@@ -9,6 +9,8 @@
 - [Workspace Access](#workspace-access)
 - [Custom Bind Mounts](#custom-bind-mounts)
 - [Docker Configuration](#docker-configuration)
+- [SSH Backend](#ssh-backend)
+- [OpenShell Backend](#openshell-backend)
 - [Browser Sandboxing](#browser-sandboxing)
 - [Multi-Agent Overrides](#multi-agent-overrides)
 - [Tool Policy Integration](#tool-policy-integration)
@@ -127,17 +129,54 @@ Format: `"hostPath:containerPath:mode"` (mode = `ro` or `rw`)
 - `"host"`: **blocked** by OpenClaw
 - `"container:<id>"`: **blocked** by default (namespace join risk)
 
-**Podman SELinux support** (v2026.3.8+):
-- Auto-detects SELinux mode on the host
-- Adds `:Z` relabel suffix to bind mounts when SELinux is enforcing
-- Override with `OPENCLAW_BIND_MOUNT_OPTIONS` env var (e.g., `OPENCLAW_BIND_MOUNT_OPTIONS=":z"`)
-- Fixes `cannot chdir: Permission denied` by wrapping user-switch calls in subshell with `/tmp` fallback
-
 **setupCommand:**
 - Runs once per container at creation
 - `user` must be root (`"0:0"`) for package installs
 - `readOnlyRoot` must be `false` for writes
 - Container does NOT inherit `process.env` — use `docker.env` for API keys
+
+## SSH Backend
+
+Execute tool commands on remote SSH-accessible machines.
+
+```json5
+{
+  agents: {
+    defaults: {
+      sandbox: {
+        backend: "ssh",
+        ssh: {
+          host: "build-server.example.com",
+          user: "agent",
+          port: 22,
+        },
+      },
+    },
+  },
+}
+```
+
+## OpenShell Backend
+
+Managed remote environments with two workspace modes:
+
+- **Mirror**: Syncs workspace to remote environment
+- **Remote**: Uses remote workspace directly
+
+```json5
+{
+  agents: {
+    defaults: {
+      sandbox: {
+        backend: "openshell",
+        openshell: {
+          mode: "mirror",        // "mirror" | "remote"
+        },
+      },
+    },
+  },
+}
+```
 
 ## Browser Sandboxing
 

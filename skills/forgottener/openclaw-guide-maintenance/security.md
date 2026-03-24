@@ -38,6 +38,7 @@
 - [Secret Scanning (detect-secrets)](#secret-scanning-detect-secrets)
 - [Incident Response](#incident-response)
 - [The Threat Model](#the-threat-model)
+- [Formal Verification](#formal-verification)
 - [Reporting Security Issues](#reporting-security-issues)
 
 ## Security Model
@@ -434,8 +435,6 @@ Recommended for tool-enabled agents. See also: [sandboxing.md](sandboxing.md)
 
 Default: `trusted-network` — blocks navigating to private IPs from browser tool.
 
-**v2026.3.8+**: Private-network redirect hops are now blocked in strict browser navigation mode, preventing SSRF via redirect chains.
-
 ## Prompt Injection
 
 ### What It Is
@@ -501,8 +500,6 @@ Checked by `openclaw security audit` under `config.insecure_or_dangerous_flags`:
 | `channels.slack.dangerouslyAllowNameMatching` | Name-based mention matching |
 | `channels.googlechat.dangerouslyAllowNameMatching` | Name-based mention matching |
 | `channels.msteams.dangerouslyAllowNameMatching` | Name-based mention matching |
-
-**v2026.3.8+**: MS Teams `groupPolicy: "allowlist"` now enforces sender allowlists even when route allowlists are present.
 | `channels.irc.dangerouslyAllowNameMatching` | Name-based mention matching (extension) |
 | `channels.mattermost.dangerouslyAllowNameMatching` | Name-based mention matching (extension) |
 | `agents.defaults.sandbox.docker.dangerouslyAllowReservedContainerTargets` | Allows reserved Docker targets |
@@ -653,18 +650,11 @@ Session transcripts live on disk:
 - If you don't want remote execution, set security to `deny` and remove node pairing
 - Node hosts strip dangerous env keys: `DYLD_*`, `LD_*`, `NODE_OPTIONS`, `PYTHON*`, `PERL*`, `RUBYOPT`, `SHELLOPTS`, `PS4`
 
-## Exec Approval Hardening (v2026.3.8+)
-
-- Approved `bun`/`deno run` scripts are bound to on-disk snapshots at approval time
-- Post-approval rewrites to the script file are denied — the approval is invalidated
-- This prevents TOCTOU attacks where a script is modified after being approved
-
 ## Dynamic Skills Security
 
 - **Skills watcher**: changes to `SKILL.md` can update the skills snapshot on the next agent turn
 - **Remote nodes**: connecting a macOS node can make macOS-only skills eligible (based on bin probing)
 - Treat skill files as trusted input — only load skills from trusted sources
-- **v2026.3.8+**: Skill download installs pin the validated tools root before archive writes, preventing path traversal during skill installation
 
 ## Reasoning & Verbose Output in Groups
 
@@ -776,6 +766,19 @@ A malicious external actor can:
 - Probe for infrastructure details
 
 **Defense**: Layer access controls (identity → scope → model), sandbox where possible, monitor via logs.
+
+## Formal Verification
+
+TLA+/TLC models providing machine-checked security policy enforcement.
+
+Repository: https://github.com/vignesh07/openclaw-formal-models
+
+Verification categories:
+- Gateway exposure
+- Nodes.run pipeline
+- Pairing store
+- Ingress gating
+- Routing/session isolation
 
 ## Reporting Security Issues
 

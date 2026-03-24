@@ -31,30 +31,39 @@ Venice AI is highlighted as a recommended provider for privacy-conscious deploym
 
 ### Cloud Providers
 
-| Provider | Model Format | Auth Method |
+| Provider | Model Format | Auth Method (Env Var) |
 |---|---|---|
-| Anthropic | `anthropic/claude-*` | API key or OAuth |
-| OpenAI | `openai/gpt-*` | API key or Codex OAuth |
-| Venice AI | `venice/llama-*`, `venice/claude-*` | API key |
-| OpenRouter | `openrouter/*` | API key |
-| Google (Gemini) | `google/*` | API key |
-| Together AI | `together/*` | API key |
-| Mistral | `mistral/*` | API key |
-| Moonshot AI (Kimi) | `moonshot/*` | API key |
-| Amazon Bedrock | `bedrock/*` | AWS credentials |
+| Anthropic | `anthropic/claude-*` (e.g. `anthropic/claude-opus-4-6`) | API key or OAuth (`ANTHROPIC_API_KEY`) |
+| OpenAI | `openai/gpt-*` (e.g. `openai/gpt-5.4`) | API key or Codex OAuth (`OPENAI_API_KEY`) |
+| OpenAI Codex | `openai-codex/*` | Codex OAuth (`OPENAI_API_KEY`) |
+| OpenCode Zen | `opencode/*` (e.g. `opencode/claude-opus-4-6`) | API key (`OPENCODE_API_KEY`) |
+| Google (Gemini) | `google/*` (e.g. `google/gemini-3.1-pro-preview`) | API key (`GOOGLE_API_KEY`) |
+| Google Vertex AI | `google-vertex/*` | GCP credentials |
+| Venice AI | `venice/llama-*`, `venice/claude-*` | API key (`VENICE_API_KEY`) |
+| Z.AI | `zai/*` (e.g. `zai/glm-5`) | API key (`ZAI_API_KEY`) |
+| Vercel AI Gateway | via gateway config | API key (`AI_GATEWAY_API_KEY`) |
+| Kilocode | `kilocode/*` | API key (`KILOCODE_API_KEY`) |
+| OpenRouter | `openrouter/*` | API key (`OPENROUTER_API_KEY`) |
+| MiniMax | `minimax/*` | API key (`MINIMAX_API_KEY`). Includes `MiniMax-M2.5-highspeed` (v2026.3.2) |
+| Moonshot AI (Kimi) | `moonshot/*` (e.g. `moonshot/kimi-k2.5`) | API key (`MOONSHOT_API_KEY`) |
+| Kimi Coding | `kimi-coding/*` (e.g. `kimi-coding/k2p5`) | API key (`KIMI_API_KEY`) |
+| Together AI | `together/*` | API key (`TOGETHER_API_KEY`) |
+| Mistral | `mistral/*` | API key (`MISTRAL_API_KEY`) |
+| Groq | `groq/*` | API key (`GROQ_API_KEY`) |
+| xAI | `xai/*` | API key (`XAI_API_KEY`) |
+| GitHub Copilot | `github-copilot/*` | GitHub token (`GH_TOKEN`) |
+| Hugging Face | `huggingface/*` | API key (`HF_TOKEN`) |
+| NVIDIA | `nvidia/*` | API key (`NVIDIA_API_KEY`) |
+| Volcengine | `volcengine/*` | API key (`VOLCANO_ENGINE_API_KEY`) |
+| BytePlus | `byteplus/*` | API key (`BYTEPLUS_API_KEY`) |
+| Cerebras | `cerebras/*` | API key (`CEREBRAS_API_KEY`) |
+| Xiaomi | `xiaomi/*` | API key (`XIAOMI_API_KEY`) |
+| Qianfan | `qianfan/*` | API key (`QIANFAN_API_KEY`) |
+| GLM | `glm/*` | API key (`GLM_API_KEY`) |
 | Qwen | `qwen/*` | OAuth |
-| Hugging Face | `huggingface/*` | API key |
-| NVIDIA | `nvidia/*` | API key |
+| Amazon Bedrock | `bedrock/*` | AWS credentials |
 | Cloudflare AI Gateway | via gateway config | API key |
-| Vercel AI Gateway | via gateway config | API key |
 | LiteLLM | via unified gateway | API key |
-| Kilocode | `kilocode/*` | API key |
-| Z.AI | `zai/*` | API key |
-| Xiaomi | `xiaomi/*` | API key |
-| GLM | `glm/*` | API key |
-| MiniMax | `minimax/*` | API key | Includes `MiniMax-M2.5-highspeed` (v2026.3.2) |
-| Qianfan | `qianfan/*` | API key | |
-| OpenCode Zen | `opencode/*` | API key | |
 
 ### Local Providers
 
@@ -62,6 +71,7 @@ Venice AI is highlighted as a recommended provider for privacy-conscious deploym
 |---|---|
 | Ollama | `ollama/*` — local models |
 | vLLM | `vllm/*` — local models |
+| SGLang | `sglang/*` — local models |
 
 ## CLI Commands
 
@@ -113,7 +123,11 @@ openclaw models auth order get|set|clear  # Auth profile priority
       },
       models: {
         "anthropic/claude-sonnet-4-5": { alias: "Sonnet" },
+        "anthropic/claude-opus-4-6": { alias: "Opus" },
         "openai/gpt-5.2": { alias: "GPT" },
+        "openai/gpt-5.4": { alias: "GPT-5.4" },
+        "google/gemini-3.1-pro-preview": { alias: "Gemini" },
+        "moonshot/kimi-k2.5": { alias: "Kimi" },
       },
       imageMaxDimensionPx: 1200,    // Default 1200; reduces vision-token usage
     },

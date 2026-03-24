@@ -155,3 +155,50 @@ Files injected into `agents.defaults.workspace`:
 - AbortSignal (cancel)
 - Gateway disconnect or RPC timeout
 - `agent.wait` timeout (wait-only, does not stop agent)
+
+---
+
+## Context Engine
+
+Controls how OpenClaw builds model context for each run.
+
+### Lifecycle Points
+
+1. **Ingest** — stores/indexes new messages
+2. **Assemble** — returns ordered messages fitting token budget
+3. **Compact** — summarizes older history when context fills
+4. **After turn** — persists state, triggers background compaction
+
+### Plugin Registration
+
+Plugins can register custom context engines:
+
+```ts
+api.registerContextEngine("my-engine", () => ({
+  info: { id: "my-engine", name: "My Context Engine", ownsCompaction: true },
+  async ingest({ sessionId, message }) { ... },
+  async assemble({ sessionId, messages, tokenBudget }) { ... },
+  async compact({ sessionId, force }) { ... },
+}));
+```
+
+### Configuration
+
+```json5
+{
+  plugins: {
+    slots: { contextEngine: "legacy" }, // or plugin name
+  },
+}
+```
+
+---
+
+## Session Pruning
+
+Removes aged tool outputs before LLM requests. Benefits Anthropic prompt caching.
+
+- Mode: `cache-ttl` — only `toolResult` messages pruned; user/assistant messages preserved
+- Defaults: TTL 5 min, keepLastAssistants 3, softTrimRatio 0.3, hardClearRatio 0.5
+
+Separate from compaction (can use both). Pruning is per-request and does not persist changes.

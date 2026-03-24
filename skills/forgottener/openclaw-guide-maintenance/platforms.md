@@ -55,11 +55,6 @@ Android node app with:
 - Canvas / camera / screen
 - Device commands (notifications, contacts/calendar, motion, photos, SMS, app updates)
 
-**v2026.3.8 changes**:
-- Removed: self-update, background location, screen recording, background mic capture
-- Foreground service narrowed to `dataSync` only
-- Legacy `location.enabledMode=always` preference migration cleaned up
-
 See: https://docs.openclaw.ai/platforms/android
 
 ## Windows

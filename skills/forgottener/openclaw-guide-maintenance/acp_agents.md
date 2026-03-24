@@ -14,6 +14,7 @@
 - [Plugin Setup](#plugin-setup)
 - [Permission Configuration](#permission-configuration)
 - [Troubleshooting](#troubleshooting)
+- [ACP CLI Bridge](#acp-cli-bridge-openclaw-acp)
 
 ## Overview
 
@@ -83,40 +84,21 @@ Natural-language triggers:
 
 ```
 /acp spawn codex --mode persistent --thread auto --cwd /repo
-/acp spawn codex --provenance meta          # v2026.3.8+: enable provenance tracking
 /acp cancel agent:codex:acp:<uuid>
 /acp steer --session support inbox prioritize failing tests
 /acp close
 /acp status
 /acp set-mode plan
-/acp set model openai/gpt-5.2
+/acp set model openai/gpt-5.4
 /acp cwd /Users/user/Projects/repo
 /acp permissions strict
 /acp timeout 120
-/acp model anthropic/claude-opus-4-5
+/acp model anthropic/claude-opus-4-6
 /acp reset-options
 /acp sessions
 /acp doctor
 /acp install
 ```
-
-## ACP Provenance Tracking (v2026.3.8+)
-
-Optional ingress provenance metadata for session trace ID retention:
-
-```bash
-openclaw acp --provenance off              # No provenance (default)
-openclaw acp --provenance meta             # Attach provenance metadata to session
-openclaw acp --provenance meta+receipt     # Metadata + delivery receipt
-```
-
-Or via `/acp spawn`:
-
-```
-/acp spawn codex --provenance meta+receipt --thread auto
-```
-
-Provenance metadata includes session trace IDs, enabling end-to-end tracing across ACP sessions.
 
 ## Thread-Bound Sessions
 
@@ -175,6 +157,7 @@ When a `/acp` command refers to a target session, resolution order:
 | Codex | `codex` |
 | OpenCode | `opencode` |
 | Gemini CLI | `gemini` |
+| Kimi | `kimi` |
 
 Custom agents can be added with `--agent <command>`.
 
@@ -187,7 +170,7 @@ Custom agents can be added with `--agent <command>`.
     dispatch: { enabled: true },
     backend: "acpx",
     defaultAgent: "codex",
-    allowedAgents: ["pi", "claude", "codex", "opencode", "gemini"],
+    allowedAgents: ["pi", "claude", "codex", "opencode", "gemini", "kimi"],
     maxConcurrentSessions: 8,
     stream: {
       coalesceIdleMs: 300,
@@ -205,7 +188,10 @@ Custom agents can be added with `--agent <command>`.
 ### Install acpx Backend
 
 ```bash
-# From registry
+# Quick install
+openclaw plugins install acpx
+
+# From registry (full name)
 openclaw plugins install @openclaw/acpx
 openclaw config set plugins.entries.acpx.enabled true
 
@@ -255,3 +241,192 @@ openclaw config set plugins.entries.acpx.config.nonInteractivePermissions fail
 | `Only <user-id> can rebind this thread` | Original spawner must rebind |
 | `Thread bindings are unavailable for <channel>` | Use `--thread off` or enable thread bindings |
 | `AcpRuntimeError: Permission prompt unavailable` | Set `permissionMode` to `approve-all` |
+
+---
+
+## ACP CLI Bridge (`openclaw acp`)
+
+> Source: https://docs.openclaw.ai/cli/acp
+
+The `openclaw acp` command runs an ACP-compatible stdio bridge, letting external IDE agents (Codex, Claude Code, Zed, etc.) send prompts into an OpenClaw Gateway session.
+
+### Usage
+
+```bash
+# Default (local Gateway)
+openclaw acp
+
+# Remote Gateway
+openclaw acp --url wss://gateway-host:18789 --token <token>
+
+# Remote Gateway (token from file — preferred for process safety)
+openclaw acp --url wss://gateway-host:18789 --token-file ~/.openclaw/gateway.token
+
+# Attach to an existing session key
+openclaw acp --session agent:main:main
+
+# Attach by label (must already exist)
+openclaw acp --session-label "support inbox"
+
+# Reset the session key before the first prompt
+openclaw acp --session agent:main:main --reset-session
+```
+
+### ACP Client (Debug Mode)
+
+```bash
+# Default
+openclaw acp client
+
+# Point the spawned bridge at a remote Gateway
+openclaw acp client --server-args --url wss://gateway-host:18789 --token-file ~/.openclaw/gateway.token
+
+# Override the server command (default: openclaw)
+openclaw acp client --server "node" --server-args openclaw.mjs acp --url ws://127.0.0.1:19001
+```
+
+### Security Notes (Auto-Approval)
+
+- Auto-approval is **allowlist-based** and only applies to trusted core tool IDs.
+- `read` auto-approval is scoped to the current working directory (`--cwd` when set).
+- Unknown/non-core tool names, out-of-scope reads, and dangerous tools always require explicit prompt approval.
+- Server-provided `toolCall.kind` is treated as **untrusted metadata** (not an authorization source).
+
+### Selecting Agents
+
+```bash
+openclaw acp --session agent:main:main      # Main agent, main session
+openclaw acp --session agent:design:main    # Design agent
+openclaw acp --session agent:qa:bug-123     # QA agent, specific issue
+```
+
+### Session Mapping
+
+| Flag | Description |
+|---|---|
+| `--session <key>` | Use a specific Gateway session key |
+| `--session-label <label>` | Resolve an existing session by label |
+| `--reset-session` | Mint a fresh session id for that key (same key, new transcript) |
+| `--require-existing` | Fail if the session key/label does not exist |
+
+JSON meta equivalent:
+```json
+{
+  "_meta": {
+    "sessionKey": "agent:main:main",
+    "sessionLabel": "support inbox",
+    "resetSession": true
+  }
+}
+```
+
+### Options
+
+#### `openclaw acp` Options
+
+| Flag | Description |
+|---|---|
+| `--url <url>` | Gateway WebSocket URL (defaults to `gateway.remote.url`) |
+| `--token <token>` | Gateway auth token |
+| `--token-file <path>` | Read auth token from file (preferred) |
+| `--password <password>` | Gateway auth password |
+| `--password-file <path>` | Read auth password from file |
+| `--session <key>` | Default session key |
+| `--session-label <label>` | Default session label to resolve |
+| `--require-existing` | Fail if session doesn't exist |
+| `--reset-session` | Reset session before first use |
+| `--no-prefix-cwd` | Do not prefix prompts with working directory |
+| `--verbose, -v` | Verbose logging to stderr |
+
+#### `acp client` Options
+
+| Flag | Description |
+|---|---|
+| `--cwd <dir>` | Working directory for the ACP session |
+| `--server <command>` | ACP server command (default: `openclaw`) |
+| `--server-args <args...>` | Extra arguments passed to the ACP server |
+| `--server-verbose` | Enable verbose logging on the ACP server |
+| `--verbose, -v` | Verbose client logging |
+
+### Auth Resolution
+
+- **`--token`/`--password`** can be visible in local process listings — prefer `--token-file`/`--password-file` or env vars.
+- **Local mode**: env (`OPENCLAW_GATEWAY_*`) → `gateway.auth.*` → `gateway.remote.*` fallback
+- **Remote mode**: `gateway.remote.*` with env/config fallback per remote precedence rules
+- **`--url` is override-safe**: does not reuse implicit config/env credentials; pass explicit `--token`/`--password`
+
+### Environment
+
+- ACP runtime backend processes receive `OPENCLAW_SHELL=acp`.
+- `openclaw acp client` sets `OPENCLAW_SHELL=acp-client` on the spawned bridge process.
+
+### Use from acpx (Codex, Claude, Other ACP Clients)
+
+```bash
+# One-shot request into your default OpenClaw ACP session
+acpx openclaw exec "Summarize the active OpenClaw session state."
+
+# Persistent named session for follow-up turns
+acpx openclaw sessions ensure --name codex-bridge
+acpx openclaw -s codex-bridge --cwd /path/to/repo \
+  "Ask my OpenClaw work agent for recent context relevant to this repo."
+```
+
+#### acpx Config (`~/.acpx/config.json`)
+
+```json
+{
+  "agents": {
+    "openclaw": {
+      "command": "env OPENCLAW_HIDE_BANNER=1 OPENCLAW_SUPPRESS_NOTES=1 openclaw acp --url ws://127.0.0.1:18789 --token-file ~/.openclaw/gateway.token --session agent:main:main"
+    }
+  }
+}
+```
+
+### Zed Editor Setup
+
+Add to `~/.config/zed/settings.json`:
+
+```json
+{
+  "agent_servers": {
+    "OpenClaw ACP": {
+      "type": "custom",
+      "command": "openclaw",
+      "args": ["acp"],
+      "env": {}
+    }
+  }
+}
+```
+
+Remote with specific agent:
+```json
+{
+  "agent_servers": {
+    "OpenClaw ACP": {
+      "type": "custom",
+      "command": "openclaw",
+      "args": [
+        "acp",
+        "--url", "wss://gateway-host:18789",
+        "--token", "<token>",
+        "--session", "agent:design:main"
+      ],
+      "env": {}
+    }
+  }
+}
+```
+
+### How to Use This
+
+1. Ensure the Gateway is running (local or remote).
+2. Configure the Gateway target (config or flags):
+   ```bash
+   openclaw config set gateway.remote.url wss://gateway-host:18789
+   openclaw config set gateway.remote.token <token>
+   ```
+3. Point your IDE to run `openclaw acp` over stdio.
+

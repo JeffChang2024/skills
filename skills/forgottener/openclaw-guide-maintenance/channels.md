@@ -9,6 +9,10 @@
 - [Slack](#slack)
 - [Signal](#signal)
 - [iMessage / BlueBubbles](#imessage--bluebubbles)
+- [Google Chat](#google-chat)
+- [Microsoft Teams](#microsoft-teams)
+- [Matrix](#matrix)
+- [LINE](#line)
 - [Other Channels (Plugins)](#other-channels-plugins)
 - [Channel CLI Commands](#channel-cli-commands)
 - [Group Chat Configuration](#group-chat-configuration)
@@ -33,7 +37,7 @@
 
 ### Plugins (installed separately)
 
-Feishu/Lark, Google Chat, Mattermost, Microsoft Teams, Synology Chat, LINE, Nextcloud Talk, Matrix, Nostr, Tlon, Twitch, Zalo, Zalo Personal.
+Feishu/Lark, Google Chat, Mattermost, Microsoft Teams, Synology Chat, LINE, Nextcloud Talk, Matrix, IRC, Nostr, Tlon, Twitch, Zalo, Zalo Personal.
 
 Install plugins: `openclaw plugins install <name>`.
 
@@ -92,12 +96,35 @@ Config:
       botToken: "123:abc",
       dmPolicy: "pairing",           // pairing | allowlist | open | disabled
       allowFrom: ["tg:123"],         // Telegram user IDs
+      streaming: "partial",          // off | partial | block | progress
+      inlineButtons: "dm",           // off | dm | group | all | allowlist
+      reactions: "own",              // off | own | all
+      webhook: {                     // Optional webhook mode (default: long-polling)
+        enabled: false,
+        url: "https://example.com/tg",
+      },
     },
   },
 }
 ```
 
 Get token from [@BotFather](https://t.me/BotFather).
+
+Features:
+- **Live stream preview modes**: `off | partial | block | progress` — controls how partial responses are shown while generating
+- **HTML formatting** with automatic Markdown conversion
+- **Native commands** via `setMyCommands` — registers bot commands with BotFather automatically
+- **Inline buttons**: `off | dm | group | all | allowlist` — attach interactive buttons to messages
+- **Forum topics** with per-topic agent routing
+- **Audio/video/sticker support** — send and receive media
+- **Reaction notifications**: `off | own | all` — control when reactions trigger events
+- **Exec approvals** with button-based workflows — approve or deny tool executions via inline buttons
+- **Webhook mode** configuration — alternative to default long-polling
+
+Limits:
+- `textChunkLimit`: 4000 characters per message
+- `mediaMaxMb`: 100 MB max upload
+- `historyLimit`: 50 messages context
 
 ## Discord
 
@@ -124,6 +151,15 @@ Requirements:
 - Enable **Message Content Intent**
 - Invite bot with proper permissions
 
+Features:
+- **Interactive components** — buttons, select menus, and modals
+- **Forum channels** with auto-thread creation
+- **Voice channel support** with TTS
+- **Thread binding** — bind agent conversations to Discord threads
+- **Role-based routing** — route messages to different agents based on Discord roles
+- **PluralKit support** — recognize and handle PluralKit proxied messages
+- **Auto presence** — automatically set bot status/activity
+
 ## Slack
 
 ```json5
@@ -132,14 +168,24 @@ Requirements:
     slack: {
       enabled: true,
       botToken: "xoxb-...",
-      appToken: "xapp-...",
+      appToken: "xapp-...",            // Required for Socket Mode (default)
       signingSecret: "...",
+      slashCommands: false,            // Native slash commands (disabled by default)
+      streaming: "partial",            // off | partial | block | progress
+      channelPolicy: "open",          // open | allowlist | disabled
     },
   },
 }
 ```
 
-Uses Bolt SDK; needs workspace app setup.
+Uses Bolt SDK with **Socket Mode** as the default connection method. HTTP Events API is available as an alternative.
+
+- **App Token** (`xapp-...`) is required for Socket Mode
+- **Native slash commands** — disabled by default; enable to register commands with Slack
+- **Interactive replies** — buttons and selects via Block Kit
+- **Ack reactions** — adds a reaction emoji during processing to indicate the bot is working
+- **Text streaming modes**: `off | partial | block | progress`
+- **Channel Policy**: `open` (respond in any channel), `allowlist` (specified channels only), `disabled`
 
 ## Signal
 
@@ -150,6 +196,52 @@ Uses `signal-cli`. Requires separate signal-cli setup and registration.
 **Recommended: BlueBubbles** (full feature support via REST API on macOS server).
 
 Legacy iMessage via `imsg` CLI is deprecated.
+
+## Google Chat
+
+Plugin: `openclaw plugins install @openclaw/googlechat`
+
+Connects via the Google Chat API with HTTP webhooks.
+
+Requirements:
+- Google Cloud project with the Chat API enabled
+- Service account with appropriate permissions
+- Public HTTPS endpoint for receiving webhook events
+
+## Microsoft Teams
+
+```bash
+openclaw plugins install @openclaw/msteams
+```
+
+Requirements:
+- Azure Bot resource with App ID, Client secret, and Tenant ID
+- Messaging endpoint must be publicly accessible via HTTPS
+
+## Matrix
+
+```bash
+openclaw plugins install @openclaw/matrix
+```
+
+Features:
+- **E2EE support** with cross-signing
+- **Thread support**: `off | inbound | always`
+- **Multi-account** — run multiple Matrix bot accounts
+- **Bot-to-bot** communication
+- **autoJoin** — automatically accept room invitations
+
+## LINE
+
+```bash
+openclaw plugins install @openclaw/line
+```
+
+Features:
+- **Flex cards** — rich interactive message layouts
+- **Streaming** with loading animations during generation
+- Text chunking: 5000 characters per message
+- Media limit: 10 MB
 
 ## Other Channels (Plugins)
 
@@ -201,6 +293,30 @@ Flags:
   },
 }
 ```
+
+### Per-Group Tool Restrictions
+
+Restrict which tools are available on a per-group (and per-sender) basis:
+
+```json5
+{
+  channels: {
+    telegram: {
+      groups: {
+        "*": { tools: { deny: ["exec"] } },
+        "-1001234567890": {
+          tools: { deny: ["exec", "read", "write"] },
+          toolsBySender: { "id:123456789": { alsoAllow: ["exec"] } },
+        },
+      },
+    },
+  },
+}
+```
+
+- `tools.deny` — list of tools to block in a group
+- `toolsBySender` — override tool restrictions for specific senders (by ID)
+- `alsoAllow` — re-enable specific denied tools for a sender
 
 ## DM Access Policies
 

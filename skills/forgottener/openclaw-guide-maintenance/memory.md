@@ -9,8 +9,10 @@
 - [Vector Memory Search](#vector-memory-search)
 - [Hybrid Search (BM25 + Vector)](#hybrid-search-bm25--vector)
 - [MMR Re-Ranking (Diversity)](#mmr-re-ranking-diversity)
+- [Temporal Decay](#temporal-decay)
 - [Additional Memory Paths](#additional-memory-paths)
 - [Embedding Providers](#embedding-providers)
+- [Multimodal Memory (Gemini)](#multimodal-memory-gemini)
 - [Compaction](#compaction)
 - [Session Pruning](#session-pruning)
 - [Configuration Reference](#configuration-reference)
@@ -171,6 +173,21 @@ With MMR (λ=0.7):
 3. memory/2026-02-05.md (0.78) ← AdGuard DNS (diverse!)
 ```
 
+## Temporal Decay
+
+Temporal decay reduces the weight of older memories in search results.
+
+| Age | Retention |
+|---|---|
+| Today | 100% |
+| 7 days ago | ~84% |
+| 30 days ago | 50% |
+| 90 days ago | 12.5% |
+
+- Evergreen files (MEMORY.md, non-dated files) are never decayed
+- Enable via `query.hybrid.temporalDecay.enabled: true`
+- Configure half-life: `query.hybrid.temporalDecay.halfLifeDays: 30` (default)
+
 ## Additional Memory Paths
 
 ```json5
@@ -204,6 +221,10 @@ With MMR (λ=0.7):
 ### Embedding Cache
 
 Embeddings are cached to avoid re-computing on unchanged content. Cache is per-chunk keyed by content hash.
+
+## Multimodal Memory (Gemini)
+
+Index image and audio files using Gemini embedding 2. Enables semantic search over visual and audio content alongside text memories.
 
 ## Compaction
 
@@ -299,12 +320,15 @@ Separate from compaction. See: [Session Pruning](https://docs.openclaw.ai/concep
         
         // Search tuning
         query: {
-          hybrid: true,               // Enable hybrid BM25 + vector
-          vectorWeight: 0.7,
-          textWeight: 0.3,
+          hybrid: {
+            enabled: true,
+            vectorWeight: 0.7,
+            textWeight: 0.3,
+            mmr: { enabled: false, lambda: 0.7 },
+            temporalDecay: { enabled: false, halfLifeDays: 30 },
+          },
           maxResults: 10,
           candidateMultiplier: 3,
-          lambda: 0.7,                // MMR diversity factor
         },
         
         // Additional indexed paths
@@ -315,7 +339,67 @@ Separate from compaction. See: [Session Pruning](https://docs.openclaw.ai/concep
 }
 ```
 
+## QMD Backend (Experimental)
+
+An alternative memory backend using [QMD](https://github.com/tobi/qmd) for local vector search.
+
+### Setup
+
+- Disabled by default. Opt in per-config: `memory.backend = "qmd"`.
+- Install QMD CLI separately: `bun install -g https://github.com/tobi/qmd` and ensure `qmd` binary is on the Gateway's `PATH`.
+- Requires SQLite build that allows extensions (`brew install sqlite` on macOS).
+- Runs fully locally via Bun + node-llama-cpp, auto-downloads GGUF models from HuggingFace on first use (no Ollama daemon required).
+
+### State Location
+
+- Gateway runs QMD in a self-contained XDG home under `~/.openclaw/agents/<agentId>/qmd/` by setting `XDG_CONFIG_HOME` and `XDG_CACHE_HOME`.
+
+### Behavior
+
+- Collections created from `memory.qmd.paths` plus default workspace memory files.
+- `qmd update` + `qmd embed` run on boot and on a configurable interval (`memory.qmd.update.interval`, default 5 min).
+- Boot refresh runs in the background by default (set `memory.qmd.update.waitForBootSync = true` for blocking behavior).
+- Search via `memory.qmd.searchMode` (default `qmd search --json`; also supports `vsearch` and `query`).
+- If QMD fails or the binary is missing, OpenClaw automatically falls back to the builtin SQLite manager.
+
+### Pre-downloading Models
+
+```bash
+STATE_DIR="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}"
+export XDG_CONFIG_HOME="$STATE_DIR/agents/main/qmd/xdg-config"
+export XDG_CACHE_HOME="$STATE_DIR/agents/main/qmd/xdg-cache"
+qmd query "test"  # triggers model download
+```
+
+### OS Support
+
+- macOS and Linux work out of the box once Bun + SQLite are installed.
+- Windows is best supported via WSL2.
+
+## Ollama Embeddings
+
+`memorySearch.provider = "ollama"` is supported for local/self-hosted Ollama embeddings (`/api/embeddings`), but it is **not auto-selected**. Must be explicitly configured.
+
+```json5
+{
+  agents: {
+    defaults: {
+      memorySearch: {
+        provider: "ollama",
+      },
+    },
+  },
+}
+```
+
+Environment: `OLLAMA_API_KEY=ollama-local` (if needed).
+
+## Session Memory Search (Experimental)
+
+Search across session transcripts, not just memory files. Experimental feature.
+
 ## See Also
 
 - [Sessions](sessions.md) — session management, lifecycle, maintenance
 - [Tools](tools.md) — `memory_search` and `memory_get` tool parameters
+- [Streaming](streaming.md) — block streaming and chunking

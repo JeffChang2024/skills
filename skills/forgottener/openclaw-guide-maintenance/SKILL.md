@@ -1,9 +1,6 @@
 ---
-name: openclaw-guide-maintenance
+name: openclaw
 description: Comprehensive guide for installing, configuring, operating, and troubleshooting OpenClaw — a self-hosted, multi-channel AI agent gateway. Use when the user asks about OpenClaw setup, configuration, channel management (WhatsApp/Telegram/Discord/Slack/iMessage/etc.), model provider setup, Gateway operations, multi-agent routing, security hardening, troubleshooting, or any maintenance task related to their local OpenClaw installation. Also use when encountering errors from `openclaw` CLI commands or the Gateway daemon.
-version: 2026.3.9
-tags: openclaw, gateway, devops, self-hosted, multi-channel, ai-agent
-license: MIT
 ---
 
 # OpenClaw Maintenance Skill
@@ -66,6 +63,8 @@ OpenClaw is a self-hosted, open-source (MIT) gateway that routes AI agents acros
 | [media.md](references/media.md) | Media: camera capture, images, audio/voice notes, transcription |
 | [channel_routing.md](references/channel_routing.md) | Channel routing, session keys, agent selection, Mattermost, BlueBubbles |
 
+
+
 ## Quick Reference
 
 ### Key Paths
@@ -97,7 +96,7 @@ openclaw security audit            # Security posture check
 openclaw security audit --fix      # Auto-fix security issues
 openclaw update                    # Self-update
 openclaw dashboard                 # Open Control UI in browser
-openclaw tui                       # Terminal UI (interactive REPL, auto-infers agent from cwd)
+openclaw tui                       # Terminal UI (interactive REPL)
 openclaw agent                     # Direct agent interaction via CLI
 openclaw health                    # Health check
 openclaw usage                     # Usage tracking
@@ -108,8 +107,6 @@ openclaw agents bindings           # Agent-channel bindings
 openclaw agents bind               # Bind agent to account
 openclaw agents unbind             # Unbind agent
 openclaw update --dry-run          # Preview update
-openclaw backup create             # Create local state archive
-openclaw backup verify             # Verify backup integrity
 openclaw system presence           # View connected clients/nodes
 openclaw system heartbeat last     # Last heartbeat info
 openclaw system heartbeat now      # Trigger heartbeat immediately
@@ -117,6 +114,7 @@ openclaw memory search <query>     # CLI memory search
 openclaw docs <query>              # Search OpenClaw docs
 openclaw nodes pending             # List pending pairing requests
 openclaw nodes approve <id>        # Approve node pairing
+openclaw nodes status              # Show all paired nodes
 openclaw health --json             # Full health snapshot (JSON)
 openclaw message send --media <p>  # Send media message
 ```
@@ -307,25 +305,23 @@ For specific tools, see:
 For ACP agents (Codex, Claude Code, Gemini CLI, etc.), see [references/acp_agents.md](references/acp_agents.md).
 For Diffs plugin and Firecrawl anti-bot fallback, see [references/diffs_firecrawl.md](references/diffs_firecrawl.md).
 For chat slash commands (/new, /model, /acp, etc.), see [references/slash_commands.md](references/slash_commands.md).
-
-For advanced internals and features, see:
-- [references/thinking.md](references/thinking.md) — Thinking levels (/think, /verbose, /reasoning)
-- [references/polls.md](references/polls.md) — Polls (Telegram, WhatsApp, Discord, MS Teams)
-- [references/voice.md](references/voice.md) — Talk Mode and Voice Wake
-- [references/architecture.md](references/architecture.md) — Gateway architecture and wire protocol
-- [references/agent_runtime.md](references/agent_runtime.md) — Agent runtime and loop details
-- [references/queue.md](references/queue.md) — Command queue system
-- [references/model_failover.md](references/model_failover.md) — Model failover and OAuth
-- [references/clawhub.md](references/clawhub.md) — ClawHub skill registry
-- [references/presence_discovery.md](references/presence_discovery.md) — Presence and discovery
-- [references/streaming.md](references/streaming.md) — Streaming and chunking
-- [references/gateway_internals.md](references/gateway_internals.md) — Gateway internals
-- [references/heartbeat.md](references/heartbeat.md) — Heartbeat system
-- [references/bonjour.md](references/bonjour.md) — Bonjour/mDNS discovery details
-- [references/pairing.md](references/pairing.md) — Gateway node pairing
-- [references/tui.md](references/tui.md) — Terminal UI (TUI)
-- [references/media.md](references/media.md) — Media (camera, images, audio)
-- [references/channel_routing.md](references/channel_routing.md) — Channel routing and session keys
+For thinking levels (/think, /verbose, /reasoning), see [references/thinking.md](references/thinking.md).
+For polls (Telegram, WhatsApp, Discord, MS Teams), see [references/polls.md](references/polls.md).
+For Talk Mode and Voice Wake, see [references/voice.md](references/voice.md).
+For Gateway architecture and wire protocol, see [references/architecture.md](references/architecture.md).
+For agent runtime and loop details, see [references/agent_runtime.md](references/agent_runtime.md).
+For command queue system, see [references/queue.md](references/queue.md).
+For model failover and OAuth, see [references/model_failover.md](references/model_failover.md).
+For ClawHub skill registry, see [references/clawhub.md](references/clawhub.md).
+For presence and discovery, see [references/presence_discovery.md](references/presence_discovery.md).
+For streaming and chunking, see [references/streaming.md](references/streaming.md).
+For Gateway internals (network model, lock, health, doctor, logging), see [references/gateway_internals.md](references/gateway_internals.md).
+For heartbeat system, see [references/heartbeat.md](references/heartbeat.md).
+For Bonjour/mDNS discovery details, see [references/bonjour.md](references/bonjour.md).
+For Gateway node pairing, see [references/pairing.md](references/pairing.md).
+For Terminal UI (TUI), see [references/tui.md](references/tui.md).
+For media (camera, images, audio), see [references/media.md](references/media.md).
+For channel routing and session keys, see [references/channel_routing.md](references/channel_routing.md).
 
 **Tool profiles**: `minimal`, `coding`, `messaging`, `full` (default).
 
@@ -371,13 +367,11 @@ For advanced internals and features, see:
 | `OPENCLAW_LOG_FILE` | File logging path |
 | `OPENCLAW_LOG_LEVEL` | Log level control |
 | `OPENCLAW_SHELL` | Set by OpenClaw in exec/acp/tui runtimes |
-| `OPENCLAW_THEME` | Terminal theme override (`light` or `dark`) |
-| `OPENCLAW_BIND_MOUNT_OPTIONS` | Override bind mount suffix for Podman SELinux (e.g., `:z`) |
 | `BRAVE_API_KEY` | For web_search tool |
 | `FIRECRAWL_API_KEY` | For Firecrawl anti-bot fallback |
 | `ELEVENLABS_API_KEY` | For Talk Mode TTS |
 | `ELEVENLABS_VOICE_ID` | Default voice for Talk Mode |
 | `CLAWHUB_TOKEN` | ClawHub API token for CI/automation |
 | `CLAWHUB_WORKDIR` | ClawHub working directory override |
-| `CLAWHUB_REGISTRY` | ClawHub registry API URL override |
 | `OLLAMA_API_KEY` | For Ollama embeddings provider |
+

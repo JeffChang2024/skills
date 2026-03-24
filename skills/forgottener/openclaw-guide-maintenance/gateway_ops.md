@@ -179,8 +179,6 @@ openclaw gateway status [--deep] [--json]
 openclaw gateway install
 openclaw gateway restart
 openclaw gateway stop
-openclaw backup create [--only-config] [--no-include-workspace]
-openclaw backup verify
 openclaw secrets reload
 openclaw logs --follow
 openclaw logs --limit 200
@@ -266,8 +264,6 @@ Run `openclaw doctor` immediately after updating. Common breaking changes:
 2. Bind/auth guardrails stricter
 3. Pairing/device identity state changes
 
-**macOS note** (v2026.3.8+): The updater now re-enables LaunchAgent services before bootstrap, recovering from a disabled gateway service state automatically.
-
 ### Browser Tool Fails
 
 ```bash
@@ -333,6 +329,15 @@ openclaw gateway status
 ```
 
 The `-k` flag in `launchctl kickstart` kills any existing instance and starts fresh, which resolves the stuck state that `bootstrap` cannot handle.
+
+**If kickstart also fails**, try the nuclear option:
+```bash
+launchctl bootout gui/$(id -u)/ai.openclaw.gateway 2>/dev/null
+openclaw gateway uninstall
+sleep 2
+openclaw gateway install
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/ai.openclaw.gateway.plist
+```
 
 ### Cron/Heartbeat Not Firing
 

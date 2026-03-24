@@ -17,6 +17,9 @@ Complete field-by-field reference for `~/.openclaw/openclaw.json`. This covers t
 - [Plugins Section](#plugins-section)
 - [Hooks Section](#hooks-section)
 - [Cron Section](#cron-section)
+- [Logging Section](#logging-section)
+- [Health Check Section](#health-check-section)
+- [Session Pruning Section](#session-pruning-section)
 - [Config Includes](#config-includes)
 
 ## Config File
@@ -69,7 +72,7 @@ If config is invalid:
     remote: {                   // For mode: "remote"
       url: "ws://gateway.tailnet:18789",
       transport: "ssh",         // "ssh" | "direct"
-      token: "your-token",     // v2026.3.8+: onboarding preserves existing non-plaintext token values
+      token: "your-token",
     },
     trustedProxies: [],         // IP addresses of trusted reverse proxies
     reload: {
@@ -82,10 +85,6 @@ If config is invalid:
       },
     },
     webhooks: { enabled: false },   // Enable inbound HTTP webhook endpoints
-    backup: {                       // v2026.3.8+: local state backup
-      // openclaw backup create [--only-config] [--no-include-workspace]
-      // openclaw backup verify
-    },
   },
 }
 ```
@@ -253,9 +252,6 @@ If config is invalid:
     web: {
       search: {
         apiKey: "${BRAVE_API_KEY}",
-        brave: {
-          mode: "default",       // "default" | "llm-context" (v2026.3.8+: grounding snippets)
-        },
       },
     },
   },
@@ -344,7 +340,6 @@ See [references/secrets.md](secrets.md) for full details.
 {
   browser: {
     executablePath: "/usr/bin/google-chrome",
-    relayBindHost: "0.0.0.0",       // v2026.3.8+: explicit non-loopback relay bind (WSL2 support)
     // ... CDP config
   },
 }
@@ -388,16 +383,6 @@ See [references/hooks.md](hooks.md) for full details.
 }
 ```
 
-## Talk Section
-
-```json5
-{
-  talk: {
-    silenceTimeoutMs: 1500,        // Silence duration before auto-sending transcript (v2026.3.8+)
-  },
-}
-```
-
 ## Security Section
 
 ```json5
@@ -426,6 +411,61 @@ See [references/hooks.md](hooks.md) for full details.
 ```bash
 openclaw update               # Manual update
 openclaw update --dry-run     # Preview without mutating
+```
+
+## Logging Section
+
+```json5
+{
+  logging: {
+    file: "/tmp/openclaw/openclaw-YYYY-MM-DD.log",   // Rolling log path
+    level: "info",                  // Log level
+    consoleLevel: "info",           // Console output level
+    consoleStyle: "pretty",         // "pretty" | "compact" | "json"
+    redactSensitive: "off",         // "off" | "tools"
+  },
+}
+```
+
+Tail logs: `openclaw logs --follow`
+
+## Health Check Section
+
+```json5
+{
+  gateway: {
+    channelHealthCheckMinutes: 5,             // 0 to disable
+    channelStaleEventThresholdMinutes: 30,
+    channelMaxRestartsPerHour: 10,
+  },
+}
+```
+
+Commands:
+
+```bash
+openclaw status                # Quick overview
+openclaw status --all          # All components
+openclaw status --deep         # Deep scan
+openclaw health --json         # Full health snapshot (JSON)
+```
+
+## Session Pruning Section
+
+```json5
+{
+  agents: {
+    defaults: {
+      contextPruning: {
+        mode: "cache-ttl",
+        ttlMinutes: 5,
+        keepLastAssistants: 3,
+        softTrimRatio: 0.3,
+        hardClearRatio: 0.5,
+      },
+    },
+  },
+}
 ```
 
 ## Config Includes

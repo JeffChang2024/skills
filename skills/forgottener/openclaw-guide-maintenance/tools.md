@@ -174,7 +174,7 @@ Per-agent override: `agents.list[].tools.loopDetection`
 
 ## Web Tools
 
-See also: [Web Tools (detailed)](web_tools.md) for provider setup (Brave, Perplexity, Gemini).
+See also: [Web Tools (detailed)](web_tools.md) for provider setup (Brave, Perplexity, Gemini, Grok, Kimi).
 
 ### web_search
 
@@ -325,6 +325,38 @@ Notes:
 - `send` routes WhatsApp via Gateway; other channels go direct
 - `poll` uses Gateway for WhatsApp/MS Teams; Discord goes direct
 - When bound to an active chat session, sends are constrained to that session's target (prevents cross-context leaks)
+
+Reactions:
+- Discord: Custom and Unicode emoji via reaction name
+- Slack: Emoji shortcodes (e.g. `:thumbsup:`)
+- Telegram: Limited set of predefined emoji reactions
+- WhatsApp: Fixed set of emoji reactions only
+- Signal: Any single emoji as reaction
+- Google Chat: Unicode emoji reactions
+- Zalo: Predefined reaction types (heart, haha, wow, sad, angry, like)
+
+## TTS Tool
+
+Text-to-Speech for voice output.
+
+Providers: ElevenLabs, Microsoft (edge-tts, no API key needed), OpenAI.
+
+Disabled by default. Enable via `messages.tts.auto` or `/tts always` per session.
+
+Commands: `/tts off|always|inbound|tagged|status|provider|limit|summary|audio`
+
+Config:
+
+```json5
+{
+  messages: {
+    tts: {
+      auto: "off",              // "off" | "always" | "inbound" | "tagged"
+      provider: "elevenlabs",   // "elevenlabs" | "microsoft" | "openai"
+    },
+  },
+}
+```
 
 ## Cron Tool
 

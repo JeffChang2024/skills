@@ -1,13 +1,18 @@
 {
   "owner": "forgottener",
   "slug": "openclaw-guide-maintenance",
-  "displayName": "OpenClaw Guide & Maintenance",
+  "displayName": "OpenClaw Guide Maintenance",
   "latest": {
-    "version": "2026.3.9",
-    "publishedAt": 1773302412056,
-    "commit": "https://github.com/openclaw/skills/commit/d1f95a44db6b45bf360aba4172e39585c9a863d7"
+    "version": "2026.3.24",
+    "publishedAt": 1774321201894,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2026.3.9",
+      "publishedAt": 1773302412056,
+      "commit": "https://github.com/openclaw/skills/commit/d1f95a44db6b45bf360aba4172e39585c9a863d7"
+    },
     {
       "version": "2026.3.8",
       "publishedAt": 1773121458719,

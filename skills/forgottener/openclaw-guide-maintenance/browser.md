@@ -52,7 +52,6 @@ Notes:
     },
     remoteCdpTimeoutMs: 1500,        // remote CDP HTTP timeout
     remoteCdpHandshakeTimeoutMs: 3000, // remote CDP WebSocket timeout
-    relayBindHost: "0.0.0.0",        // v2026.3.8+: explicit relay bind address (WSL2 support)
     defaultProfile: "chrome",         // "openclaw" for managed browser
     color: "#FF4500",
     headless: false,
@@ -132,6 +131,25 @@ Auth for remote CDP:
       browserless: {
         cdpUrl: "https://production-sfo.browserless.io?token=<BROWSERLESS_API_KEY>",
         color: "#00AA00",
+      },
+    },
+  },
+}
+```
+
+## Browserbase (Hosted Remote CDP)
+
+Cloud headless browser with CAPTCHA solving capabilities.
+
+```json5
+{
+  browser: {
+    enabled: true,
+    defaultProfile: "browserbase",
+    profiles: {
+      browserbase: {
+        cdpUrl: "wss://connect.browserbase.com?apiKey=<BROWSERBASE_API_KEY>",
+        color: "#6B4FBB",
       },
     },
   },

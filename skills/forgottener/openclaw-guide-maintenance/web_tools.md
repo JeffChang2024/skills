@@ -13,10 +13,10 @@ Web tools provide search and fetch capabilities for the AI agent. Multiple searc
 
 OpenClaw detects the provider from available API keys:
 1. Brave Search API (`BRAVE_API_KEY`)
-2. Grok (`GROK_API_KEY`)
-3. Kimi
-4. Perplexity (via OpenRouter or direct)
-5. Gemini (Google Search grounding)
+2. Perplexity (via OpenRouter or direct)
+3. Gemini (Google Search grounding)
+4. Grok (`GROK_API_KEY`)
+5. Kimi (`KIMI_API_KEY`)
 
 ### Explicit Provider
 
@@ -25,7 +25,7 @@ OpenClaw detects the provider from available API keys:
   tools: {
     web: {
       search: {
-        provider: "brave",      // "brave" | "perplexity" | "gemini"
+        provider: "brave",      // "brave" | "perplexity" | "gemini" | "grok" | "kimi"
         apiKey: "${BRAVE_API_KEY}",
       },
     },
@@ -40,26 +40,6 @@ OpenClaw detects the provider from available API keys:
 1. Go to [Brave Search API](https://brave.com/search/api/).
 2. Create an account and get an API key.
 3. Free tier available (limited queries/month).
-
-### LLM Context Mode (v2026.3.8+)
-
-Opt-in `llm-context` mode uses Brave's LLM Context endpoint, returning extracted grounding snippets and source metadata instead of raw search results:
-
-```json5
-{
-  tools: {
-    web: {
-      search: {
-        provider: "brave",
-        apiKey: "${BRAVE_API_KEY}",
-        brave: {
-          mode: "llm-context",    // "default" | "llm-context"
-        },
-      },
-    },
-  },
-}
-```
 
 ### Where to Set the Key
 
@@ -137,7 +117,7 @@ Notes:
 
 ### Requirements
 
-- A search API key (Brave, Perplexity, or Gemini).
+- A search API key (Brave, Perplexity, Gemini, Grok, or Kimi).
 
 ### Config
 
@@ -166,6 +146,15 @@ Notes:
 ### Requirements
 
 - No API key needed (fetches pages directly).
+- Optional: `FIRECRAWL_API_KEY` for anti-bot fallback.
+
+### Defaults
+
+| Setting | Default |
+|---|---|
+| `maxChars` | 50000 |
+| `timeoutSeconds` | 30 |
+| `cacheTtlMinutes` | 15 |
 
 ### Config
 
@@ -174,12 +163,22 @@ Notes:
   tools: {
     web: {
       fetch: {
-        // Optional config
+        maxChars: 50000,
+        timeoutSeconds: 30,
+        cacheTtlMinutes: 15,
       },
     },
   },
 }
 ```
+
+### Firecrawl Fallback
+
+Firecrawl is used as an anti-bot fallback for `web_fetch`. When the default Readability extraction fails (e.g. bot-protected pages), the pipeline falls back to Firecrawl for content extraction.
+
+Processing pipeline: Fetch -> Readability extraction -> Firecrawl fallback -> Cache (15 min)
+
+Requires `FIRECRAWL_API_KEY` environment variable.
 
 ### Tool Parameters
 

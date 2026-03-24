@@ -24,6 +24,7 @@ Slash commands are in-chat commands that control agent behavior, session managem
 | `/new <model>` | Start fresh session with specific model |
 | `/reset` | Alias for `/new` |
 | `/stop` | Abort current run + clear queued followups |
+| `/restart` | Restart gateway |
 | `/compact` | Summarize older context to free window space |
 | `/compact <instructions>` | Compact with specific focus instructions |
 
@@ -34,6 +35,9 @@ Slash commands are in-chat commands that control agent behavior, session managem
 | `/status` | Show agent status, context usage, WhatsApp cred freshness |
 | `/context list` | List what's in system prompt + injected files |
 | `/context detail` | Detailed view of context contributors |
+| `/help` | Show available commands |
+| `/commands` | List all available commands |
+| `/whoami` | Show current agent identity |
 
 ### Model & Thinking
 
@@ -44,6 +48,8 @@ Slash commands are in-chat commands that control agent behavior, session managem
 | `/model <provider/model>` | Switch to specific model |
 | `/model <provider>` | Switch to provider (fuzzy match) |
 | `/thinking <level>` | Set thinking level (off/minimal/low/medium/high/xhigh) |
+| `/fast` | Toggle fast mode (lower latency) |
+| `/reasoning` | Show reasoning/thinking output |
 | `/verbose` | Toggle verbose output mode |
 
 ### Send Policy
@@ -53,6 +59,25 @@ Slash commands are in-chat commands that control agent behavior, session managem
 | `/send on` | Allow sending for this session |
 | `/send off` | Deny sending for this session |
 | `/send inherit` | Clear override, use config rules |
+
+### Skills & Context
+
+| Command | Description |
+|---|---|
+| `/skill <name>` | Run a specific skill |
+| `/context` | Show context information |
+| `/btw <question>` | Ask a side question without affecting main context |
+
+### Execution & Tools
+
+| Command | Description |
+|---|---|
+| `/elevated on\|ask\|full\|off` | Control elevated mode |
+| `/exec` | Execute command directly |
+| `/bash` | Open shell session |
+| `/tts off\|always\|inbound\|tagged\|status\|provider\|limit\|summary\|audio` | Text-to-speech control |
+| `/activation` | Manage activation settings |
+| `/queue` | View/manage command queue |
 
 ### ACP (Agent Communication Protocol)
 
@@ -91,11 +116,31 @@ Slash commands are in-chat commands that control agent behavior, session managem
 | `/session idle <duration\|off>` | Set/inspect inactivity auto-unfocus |
 | `/session max-age <duration\|off>` | Set/inspect hard cap age |
 
+### Configuration & Debug
+
+| Command | Description |
+|---|---|
+| `/config show` | Show current config |
+| `/config get <path>` | Get config value |
+| `/config set <path> <value>` | Set config value |
+| `/config unset <path>` | Remove config value |
+| `/mcp show` | Show MCP configuration |
+| `/mcp get <path>` | Get MCP config value |
+| `/mcp set <path> <value>` | Set MCP config value |
+| `/mcp unset <path>` | Remove MCP config value |
+| `/plugins list` | List installed plugins |
+| `/plugins show <name>` | Show plugin details |
+| `/plugins enable <name>` | Enable a plugin |
+| `/plugins disable <name>` | Disable a plugin |
+| `/debug show` | Show debug state |
+| `/debug set <key> <value>` | Set debug option |
+| `/debug unset <key>` | Remove debug option |
+| `/debug reset` | Reset all debug options |
+
 ### Other
 
 | Command | Description |
 |---|---|
-| `/help` | Show available commands |
 | `/version` | Show OpenClaw version |
 
 ## Model Selection

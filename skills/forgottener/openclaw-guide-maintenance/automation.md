@@ -5,6 +5,8 @@
 - [Cron Jobs](#cron-jobs)
 - [Webhooks](#webhooks)
 - [Gmail Pub/Sub](#gmail-pubsub)
+- [Standing Orders](#standing-orders)
+- [Hooks](#hooks)
 
 ---
 
@@ -234,3 +236,59 @@ Configure the push subscription to POST to your Gateway's webhook endpoint.
 ```bash
 openclaw webhooks gmail stop
 ```
+
+---
+
+## Standing Orders
+
+Grant agents permanent operating authority for defined programs. Define in `AGENTS.md`.
+
+Each program requires:
+- **Scope**: What the agent can do
+- **Triggers**: When it executes
+- **Approval gates**: What needs human approval
+- **Escalation**: When to stop and ask for help
+
+### Template
+
+```markdown
+## Program: [Name]
+**Authority:** [What agent can do]
+**Trigger:** [When it executes]
+**Approval gate:** [What needs human approval]
+**Escalation:** [When to stop and ask for help]
+```
+
+### Execution Discipline
+
+Every task follows: Execute -> Verify -> Report.
+
+---
+
+## Hooks
+
+Event-driven system for automating actions within the Gateway.
+
+### Discovery Layers (Priority Order)
+
+1. Bundled hooks
+2. Plugin hooks
+3. Managed hooks (`~/.openclaw/hooks/`)
+4. Workspace hooks (`<workspace>/hooks/`)
+
+### Bundled Hooks
+
+| Hook | Description |
+|---|---|
+| `session-memory` | Preserves context during session resets |
+| `bootstrap-extra-files` | Injects workspace files during init |
+| `command-logger` | Records commands to log file |
+| `boot-md` | Executes BOOT.md at gateway start |
+
+### Event Categories
+
+- **Command**: `command:new`, `command:reset`, `command:stop`
+- **Session**: `session:compact:before`, `session:compact:after`
+- **Agent**: `agent:bootstrap`
+- **Gateway**: `gateway:startup`
+- **Message**: `message:received`, `message:sent`
