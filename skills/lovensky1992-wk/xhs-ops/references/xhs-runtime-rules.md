@@ -24,6 +24,38 @@
 5. 若评论控件为 `contenteditable` 或 `p.content-input`，需先触发输入事件再发送。
 6. 两条点击失败或 404 后返回搜索页换下一条，不对同链接直跳重试。
 
+## 5.0 轮播图与评论区输入规则
+
+### 5.1 轮播图抓取
+
+只取当前活跃帧，排除 Swiper 克隆节点（避免重复抓取）：
+
+```js
+// 正确做法：过滤掉 duplicate 帧
+const slides = document.querySelectorAll(
+  '.swiper-slide-active:not(.swiper-slide-duplicate)'
+);
+```
+
+- 不要用 `.swiper-slide` 全量选取，会包含无效的克隆帧
+- 轮播图图片 URL 在 `img[src]` 或 `[data-src]`（懒加载时取 data-src）
+
+### 5.2 评论区 contenteditable 输入
+
+小红书评论框为 `contenteditable`，需触发 input 事件才能让平台识别文字：
+
+```js
+// 正确做法：execCommand + InputEvent
+const el = document.querySelector('[contenteditable="true"]');
+el.focus();
+document.execCommand('insertText', false, '回复内容');
+el.dispatchEvent(new InputEvent('input', { bubbles: true }));
+```
+
+- 禁止直接赋值 `el.textContent = '...'`（平台无法识别，发送按钮不激活）
+- 禁止用 `act(kind=type)` 操作富文本评论框（已知失败）
+- 若上述方法仍不激活发送按钮，改为手动：产出回复文案，通知老板粘贴
+
 ## 6.0 回放与降级
 
 - 若搜索结构变化先 snapshot 更新 selector 再继续，不盲跑旧路径。
