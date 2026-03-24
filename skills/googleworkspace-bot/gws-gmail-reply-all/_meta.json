@@ -3,11 +3,16 @@
   "slug": "gws-gmail-reply-all",
   "displayName": "Gws Gmail Reply All",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1773789062603,
-    "commit": "https://github.com/openclaw/skills/commit/fa723c5ff44ea90f47dbb20c72bb0c914f53f883"
+    "version": "1.0.2",
+    "publishedAt": 1774300470430,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1773789062603,
+      "commit": "https://github.com/openclaw/skills/commit/fa723c5ff44ea90f47dbb20c72bb0c914f53f883"
+    },
     {
       "version": "1.0.0",
       "publishedAt": 1773393354353,
