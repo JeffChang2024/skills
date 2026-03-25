@@ -28,9 +28,6 @@ Use this reference before sharing or publishing SOTA-agent artifacts.
 4. Confirm the promoted score is tied to the right benchmark and not to an internal-only evaluation surface.
 5. Review the changelog and summary text for private names or infra terms.
 
-## Practical audit commands
+## Practical review step
 
-```bash
-rg -n "/Users/|/home/|localhost|127\\.0\\.0\\.1|token|api[_-]?key|secret|password|cookie|ws://|wss://" ./skill/sota-agent
-python3 -m py_compile ./skill/sota-agent/scripts/*.py
-```
+Use your local audit tooling to scan for absolute paths, localhost URLs, tokens, and secret-shaped strings before publishing.

@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -12,21 +11,9 @@ from pathlib import Path
 from sota_public_safety import sanitize_path
 
 
-def sha256_file(path: Path, block_size: int = 1024 * 1024) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as fh:
-        while True:
-            chunk = fh.read(block_size)
-            if not chunk:
-                break
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
 def path_record(
     path: Path,
     role: str,
-    hash_files: bool,
     *,
     alias_roots: list[tuple[Path | None, str]],
     allow_absolute_paths: bool,
@@ -42,15 +29,7 @@ def path_record(
     }
     if not path.exists():
         return record
-    stat = path.stat()
     record["type"] = "dir" if path.is_dir() else "file"
-    record["size_bytes"] = stat.st_size
-    record["mtime_utc"] = datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat()
-    if path.is_dir():
-        record["child_count"] = sum(1 for _ in path.iterdir())
-        record["recursive_file_count"] = sum(1 for child in path.rglob("*") if child.is_file())
-    elif hash_files:
-        record["sha256"] = sha256_file(path)
     return record
 
 
@@ -75,7 +54,6 @@ def main() -> int:
         default=[],
         help="Repeatable role=path pair for important artifacts inside or outside the bundle.",
     )
-    parser.add_argument("--hash-files", action="store_true", default=False, help="Hash file entries.")
     args = parser.parse_args()
 
     out_path = Path(args.out).expanduser().resolve()
@@ -96,7 +74,6 @@ def main() -> int:
             path_record(
                 path,
                 role,
-                args.hash_files,
                 alias_roots=alias_roots,
                 allow_absolute_paths=False,
             )

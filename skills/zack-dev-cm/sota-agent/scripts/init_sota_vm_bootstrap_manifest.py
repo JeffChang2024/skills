@@ -11,7 +11,6 @@ from pathlib import Path
 from sota_public_safety import (
     is_absolute_like,
     sanitize_command_tokens,
-    sanitize_env_map,
     sanitize_path,
 )
 
@@ -35,7 +34,6 @@ def main() -> int:
     parser.add_argument("--dataset-manifest", default="", help="Dataset manifest path or id.")
     parser.add_argument("--gpu-type", default="", help="Requested or observed GPU type.")
     parser.add_argument("--repo", action="append", default=[], help="Repeatable role=name@commit or role=name.")
-    parser.add_argument("--env", action="append", default=[], help="Repeatable key=value pair.")
     parser.add_argument("--threshold", action="append", default=[], help="Repeatable key=value pair.")
     parser.add_argument(
         "--command",
@@ -82,7 +80,6 @@ def main() -> int:
         "source_control": repos,
         "runtime": {
             "gpu_type": args.gpu_type,
-            "env": sanitize_env_map(parse_key_value(args.env), allow_raw=False),
             "thresholds": parse_key_value(args.threshold),
             "command": sanitize_command_tokens(
                 args.command,

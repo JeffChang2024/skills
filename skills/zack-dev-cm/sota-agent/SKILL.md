@@ -60,14 +60,19 @@ Turn a vague "beat the benchmark" request into a disciplined campaign:
    - GPU VM lane: long runs with heartbeats, watchdogs, sync, and auto-stop policy.
    - Local lane: cheap falsification, tiny reruns, and artifact review.
 
-5. Work the SOTA ladder in order.
+5. Keep file writes inside one campaign workspace.
+   - Create one dedicated campaign root and keep every `--out`, `--bundle-root`, and `--output-root` path under it.
+   - Do not point the bundled scripts at unrelated home-directory or system paths.
+   - Treat `scripts/sota_public_safety.py` as the canonical public-redaction layer for URLs, refs, and paths.
+
+6. Work the SOTA ladder in order.
    - Reproduce the trusted baseline first.
    - Reproduce one relevant reference result or a close public checkpoint.
    - Build a hypothesis backlog from literature gaps, not vibes.
    - Run narrow ablations before broad recipe churn.
    - Stress the best candidate on the fixed review surfaces.
 
-6. Claim only on full-surface wins.
+7. Claim only on full-surface wins.
    - Fixed benchmark score
    - Reproduced baseline delta
    - Compute or cost context
@@ -162,6 +167,8 @@ Read only the reference that matches the task:
 
 ## Bundled Scripts
 
+- `scripts/sota_public_safety.py`
+  - Pure local helpers for path, URL, ref, env, and command redaction. No network I/O or subprocess execution.
 - `scripts/init_sota_campaign.py`
   - Create a reusable campaign folder with research, leaderboard, plan, ablation, evidence, and claim files.
 - `scripts/init_sota_program.py`
@@ -175,7 +182,7 @@ Read only the reference that matches the task:
 - `scripts/init_sota_validation_scorecard.py`
   - Create a machine-readable GUI or notebook validation scorecard when visible state matters to the campaign.
 - `scripts/init_sota_artifact_manifest.py`
-  - Create a machine-readable export-bundle manifest for notebook or VM artifact pulls.
+  - Create a machine-readable export-bundle manifest for notebook or VM artifact pulls with public-safe path metadata.
 - `scripts/init_sota_candidate_card.py`
   - Create a machine-readable card for a serious candidate and its claim state.
 - `scripts/init_sota_candidate.py`
