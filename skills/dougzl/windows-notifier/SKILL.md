@@ -31,7 +31,7 @@ node "$env:USERPROFILE\.openclaw\workspace\skills\windows-notifier\scripts\send-
 ```
 
 Behavior summary:
-- **Windows + WPF available** → prefer `show-modern-dialog.ps1` for the custom modern card
+- **Windows + WPF available** → prefer the built-in WPF modern card path in `send-notification.js`
 - **Windows fallback** → if WPF is unavailable or launch fails, automatically fall back to `node-notifier`
 - **Linux / macOS** → use the existing `node-notifier` path
 
@@ -46,8 +46,8 @@ Optional flags:
 ## Notes
 
 - Keep the title short and the message concise.
-- On Windows, `--mode modern|card|dialog` prefers the custom WPF modern card when available, and otherwise falls back to `node-notifier` automatically.
-- `--timeout false|permanent|sticky|0` is treated as a persistent request intent, but final behavior depends on the active backend (`show-modern-dialog.ps1` on WPF-capable Windows, otherwise `node-notifier`).
+- On Windows, `--mode modern|card|dialog` prefers the built-in WPF modern card path when available, and otherwise falls back to `node-notifier` automatically.
+- `--timeout false|permanent|sticky|0` is treated as a persistent request intent, but final behavior depends on the active backend (built-in WPF on capable Windows, otherwise `node-notifier`).
 - Prefer this over chat-only reminders when the request is for a local popup.
 - If a reminder or alert may be missed because OpenClaw is running in the background, prefer triggering this notifier in addition to or instead of chat delivery, depending on user intent.
 - `node-notifier` remains the default non-Windows path and the cross-platform fallback mechanism.
