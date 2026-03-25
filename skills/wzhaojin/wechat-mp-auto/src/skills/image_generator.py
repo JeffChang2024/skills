@@ -534,7 +534,12 @@ class ImageGeneratorSkill(BaseSkill):
                     logger.info(f"AI生成封面图成功: {img_path}")
                     return img_path
             elif self._image_source == "search":
-                images = self._search_all(cover_keywords)
+                images = None
+                for retry in range(3):
+                    images = self._search_all(cover_keywords)
+                    if images:
+                        break
+                    logger.info(f"封面搜图第{retry+1}次为空，重试...")
                 if images:
                     img_path = self._download_image(images[0], "cover", max_width=900, max_height=500)
                     if img_path:
@@ -565,7 +570,12 @@ class ImageGeneratorSkill(BaseSkill):
                     logger.info(f"AI生成插图成功: {img_path}")
                     return img_path
             elif self._image_source == "search":
-                images = self._search_all(illust_keywords)
+                images = None
+                for retry in range(3):
+                    images = self._search_all(illust_keywords)
+                    if images:
+                        break
+                    logger.info(f"插图搜图第{retry+1}次为空，重试...")
                 if images:
                     img_path = self._download_image(images[0], "illustration", max_width=900, max_height=400)
                     if img_path:

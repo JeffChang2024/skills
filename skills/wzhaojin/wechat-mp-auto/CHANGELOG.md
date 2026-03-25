@@ -1,10 +1,34 @@
+## [0.1.2] - 2026-03-24
+
+### Fixed
+- `article_writer.py`：`convert_to_html` 新增 Markdown 图片语法 `![alt](url)` 处理，修复此前图片无法转 HTML 的问题
+- `article_writer.py`：修复 `_remove_mixed_language_spaces` 将 `<img>` 标签误删的问题
+- `article_writer.py`：`inject_section_images` 新增 Unicode 标点归一化（U+3001/U+FF0C）和 substring 匹配，修复章节图注入失败
+- `article_writer.py`：统一所有 `<img>` 标签的 margin 样式为 16px
+
+### Added
+- `image_generator.py`：搜图失败时自动重试 3 次，提升图片获取成功率
+- `article_writer.py`：新增 Markdown 图片语法支持（`![name](url)` 在 `convert_to_html` 中转为 `<img>`）
+
+### Changed
+- `SKILL.md`：重写第五至八步工作流，描述与实际代码流程一致
+- `article_writer.py`：`convert_to_html` 中 `_convert_inline_formatting` 生成的 img 标签统一加 inline style
+
+### Removed
+- `article_writer.py`：移除 `convert_to_html` 中冗余的 `inject_section_images` 调用（图片已通过 Markdown 插入，不再依赖此路径）
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
 
-## [0.0.9] - 2026-03-21
+## [0.1.0] - 2026-03-22
 
-版本号递增，因已有相同版本号发布记录
+### Fixed
+- `token_manager.py`：修复 `from .exceptions` 相对导入在 `-m` 模块方式运行时报错的问题，改为绝对导入
+- `publish.py`：修复章节图永远 fallback 封面图的问题，新增 `img_gen.search_image()` 搜索并上传各章节独立图片
+
+### Changed
+- `draft_skill.py`：统一动态导入为绝对导入风格
 
 ## [0.0.8] - 2026-03-21
 
