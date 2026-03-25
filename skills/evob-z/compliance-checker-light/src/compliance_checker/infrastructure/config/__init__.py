@@ -21,6 +21,14 @@ from .settings import (
     get_ocr_backend,
     get_aliyun_ocr_credentials,
 )
+from .secret_ref import (
+    # SecretRef 相关
+    SecretRef,
+    SecretRefResolver,
+    SecretRefError,
+    parse_secret_ref,
+    resolve_secret,
+)
 
 __all__ = [
     "CheckerConfig",
@@ -30,4 +38,10 @@ __all__ = [
     "scan_default_documents",
     "get_ocr_backend",
     "get_aliyun_ocr_credentials",
+    # SecretRef
+    "SecretRef",
+    "SecretRefResolver",
+    "SecretRefError",
+    "parse_secret_ref",
+    "resolve_secret",
 ]

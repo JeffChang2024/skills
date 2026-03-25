@@ -1,14 +1,13 @@
-# Compliance Checker MCP Service
+# Compliance Checker
 
 <div align="center">
   
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![MCP Protocol](https://img.shields.io/badge/MCP-1.0-brightgreen.svg)](https://modelcontextprotocol.io/)
 [![Qwen-VL Support](https://img.shields.io/badge/Visual_Model-Qwen--VL-purple.svg)](https://help.aliyun.com/zh/dashscope/developer-reference/vl-plus-quick-start)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-**基于 MCP（Model Context Protocol）的 AI 驱动文档合规审查 Skill**
+**AI 驱动的文档合规审查 Python 库**
 
 [中文文档](README.md) • [English](README_EN.md)
 
@@ -16,13 +15,12 @@
 
 ## 项目概述
 
-本项目是一个 AI Skill，提供自然语言接口的文档合规审查能力：
-1. **自然语言输入** - 用中文描述检查要求，自动生成检查清单
-2. **资料完整性核对** - 检查必需文档是否齐全（支持语义匹配）
-3. **资料时效性核对** - 验证文件有效期是否覆盖项目周期
-4. **基础合规性核对** - 检查公章、签字、文件编号等要素
-5. **视觉检测** - 使用 Qwen-VL 识别印章/签名
-6. **文本输出** - 返回自然语言描述的检查结果
+本项目是一个 Python 库，提供文档合规审查能力：
+1. **资料完整性核对** - 检查必需文档是否齐全（支持语义匹配）
+2. **资料时效性核对** - 验证文件有效期是否覆盖项目周期
+3. **基础合规性核对** - 检查公章、签字、文件编号等要素
+4. **视觉检测** - 使用 Qwen-VL 识别印章/签名
+5. **JSON 输出** - 返回结构化检查结果
 
 ## 系统架构
 
@@ -30,25 +28,22 @@
 
 ```mermaid
 graph TD
-    A[AI Agent / 大模型] -->|自然语言需求 + 路径| B(ComplianceSkill 接口)
-    B --> C{LLM 清单生成器}
-    C -->|生成 YAML 规则| D[声明式检查引擎]
+    A[Python API] -->|调用| B[命令处理器]
+    B --> C[文档解析器 Parser]
+    C -->|提取 PDF/Word 文本| D[声明式检查引擎]
     
-    B --> E[文档解析器 Parser]
-    E -->|提取 PDF/Word 文本| D
+    D --> E[完整性检查 Completeness]
+    D --> F[时效性检查 Timeliness]
+    D --> G[合规性检查 Compliance]
     
-    D --> F[完整性检查 Completeness]
-    D --> G[时效性检查 Timeliness]
-    D --> H[合规性检查 Compliance]
+    G -->|需要验证公章/签字| H[Qwen-VL 视觉校验]
     
-    H -->|需要验证公章/签字| I[Qwen-VL 视觉校验]
+    E --> I[结果汇总 Formatter]
+    F --> I
+    G --> I
+    H --> I
     
-    F --> J[结果汇总 Formatter]
-    G --> J
-    H --> J
-    I --> J
-    
-    J -->|结构化文本报告| A
+    I -->|JSON 输出| A
 ```
 
 ## 项目结构
@@ -57,17 +52,10 @@ graph TD
 
 ```
 src/compliance_checker/
-├── interface/                    # 接口层 - MCP 协议适配
-│   └── mcp_server.py            # MCP Server 入口
-│
 ├── application/                  # 应用层 - 用例编排
-│   ├── skill.py                 # Skill Facade（对外接口）
+│   ├── commands/                # 命令实现
 │   ├── bootstrap.py             # 依赖注入初始化
-│   ├── formatter.py             # 结果格式化
-│   ├── use_cases/               # 用例实现
-│   │   └── project_check.py     # 项目检查用例
-│   └── prompts/                 # LLM 提示词模板
-│       └── checklist_prompt.py
+│   └── formatter.py             # 结果格式化
 │
 ├── domain/                       # 领域层 - 业务逻辑
 │   ├── checkers/                # 检查器实现
@@ -103,46 +91,69 @@ src/compliance_checker/
 │   └── config/                  # 配置管理
 │       └── settings.py
 │
-└── server.py                    # 应用入口
+└── cli.py                       # CLI 入口（可选）
 ```
 
 ## 配置
 
-### 环境变量
+### SecretRef 配置方式
 
-在 `.env` 文件中配置：
+本库遵循 OpenClaw SecretRef 规范进行密钥管理，**不支持直接读取环境变量**。
 
-```bash
-# 基础配置（必需）
-LLM_API_KEY=your-api-key
-LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1  # 或 https://api.openai.com/v1
-LLM_MODEL=qwen-max  # 或 gpt-4o
+配置通过 `CheckerConfig.from_secret_ref()` 方法传入：
 
-# 嵌入模型（可选，用于语义匹配文件名）
-EMBED_MODEL=text-embedding-v1  # 留空则使用简单字符匹配
+```python
+from compliance_checker.infrastructure.config import CheckerConfig
 
-# 视觉模型（可选，用于印章/签名检测）
-VISION_MODEL=qwen3-vl-flash  # 默认使用 OpenAI 兼容模式模型，留空则禁用视觉检查
+# 使用 SecretRef 配置（推荐）
+config = CheckerConfig.from_secret_ref(
+    secrets={
+        "llm_api_key": {"source": "env", "provider": "default", "id": "LLM_API_KEY"},
+        "llm_base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "llm_model": "qwen-max",
+    }
+)
 
-# 独立配置（当嵌入/视觉模型与 LLM 使用不同厂商时）
-# EMBED_API_KEY=your-embed-key
-# VISION_API_KEY=your-vision-key
-
-# OCR 配置（可选，默认不启用）
-# OCR_BACKEND=none  # none（默认）/ paddle（本地）/ aliyun（云端）
+# 或使用普通字符串值
+config = CheckerConfig.from_secret_ref(
+    secrets={
+        "llm_api_key": "your-api-key",
+        "llm_base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "llm_model": "qwen-max",
+    }
+)
 ```
 
-### MCP Server 配置示例（Cherry Studio）
+### 配置项说明
 
-```yaml
-# .openclaw/mcp.yaml
-mcp_servers:
-  compliance-checker:
-    type: inline
-    command: python -m compliance_checker.server
-    cwd: /path/to/compliance-checker
-    env:
-      PYTHONPATH: /path/to/compliance-checker/src
+| 配置项 | 必需 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `llm_api_key` | 是 | - | LLM API 密钥 |
+| `llm_base_url` | 否 | `https://api.openai.com/v1` | LLM API 端点 |
+| `llm_model` | 否 | `gpt-4o` | LLM 模型名称 |
+| `llm_timeout` | 否 | `60` | 请求超时（秒） |
+| `llm_max_retries` | 否 | `3` | 最大重试次数 |
+| `embed_api_key` | 否 | 使用 `llm_api_key` | 嵌入模型 API 密钥 |
+| `embed_model` | 否 | `text-embedding-v1` | 嵌入模型名称 |
+| `vision_api_key` | 否 | 使用 `llm_api_key` | 视觉模型 API 密钥 |
+| `vision_model` | 否 | `qwen3-vl-flash` | 视觉模型名称 |
+| `ocr_backend` | 否 | `none` | OCR 后端：`none` / `paddle` / `aliyun` |
+| `alibaba_cloud_access_key_id` | 否 | - | 阿里云 Access Key ID |
+| `alibaba_cloud_access_key_secret` | 否 | - | 阿里云 Access Key Secret |
+
+### SecretRef 格式
+
+支持 OpenClaw 标准的 SecretRef 格式：
+
+```python
+# 从环境变量读取
+{"source": "env", "provider": "default", "id": "LLM_API_KEY"}
+
+# 从文件读取（JSON 模式）
+{"source": "file", "provider": "filemain", "id": "/providers/openai/apiKey"}
+
+# 从外部命令读取
+{"source": "exec", "provider": "vault", "id": "providers/openai/apiKey"}
 ```
 
 ## 安装说明
@@ -212,78 +223,184 @@ docker build --build-arg OCR_BACKEND=cloud -t compliance-checker:cloud-ocr .
 
 运行容器：
 ```bash
-docker run -e LLM_API_KEY=your-key \
-           -e LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1 \
-           -e OCR_BACKEND=none \
-           compliance-checker:latest
+docker run compliance-checker:latest
 ```
 
-#### 配置环境变量
-```bash
-cp .env.example .env
-# 编辑 .env 文件，填入你的 API 密钥
-```
+注意：容器内需要通过 SecretRef 方式传入配置。
 
 #### 运行测试
 ```bash
-python run_check.py
+python -m pytest tests/ -v
 ```
+
+## 数据隐私与数据流向
+
+使用本工具时，您的文档数据可能会发送到以下外部服务：
+
+### 视觉检测服务（印章/签名识别）
+
+- **服务提供商**：阿里云 DashScope
+- **API 端点**：`https://dashscope.aliyuncs.com/compatible-mode/v1`
+- **使用场景**：当执行视觉检查（印章/签名检测）时，文档图片会被发送到该服务
+- **数据处理方式**：
+  - 图片通过 HTTPS 加密传输
+  - 阿里云 DashScope 服务仅用于推理，不存储用户数据
+  - 详细隐私政策请参考[阿里云 DashScope 服务条款](https://www.aliyun.com/product/dashscope)
+
+### OCR 服务（可选）
+
+根据配置的 `OCR_BACKEND`，文档可能发送到以下服务：
+
+| 后端 | 服务提供商 | 数据流向 | 说明 |
+|------|-----------|---------|------|
+| `none`（默认） | 无 | 本地处理 | 不发送任何数据到外部服务 |
+| `paddle` | 本地 | 本地处理 | 使用本地 PaddleOCR 模型，数据不离开本机 |
+| `aliyun` | 阿里云 | 发送到阿里云 OCR 服务 | 需要配置 `ALIBABA_CLOUD_ACCESS_KEY_ID` 和 `ALIBABA_CLOUD_ACCESS_KEY_SECRET` |
+
+### LLM 服务
+
+- **服务提供商**：阿里云 DashScope（默认）或其他兼容 OpenAI API 的服务
+- **使用场景**：
+  - 生成合规检查清单
+  - 语义匹配文档名称
+  - 提取文档中的日期信息
+- **数据处理方式**：仅发送文本内容，不包含原始文件
+
+### 数据安全建议
+
+1. **敏感文档处理**：建议在上传前对包含敏感信息的文档进行脱敏处理（如遮盖身份证号、银行卡号等）
+2. **本地 OCR**：如需处理高度敏感文档，建议使用 `OCR_BACKEND=paddle` 进行本地 OCR 处理
+3. **网络隔离**：企业用户可通过配置私有 LLM 端点实现完全内网部署
+
+### 数据持久化
+
+- 本工具**不会**将您的文档内容持久化存储到本地磁盘
+- 检查结果仅输出到控制台或返回给调用方
+- 临时文件（如 PDF 转换的中间图片）会在检查完成后自动清理
 
 ## 使用方法
 
-### 作为 Skill 使用（推荐）
+### Python API 示例
 
+`Examples/` 目录包含 4 个测试文档，演示不同检查场景：
+
+#### 1. 完整合规检查（立项批复）
+
+**文件**：`01_立项批复_示范智慧城市项目.pdf`
+
+**场景**：检查公章、签字、文件编号、日期等要素是否齐全
+
+**代码**：
 ```python
-from compliance_checker.skill import ComplianceSkill
+from compliance_checker.application.commands.completeness_cmd import run_completeness
+from compliance_checker.application.commands.timeliness_cmd import run_timeliness
+from compliance_checker.application.commands.visual_cmd import run_visual
 
-skill = ComplianceSkill()
-result = await skill.check(
-    project_path="/path/to/documents",
-    requirements="检查是否有发票，验证日期是否在2026年3月10日前，检查是否有印章",
-    project_period={"start": "2026-01", "end": "2026-12"}
+# 检查文档完整性
+completeness = await run_completeness(
+    path="./Examples",
+    documents=["立项批复"]
 )
 
-print(result["issues_description"])  # 查看检查结果
+# 检查时效性
+timeliness = await run_timeliness(
+    file="./Examples/01_立项批复_示范智慧城市项目.pdf"
+)
+
+# 视觉检查：公章和签字
+visual = await run_visual(
+    file="./Examples/01_立项批复_示范智慧城市项目.pdf",
+    targets=["公章", "法人签字"]
+)
 ```
 
-### 作为 MCP Server 使用
+#### 2. 有效期检查（施工许可证）
 
-配置 `.openclaw/mcp.yaml`：
-```yaml
-mcp_servers:
-  compliance-checker:
-    type: inline
-    command: python -m compliance_checker.server
-    cwd: /path/to/compliance-checker
-    env:
-      PYTHONPATH: /path/to/compliance-checker/src
-      LLM_API_KEY: ${LLM_API_KEY}
+**文件**：`03_施工许可证_示范项目.pdf`
+
+**场景**：验证文件有效期是否覆盖项目周期（2025-09 至 2027-08）
+
+**代码**：
+```python
+# 检查时效性
+result = await run_timeliness(
+    file="./Examples/03_施工许可证_示范项目.pdf",
+    reference_time="2026-06-01"
+)
+
+# 以特定日期为基准检查
+result = await run_timeliness(
+    file="./Examples/03_施工许可证_示范项目.pdf",
+    reference_time="2028-01-01"
+)
 ```
 
-然后使用自然语言调用：
+#### 3. 时效性失败检查（已过期许可证）
+
+**文件**：`05_安全生产许可证_已过期.docx`
+
+**场景**：演示有效期已过期（2023-04 到期）的检测
+
+**代码**：
+```python
+# 检查已过期文档
+result = await run_timeliness(
+    file="./Examples/05_安全生产许可证_已过期.docx"
+)
+
+# 指定参考时间检查
+result = await run_timeliness(
+    file="./Examples/05_安全生产许可证_已过期.docx",
+    reference_time="2024-01-01"
+)
 ```
-检查 /path/to/documents 文件夹中的发票，验证日期是否有效，是否有印章
+
+#### 4. 合规性失败检查（缺少公章）
+
+**文件**：`09_无公章批复_测试用.pdf`
+
+**场景**：演示缺少公章和签名的检测
+
+**代码**：
+```python
+# 视觉检查：公章（应返回未找到）
+result = await run_visual(
+    file="./Examples/09_无公章批复_测试用.pdf",
+    targets=["公章"]
+)
+
+# 视觉检查：签字（应返回未找到）
+result = await run_visual(
+    file="./Examples/09_无公章批复_测试用.pdf",
+    targets=["法人签字"]
+)
+
+# 同时检查公章和签字
+result = await run_visual(
+    file="./Examples/09_无公章批复_测试用.pdf",
+    targets=["公章", "法人签字"]
+)
+```
+
+#### 批量检查示例
+
+检查 Examples 目录下所有文档的完整性：
+```python
+result = await run_completeness(
+    path="./Examples",
+    documents=["立项批复", "施工许可证", "安全生产许可证"]
+)
 ```
 
 ## 核心功能
 
-### 1. 自然语言输入
-
-用中文描述检查要求，LLM 自动生成检查清单：
-```python
-requirements = """
-审查建设工程项目，需要立项批复、环评批复、施工许可证，
-检查所有批文是否有公章，证件是否在有效期内
-"""
-```
-
-### 2. 完整性核对
+### 1. 完整性核对
 
 检查必需文档是否齐全：
 - **精确匹配**：文件名包含清单名称
 - **语义匹配**：使用 LLM 嵌入模型计算相似度（默认阈值 0.75）
 
-### 3. 时效性核对
+### 2. 时效性核对
 
 验证文件有效期：
 - 提取签发日期、有效期起止
@@ -291,7 +408,7 @@ requirements = """
 - 判断有效期是否覆盖项目周期
 - 支持有效期描述提取（如"有效期一年"）
 
-### 4. 合规性核对
+### 3. 合规性核对
 
 检查基础合规要点：
 - **公章**：视觉检测
@@ -299,7 +416,7 @@ requirements = """
 - **文件编号**：正则匹配
 - **日期**：提取验证
 
-### 5. 视觉检测
+### 4. 视觉检测
 
 使用 Qwen-VL 进行视觉确认：
 - 自动为印章/签字检查启用视觉检测
@@ -308,32 +425,30 @@ requirements = """
 
 ## 快速测试
 
-```bash
-# 测试发票检查
-python run_check.py
-```
-
-或使用 Python：
 ```python
 import asyncio
-from compliance_checker.skill import ComplianceSkill
+from compliance_checker.application.commands.completeness_cmd import run_completeness
+from compliance_checker.cli import check_health
 
 async def test():
-    skill = ComplianceSkill()
-    result = await skill.check(
-        project_path="./docs",
-        requirements="检查是否有发票，验证日期是否有效，是否有印章",
-        project_period={"start": "2026-01", "end": "2026-12"}
+    # 健康检查
+    health = await check_health()
+    print(health["status"])
+    
+    # 测试完整性检查
+    result = await run_completeness(
+        path="./Examples",
+        documents=["立项批复"]
     )
-    print(result["issues_description"])
+    print(result)
 
 asyncio.run(test())
 ```
 
 ## 技术特点
 
-- **自然语言接口** - 无需编写 YAML，用中文描述检查要求
-- **LLM 驱动** - 自动生成检查清单，语义匹配使用 LLM 嵌入 API
+- **Python API 优先** - 简洁的 Python 接口，直接返回字典
+- **LLM 驱动** - 语义匹配使用 LLM 嵌入 API，日期提取使用 LLM
 - **视觉优先** - 印章/签名检测使用 Qwen-VL，不依赖文本关键词
 - **轻量级** - 默认无 OCR，可选安装 PaddleOCR/阿里云 OCR
 - **异步架构** - 所有检查任务并行执行
@@ -342,9 +457,9 @@ asyncio.run(test())
 ### 注意事项
 
 ### 1. OCR 配置
-- **默认不启用**（`OCR_BACKEND=none`），仅处理可编辑 PDF
-- **本地 OCR**：安装 `[local-ocr]`，配置 `OCR_BACKEND=paddle`
-- **云端 OCR**：安装 `[cloud-ocr]`，配置 `OCR_BACKEND=aliyun` + 阿里云密钥
+- **默认不启用**（`ocr_backend=none`），仅处理可编辑 PDF
+- **本地 OCR**：安装 `[local-ocr]`，配置 `ocr_backend=paddle`
+- **云端 OCR**：安装 `[cloud-ocr]`，配置 `ocr_backend=aliyun` + 阿里云密钥
 
 ### 2. 日期格式
 支持的日期格式：
@@ -354,9 +469,9 @@ asyncio.run(test())
 - `2024年3月`（自动补全为 3月31日）
 
 ### 3. 视觉检测
-- 默认使用 `qwen3-vl-flash` 模型，可通过 `VISION_MODEL` 修改
-- 自动复用 `LLM_API_KEY` 和 `LLM_BASE_URL`（OpenAI 兼容模式）
-- 如需使用不同厂商的视觉模型，可配置 `VISION_API_KEY` 和 `VISION_BASE_URL`
+- 默认使用 `qwen3-vl-flash` 模型，可通过 `vision_model` 配置修改
+- 自动复用 `llm_api_key` 和 `llm_base_url`（OpenAI 兼容模式）
+- 如需使用不同厂商的视觉模型，可配置 `vision_api_key` 和 `vision_base_url`
 - 首次调用可能有延迟
 
 ### 4. 语义匹配
@@ -365,19 +480,24 @@ asyncio.run(test())
 - 支持备用方案（字符级嵌入）
 
 ### 5. LLM 依赖
-- 清单生成需要 LLM API
-- 语义匹配优先使用 LLM 嵌入
+- 语义匹配使用 LLM 嵌入 API
+- 日期提取使用 LLM
 - 支持 OpenAI 兼容 API（DashScope、Moonshot 等）
+
+### 6. 配置方式
+- **不支持环境变量**：代码中不读取任何环境变量
+- **必须使用 SecretRef**：所有敏感配置通过 `CheckerConfig.from_secret_ref()` 传入
+- **符合 ClawHub 规范**：通过 OpenClaw SecretRef 机制安全注入密钥
 
 ---
 
-**项目状态**: MCP Service 版本已稳定 ✅  
-**最后更新**: 2026-03-15  
+**项目状态**: Python API 版本已稳定
+**最后更新**: 2026-03-24 (v1.1.6)
 **维护者**: evob
 
 ## 架构特点
 
-- **Clean Architecture 五层架构**: Interface → Application → Domain → Core → Infrastructure
+- **Clean Architecture 四层架构**: Application → Domain → Core → Infrastructure
 - **依赖倒置**: 内层定义接口，外层实现接口
 - **依赖注入**: 通过 `bootstrap.py` 完成所有依赖组装
 - **声明式检查引擎**: 根据清单配置自动执行检查

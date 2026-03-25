@@ -6,5 +6,5 @@
 - visual: 视觉合规性检测（印章/签名）
 """
 
-__version__ = "1.0.0"
+__version__ = "1.1.6"
 __author__ = "evob"

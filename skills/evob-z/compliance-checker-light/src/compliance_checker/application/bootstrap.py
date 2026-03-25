@@ -17,6 +17,7 @@ from ..infrastructure.llm.ocr_engine import create_ocr_engine, OCREngineProtocol
 from ..infrastructure.config.settings import CheckerConfig
 from ..infrastructure.visual.qwen_client import QwenVLClient
 from ..infrastructure.converter.pdf_converter import PyMuPDFConverter
+from ..infrastructure.rag.validity_retriever import InMemoryValidityRetriever
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,7 @@ class Container:
         self._visual_client: Optional[QwenVLClient] = None
         self._ocr_engine: Optional[OCREngineProtocol] = None
         self._pdf_converter: Optional[PyMuPDFConverter] = None
+        self._validity_retriever: Optional[InMemoryValidityRetriever] = None
 
     @property
     def llm_client(self) -> Optional[LLMClient]:
@@ -82,7 +84,11 @@ class Container:
         """获取视觉客户端实例（延迟加载）"""
         if self._visual_client is None and self.config.visual_enabled:
             try:
-                self._visual_client = QwenVLClient()
+                self._visual_client = QwenVLClient(
+                    api_key=self.config.vision_api_key,
+                    base_url=self.config.vision_base_url,
+                    model=self.config.vision_model,
+                )
                 if self._visual_client.is_available():
                     logger.info(f"视觉客户端初始化成功: {self._visual_client.model}")
                 else:
@@ -117,6 +123,31 @@ class Container:
             except Exception as e:
                 logger.warning(f"PDF 转换器初始化失败: {e}")
         return self._pdf_converter
+
+    @property
+    def validity_retriever(self) -> Optional[InMemoryValidityRetriever]:
+        """获取有效期 RAG 检索器实例（延迟加载）"""
+        if self._validity_retriever is None and self.config.rag_enabled:
+            matcher = self.semantic_matcher
+            if matcher is not None:
+                try:
+                    self._validity_retriever = InMemoryValidityRetriever(
+                        semantic_matcher=matcher,
+                        chunk_size=self.config.rag_chunk_size,
+                        chunk_overlap=self.config.rag_chunk_overlap,
+                        top_k=self.config.rag_top_k,
+                        circuit_breaker_threshold=self.config.rag_circuit_breaker_threshold,
+                    )
+                    logger.info(
+                        f"Micro-RAG 检索器初始化成功: "
+                        f"chunk_size={self.config.rag_chunk_size}, "
+                        f"top_k={self.config.rag_top_k}"
+                    )
+                except Exception as e:
+                    logger.warning(f"Micro-RAG 检索器初始化失败: {e}")
+            else:
+                logger.debug("SemanticMatcher 不可用，跳过 Micro-RAG 初始化")
+        return self._validity_retriever
 
 def create_container(config: Optional[CheckerConfig] = None) -> Container:
     """
