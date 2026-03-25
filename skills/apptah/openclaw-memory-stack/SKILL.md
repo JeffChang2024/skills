@@ -1,331 +1,253 @@
 ---
 name: openclaw-memory-stack
-description: "Total recall, 90% fewer tokens. 5-engine memory with 3-tier token control, RRF rank fusion, knowledge graph, and self-cleaning dedup. Runs offline. $49 one-time."
-version: 0.2.0
+description: "Total recall, 90% fewer tokens. The best OpenClaw memory plugin — 5-engine local search, structured fact extraction, smart dedup, cross-agent sharing, and self-healing. Replace native memory with something that actually remembers. No cloud API, no subscription."
+version: "0.5.7"
+license: proprietary
 metadata:
   openclaw:
     requires:
-      env:
-        - OPENCLAW_LICENSE_KEY
       bins:
         - bash
-    primaryEnv: OPENCLAW_LICENSE_KEY
+        - python3
+        - sqlite3
+      anyBins:
+        - bun
+        - qmd
     emoji: "\U0001F9E0"
     homepage: https://openclaw-memory.apptah.com
+    tags:
+      - memory
+      - search
+      - rag
+      - vector-search
+      - code-search
+      - knowledge-management
+      - fact-extraction
+      - entity-tracking
+      - token-savings
+      - long-term-memory
+      - context-window
+      - recall
+      - local
+      - offline
+      - dedup
+      - persistence
+    pricing:
+      model: one-time
+      amount: 49
+      currency: usd
+      url: https://openclaw-memory.apptah.com
+      note: "$49 one-time purchase. No subscription, no cloud API costs. One-time activation requires internet."
+    network:
+      - host: openclaw-api.apptah.com
+        purpose: "License activation (install, once) and re-verification (every 7 days, background). Sends only license_key and device_id. Never sends memory content."
+      - host: openclaw-api.apptah.com
+        purpose: "Update check on manual upgrade. Sends only current_version."
+      - host: localhost:8080
+        purpose: "Local MLX LLM for fact extraction. Never leaves machine."
+      - host: localhost:11434
+        purpose: "Local Ollama LLM for fact extraction. Never leaves machine."
+      - host: api.openai.com
+        purpose: "Cloud LLM fallback for fact extraction. Only active if user sets API key. User-configurable endpoint."
+    permissions:
+      shell:
+        - binary: sqlite3
+          purpose: "Local database read/write for all 5 search engines. No arbitrary command execution."
+        - binary: qmd
+          purpose: "QMD CLI for vector search and collection management."
+      fileAccess:
+        read: ["~/.openclaw/memory-stack/", "~/.openclaw/memory/external/", ".openclaw/"]
+        write: ["~/.openclaw/memory-stack/", "~/.openclaw/memory/"]
+    envVars:
+      - name: OPENCLAW_LLM_API_KEY
+        purpose: "API key for cloud LLM fact extraction (optional)"
+        sentTo: "user-configured llmEndpoint only"
+      - name: OPENAI_API_KEY
+        purpose: "Fallback API key for OpenAI (optional)"
+        sentTo: "api.openai.com or user-configured llmEndpoint"
+      - name: OPENCLAW_LCM_DB
+        purpose: "Override lossless DB path (local only)"
+      - name: OPENCLAW_ROUTER_CONFIG
+        purpose: "Override router config path (local only)"
+      - name: OPENCLAW_BACKENDS_JSON
+        purpose: "Override backends config path (local only)"
+    dataFlow:
+      localOnly: "All search/storage (5 engines, sqlite3, markdown) runs on-device. Shell execution targets only local databases."
+      remote: "License verify sends {key, device_id} only. LLM extraction sends conversation excerpts to user-configured endpoint."
+      neverTransmitted: "Raw memory content never sent to apptah.com. No telemetry or analytics."
 ---
 
-# OpenClaw Memory Stack 🧠
+# OpenClaw Memory Stack
 
 **Total recall. 90% fewer tokens.**
 
-Your agent forgets past decisions and burns tokens re-reading the same context. Memory Stack fixes both problems — 5 engines search in parallel, 3-tier output controls exactly how many tokens you spend, and a rescue store saves key facts before compaction eats them.
+Your agent forgets past decisions and burns tokens re-reading the same context. Memory Stack runs 5 search engines locally, returns only what matters, and never loses a fact.
 
-One command to install. Works in the background. No config files to edit.
+> **$49 one-time purchase.** No subscription, no cloud API costs.
+> All search and storage runs on your machine. One-time license activation requires internet.
+> Buy at [openclaw-memory.apptah.com](https://openclaw-memory.apptah.com)
 
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                    OPENCLAW MEMORY STACK                         │
-├──────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐        │
-│  │  FTS5    │  │   QMD    │  │ Markdown │  │ Lossless │        │
-│  │ keyword  │  │ semantic │  │  memory  │  │   DAG    │        │
-│  │ search   │  │ + BM25   │  │  files   │  │ summary  │        │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘        │
-│       │              │              │              │              │
-│       └──────────────┴──────┬───────┴──────────────┘              │
-│                             ▼                                    │
-│                    ┌────────────────┐                             │
-│                    │  RRF Fusion +  │  ← Reciprocal Rank Fusion  │
-│                    │  MMR Diversity │    merges all results       │
-│                    └───────┬────────┘                             │
-│                            ▼                                     │
-│                    ┌────────────────┐                             │
-│                    │  3-Tier Output │                             │
-│                    │                │                             │
-│                    │  L0: ~100 tok  │  ← auto-recall (default)   │
-│                    │  L1: ~800 tok  │  ← summary on demand       │
-│                    │  L2: full text │  ← only when needed        │
-│                    └───────┬────────┘                             │
-│                            ▼                                     │
-│  ┌──────────────────────────────────────────────────────┐        │
-│  │                  RESCUE STORE                         │        │
-│  │  SQLite — facts, decisions, deadlines extracted       │        │
-│  │  before compaction. Survives any context window.      │        │
-│  └──────────────────────────────────────────────────────┘        │
-│                                                                  │
-│  ┌──────────────────────────────────────────────────────┐        │
-│  │               KNOWLEDGE GRAPH                         │        │
-│  │  SQLite — people, tools, decisions linked.            │        │
-│  │  Multi-hop BFS · PageRank · Evolution chains          │        │
-│  └──────────────────────────────────────────────────────┘        │
-│                                                                  │
-│  ┌──────────────────────────────────────────────────────┐        │
-│  │               SELF-CLEANING                           │        │
-│  │  4-level dedup: exact → normalized → substring →      │        │
-│  │  cosine. Health score 0-100. Runs automatically.      │        │
-│  └──────────────────────────────────────────────────────┘        │
-│                                                                  │
-└──────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                  OPENCLAW MEMORY STACK                        │
+├──────────────────────────────────────────────────────────────┤
+│                                                              │
+│  SEARCH PIPELINE (runs on every conversation turn)           │
+│                                                              │
+│  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐               │
+│  │  E1  │ │  E2  │ │  E3  │ │  E4  │ │  E5  │               │
+│  │ Full │ │Vector│ │ DAG  │ │ Fact │ │  MD  │               │
+│  │ Text │ │Search│ │Compr.│ │Store │ │Files │               │
+│  └──┬───┘ └──┬───┘ └──┬───┘ └──┬───┘ └──┬───┘               │
+│     └────────┴────────┴────────┴────────┘                    │
+│                        │                                     │
+│                        ▼                                     │
+│               ┌──────────────┐                               │
+│               │ Result Fusion│                               │
+│               │ + Reranking  │                               │
+│               └──────────────┘                               │
+│                        │                                     │
+│              ┌─────────┼─────────┐                           │
+│              ▼         ▼         ▼                           │
+│          ┌──────┐  ┌──────┐  ┌──────┐                        │
+│          │  L0  │  │  L1  │  │  L2  │  Token Budget           │
+│          │~100t │  │~800t │  │ full │  Control                │
+│          └──────┘  └──────┘  └──────┘                        │
+│                                                              │
+│  CAPTURE (runs after every conversation turn)                │
+│                                                              │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐        │
+│  │    Fact       │  │   Entity     │  │   Dedup &    │        │
+│  │  Extraction   │  │  Tracking    │  │  Supersede   │        │
+│  │  (8 types)    │  │  (queryable) │  │  (3-level)   │        │
+│  └──────────────┘  └──────────────┘  └──────────────┘        │
+│                                                              │
+│  CROSS-AGENT SHARING                                         │
+│                                                              │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐        │
+│  │   CLI API    │  │  Drop Zone   │  │   Unified    │        │
+│  │ query/add/   │  │  ~/.openclaw │  │   Global     │        │
+│  │   recent     │  │  /external/  │  │   Memory     │        │
+│  └──────────────┘  └──────────────┘  └──────────────┘        │
+│         ▲                 ▲                 ▲                 │
+│  Claude Code       Cursor / Windsurf    Any MCP client       │
+│                                                              │
+│  SELF-HEALING MAINTENANCE (24h cycle, zero config)           │
+│                                                              │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐        │
+│  │  Auto-Init   │  │   Graceful   │  │   Health     │        │
+│  │  workspace   │  │   Fallback   │  │   Monitor    │        │
+│  │  + indexing   │  │  FTS5-only   │  │  + alerting  │        │
+│  └──────────────┘  └──────────────┘  └──────────────┘        │
+│                                                              │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-## Why It's Different
+## Built-in Code Search
 
-Most memory skills do **one thing** — vector search, or a markdown file, or a WAL log. You end up installing 3-4 skills, configuring each one, and hoping they work together.
+Find function names, variable names, or any pattern across your entire memory — instantly. No extra tools needed, works offline, gets faster the more you use it.
 
-Memory Stack is **one install** that does all of it:
+## 5-Engine Search
 
-| What you need | Other skills | Memory Stack |
-|---|---|---|
-| Find a function name | ❌ Vector search misses exact names | ✅ FTS5 keyword search finds it instantly |
-| Find "how does auth work" | ✅ Vector search works | ✅ QMD semantic search + HyDE expansion |
-| Find across 5 conversations | ❌ Limited to current context | ✅ Rescue store + knowledge graph |
-| Control token spend | ❌ Full text every time | ✅ 3 tiers: ~100 / ~800 / full |
-| Remove duplicates | ❌ Manual cleanup | ✅ 4-level auto-dedup |
-| Track how decisions evolved | ❌ No history | ✅ Evolution chains in knowledge graph |
-| Check memory quality | ❌ No tooling | ✅ Health score 0-100 |
-| Work offline | ❌ Needs OpenAI key | ✅ Core search runs offline |
+Five engines search in parallel on every conversation turn:
 
-## How Token Savings Work
+| Engine | What it does |
+|--------|-------------|
+| Full-text | Keyword matching with relevance ranking |
+| Vector | Semantic search — understands meaning, not just words |
+| Compressed history | Conversation DAG with drill-down |
+| Fact store | Structured facts — decisions, deadlines, requirements |
+| Markdown | Scans memory files directly |
 
-Every memory search costs tokens. The more text injected, the higher your API bill.
+Results are merged with rank fusion, deduplicated, reranked for diversity, and scored with time decay.
 
-```
-┌─────────────────────────────────────────────────────┐
-│                                                     │
-│   Native memory:     ████████████████████  ~1000 tok│
-│                      (full text, every time)        │
-│                                                     │
-│   Memory Stack L0:   ██                     ~100 tok│
-│                      (auto-recall, key facts only)  │
-│                                                     │
-│   Memory Stack L1:   ████████              ~800 tok │
-│                      (summary, on demand)           │
-│                                                     │
-│   Memory Stack L2:   ████████████████████  ~1000 tok│
-│                      (full text, only when needed)  │
-│                                                     │
-│   Savings:           90% on most searches           │
-│                                                     │
-└─────────────────────────────────────────────────────┘
-```
+## 3-Tier Token Control
 
-**L0 is the default.** Your agent gets the answer in ~100 tokens. If it needs more detail, it requests L1 or L2. You only pay for what's needed.
+Every wasted token is money burned. Memory Stack eliminates the waste.
 
-## The 5 Search Engines
+| Tier | Tokens | When used |
+|------|--------|-----------|
+| L0 | ~100 | Auto-recall every turn — minimal cost |
+| L1 | ~800 | On-demand search summary |
+| L2 | full | Full content on request |
 
-### Engine 1: FTS5 (Keyword)
+## Structured Fact Memory
 
-SQLite full-text search. Best for exact names, symbols, error messages.
+Extracts 8 fact types automatically: decisions, deadlines, requirements, entities, preferences, workflows, relationships, corrections.
 
-```bash
-openclaw-memory "handleAuthCallback" --hint exact
-# → Finds exact function name in 12ms
-```
+- Structured key/value storage with confidence scores
+- Negation-aware — "We will NOT use MongoDB" preserved correctly
+- Automatic supersede — when a fact changes, old version archived, new one takes over
 
-### Engine 2: QMD (Semantic + BM25)
+## Smart Dedup & Conflict Resolution
 
-Vector embeddings + BM25 hybrid. Best for concepts and behavior.
+- 3-level write-time dedup: exact match, normalized text, structured key match
+- Full audit trail via archive table
+- Removes duplicates before sending — you never pay twice for the same memory
 
-```bash
-openclaw-memory "how does the payment flow handle retries" --hint semantic
-# → Understands meaning, not just keywords
-```
+## Cross-Agent Memory Sharing
 
-**HyDE expansion:** For semantic queries, Memory Stack generates a hypothetical answer first, then searches for documents similar to that answer. This dramatically improves recall for abstract questions — no API call needed, runs locally.
+Works across Claude Code, Cursor, Windsurf, and any MCP-compatible client.
 
-### Engine 3: Markdown Memory
+- CLI commands: `openclaw-memory query/add/recent` — any tool can read/write facts
+- Drop zone: drop `.md` files into `~/.openclaw/memory/external/` — auto-ingested, no duplicates
+- Unified global memory under `~/.openclaw/memory/` — your memory follows you across workspaces
 
-Searches your MEMORY.md and memory/*.md files. Compatible with native OpenClaw memory format.
+## Self-Healing Maintenance
 
-### Engine 4: Rescue Store
+Zero maintenance. The plugin takes care of itself.
 
-SQLite-backed fact extraction. When conversations get long and compaction kicks in, key facts — decisions, deadlines, requirements — are already saved here. Your agent recalls them instantly instead of you re-explaining.
+- Auto-init: detects workspace, creates search index, schedules embedding — no manual setup
+- Graceful fallback: if vector search unavailable, runs in keyword-only mode — always functional
+- 24h maintenance cycle: rebuilds index on corruption, archives stale facts, alerts on health issues
 
-### Engine 5: Lossless DAG
-
-Hierarchical summarization tree. Large codebases get condensed into a DAG of summaries. You can drill down from high-level overview to specific details without loading everything.
-
-### How They Work Together
-
-```
-Your query: "What did we decide about the API design?"
-
-  FTS5:      "API design" → 2 results (score 0.4, 0.3)
-  QMD:       semantic match → 3 results (score 0.8, 0.6, 0.5)
-  Markdown:  file search → 1 result (score 0.5)
-  Rescue:    fact lookup → 2 results (score 0.9, 0.7)
-  Lossless:  DAG drill-down → 1 result (score 0.6)
-                    │
-                    ▼
-           ┌────────────────┐
-           │  RRF Fusion    │  Reciprocal Rank Fusion
-           │  + MMR Dedup   │  merges + diversifies
-           └───────┬────────┘
-                   ▼
-           Top 3 results, deduplicated, L0 tier (~100 tokens)
-```
-
-The router picks the right engine automatically. If one engine returns low-relevance results, it falls back to the next. You always get the best answer from the best source.
-
-## Knowledge Graph
-
-Not a markdown file pretending to be a graph. A real SQLite-backed knowledge graph.
-
-```
-                    ┌─────────┐
-                    │  Auth   │
-                    │ Module  │
-                    └────┬────┘
-                         │ depends_on
-              ┌──────────┼──────────┐
-              ▼          ▼          ▼
-        ┌─────────┐ ┌────────┐ ┌────────┐
-        │ JWT     │ │ Redis  │ │ User   │
-        │ Library │ │ Cache  │ │ Model  │
-        └─────────┘ └────────┘ └────┬───┘
-                                    │ decided_by
-                                    ▼
-                              ┌──────────┐
-                              │ Sprint 3 │
-                              │ Decision │
-                              └──────────┘
-```
-
-**What you can ask:**
-- "What depends on the auth module?" → One-hop BFS, instant answer
-- "How did the database decision evolve?" → Evolution chain traversal
-- "Who is the expert on payments?" → PageRank over contribution graph
-- "What changed between last week and now?" → Bi-temporal query
-
-## Self-Cleaning Memory
-
-Duplicates cost real money every time your agent reads them.
-
-```
-Before cleanup:
-  "Use React for frontend"          ← original
-  "We decided to use React"         ← normalized duplicate
-  "Use React for the frontend UI"   ← substring duplicate
-  "Frontend framework: React"       ← cosine duplicate
-
-After 4-level dedup:
-  "Use React for frontend"          ← one clean entry
-
-Health score: 47 → 92
-```
-
-**4 dedup levels:**
-1. **Exact** — identical strings
-2. **Normalized** — same after lowering case, trimming whitespace
-3. **Substring** — one entry contains another
-4. **Cosine** — semantically identical but differently worded
-
-Runs automatically. Health score 0-100 tells you exactly how clean your memory is.
-
-## Setup
-
-```bash
-# 1. Run setup with your license key
-./setup.sh --key=oc-starter-YOUR_KEY
-
-# 2. Restart OpenClaw — memory is active immediately
-openclaw gateway restart
-
-# 3. Initialize in your project
-openclaw-memory init .
-openclaw-memory embed
-
-# 4. Just talk — memory works in the background
-openclaw-memory "your query here"
-```
-
-Run `./setup.sh --help` for all options.
-
-### Verify Installation
-
-```bash
-# Check all engines
-openclaw-memory health
-
-# Expected output:
-# [OK] fts5     — ready
-# [OK] qmd      — ready (or: installed, run 'openclaw-memory embed')
-# [OK] markdown  — ready
-# [OK] rescue   — ready
-# [OK] lossless — ready
-# Health: 5/5 engines operational
-
-# Deep check (tests actual search)
-openclaw-memory health --deep
-```
-
-### Optional: Add LLM for Fact Extraction
-
-Core search works offline. Add any LLM key to unlock automatic fact extraction from every conversation:
-
-```bash
-# Any of these — Memory Stack auto-detects
-export OPENAI_API_KEY="sk-..."        # OpenAI
-export ANTHROPIC_API_KEY="sk-ant-..." # Anthropic
-export OLLAMA_HOST="localhost:11434"   # Ollama (free, local)
-# Or any OpenAI-compatible endpoint
-```
-
-A few cents per session saves dollars of wasted tokens.
-
-## Requirements
-
-| Dependency | Required | Notes |
-|---|---|---|
-| bash | Yes | macOS / Linux / Windows via WSL2 |
-| OpenClaw | Yes | 2026.3.2 or later |
-| Bun | Recommended | For QMD vector search (free, open source) |
-| Python 3 | Optional | Used by some backends for JSON processing |
-| LLM API key | Optional | Any provider. Unlocks fact extraction |
-
-## Troubleshooting
-
-| Problem | Cause | Fix |
-|---|---|---|
-| No search results | Project not indexed | Run `openclaw-memory init . && openclaw-memory embed` |
-| QMD unavailable | Bun not installed | Install Bun: `curl -fsSL https://bun.sh/install \| bash` |
-| Low relevance scores | Wrong search mode | Use `--hint exact` for names, `--hint semantic` for concepts |
-| Stale results | Index outdated | Run `openclaw-memory embed` to re-index |
-| Health score low | Duplicates accumulated | Dedup runs automatically; check with `openclaw-memory health` |
-| Rescue store empty | No LLM key configured | Add any API key (see Optional setup above) |
-| Slow first search | Embedding cold start | Normal on first run. Subsequent searches are fast |
-
-## vs Native Memory
+## OpenClaw Native vs Memory Stack
 
 | | Native | Memory Stack |
-|---|---|---|
-| Search engines per query | 2 (keyword + vector) | 5, merged by RRF with per-engine weights |
-| Token control | Full text every time | 3 tiers: L0 ~100 / L1 ~800 / L2 full |
-| Cross-conversation search | Limited | Instant via graph + rescue stores |
-| Understands meaning | Basic keyword matching | HyDE expansion + semantic search |
-| Duplicate handling | Can pay twice for same info | 4-level auto-dedup before sending |
-| Memory health check | No | Quality score 0-100 |
-| Decision tracking | No | Evolution chains in knowledge graph |
-| Cost over time | Grows with junk | Self-cleaning, stays flat |
-| Offline capable | Needs embedding provider | Core search runs offline |
-| LLM lock-in | OpenAI only | Any provider: OpenAI, Anthropic, Ollama, MLX |
+|---|--------|-------------|
+| Search engines | 2 | 5 (parallel, fused) |
+| Token efficiency | Full text every time | Up to 90% fewer |
+| Output tiers | Full text | 3 tiers (~100 / ~800 / full) |
+| Fact extraction | No | 8 types, structured, negation-aware |
+| Duplicate handling | Can pay twice | 3-level dedup, auto-supersede |
+| Entity tracking | No | Yes, queryable |
+| Cross-agent | No | CLI + drop zone, works with any tool |
+| Memory across projects | Separate per workspace | Unified global memory — follows you everywhere |
+| Self-healing | No | Auto-maintain, auto-fallback |
+| Runs locally | Yes | Yes — all search local, one-time activation online |
 
-## Pricing
+## Install
 
-**$49 — one-time purchase. No subscription.**
+```bash
+npx clawhub@latest package install openclaw-memory-stack
+```
 
-- Up to 3 device activations
-- No data leaves your machine
-- Core search runs offline, no API costs
-- Bug fixes within your version are free
+Then run `./install.sh --key=oc-starter-xxxxxxxxxxxx` to activate with your license key.
 
-Pays for itself in the first week of saved API costs.
+Purchase at [openclaw-memory.apptah.com](https://openclaw-memory.apptah.com).
 
-**Purchase at: [openclaw-memory.apptah.com](https://openclaw-memory.apptah.com)**
+Runs on macOS, Linux, and Windows (WSL2). Requires bash, python3, and OpenClaw 2026.3.2 or later. Bun is optional (enables QMD vector search).
 
----
+## What the installer does
 
-*Built by [@Apptah](https://github.com/Apptah) — because your agent's memory shouldn't cost more than yours.*
+The included `install.sh` performs the following actions:
+
+- **Files**: Copies plugin and backend files to `~/.openclaw/memory-stack/`, registers plugin in `~/.openclaw/extensions/openclaw-memory-stack/`, updates `~/.openclaw/openclaw.json`
+- **License activation**: Sends your license key and a device fingerprint (SHA-256 of machine ID) to `openclaw-api.apptah.com/api/activate` — one-time, at install
+- **Periodic verification**: Re-verifies license every 7 days (background, non-blocking). Sends only `{ key, device_id }`. 10-day offline grace period
+- **Upgrade downloads**: `install.sh --upgrade` downloads new versions from `openclaw-api.apptah.com` with mandatory SHA-256 checksum verification
+- **No telemetry**: No usage data, memory content, or analytics are ever sent. Only license key and device ID leave your machine
+- **Optional LLM**: `OPENCLAW_LLM_API_KEY` / `OPENAI_API_KEY` env vars are optional, used only for LLM-powered fact extraction. If not set, falls back to local Ollama/MLX. These keys are sent only to the endpoint you configure (default: api.openai.com), never to our servers
+
+All search and storage runs entirely on your machine.
+
+## License
+
+Proprietary. $49 one-time purchase. All features included. No subscription.
+See full terms at [openclaw-memory.apptah.com](https://openclaw-memory.apptah.com).
+
+## Support
+
+Questions or issues? Contact us at **support@apptah.com**.
