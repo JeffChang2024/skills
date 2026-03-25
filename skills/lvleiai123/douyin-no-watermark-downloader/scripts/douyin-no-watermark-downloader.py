@@ -14,7 +14,7 @@ def get_douyin_real_video_urls(douyin_share_url: str, max_retries: int = 3) -> l
     """
     解析抖音分享链接，返回真实视频播放地址列表（按清晰度降序，最高清在前）。
     """
-    base_url = "https://lvhomeproxy.dpdns.org"
+    base_url = "https://lvhomeproxy2.dpdns.org/api/hybrid/video_data"
     params = {
         "url": douyin_share_url,
         "minimal": False
