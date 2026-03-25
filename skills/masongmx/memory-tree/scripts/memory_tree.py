@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """
-Memory Tree 🌳 — 置信度驱动的记忆生命周期管理
+Memory Tree 🌳 v2.0 — 简化的记忆管理
 
-支持多级语义搜索后端：
-1. 本地 Ollama（零成本，推荐）
-2. 云端 API（智谱/OpenAI/等，按需配置）
-3. 关键词 fallback（无需任何依赖，功能完整但精度较低）
+核心功能：
+1. weekly - 周报生成（本周新记、本周遗忘、永久记忆清单）
+2. search - 语义搜索（关键词模式，无外部依赖）
+3. mark - 永久标记（📌）
 
-生命周期：🌱萌芽(0.7) → 🌿绿叶(≥0.8) → 🍂黄叶(0.5-0.8) → 🍁枯叶(0.3-0.5) → 🪨土壤(<0.3)
+v2.0 变更：
+- 删除：decay 命令、枯叶/土壤概念、ollama embedding
+- 新增：周报内容重构、推送渠道自动检测
 """
 
 import json
@@ -15,239 +17,32 @@ import os
 import hashlib
 import re
 import sys
-import math
-import urllib.request
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 # ==================== 路径配置 ====================
 WORKSPACE = Path.home() / ".openclaw" / "workspace"
 MEMORY_MD = WORKSPACE / "MEMORY.md"
+MEMORY_DIR = WORKSPACE / "memory"
 DATA_DIR = WORKSPACE / "memory-tree" / "data"
 CONFIDENCE_DB = DATA_DIR / "confidence.json"
-EMBEDDINGS_DB = DATA_DIR / "embeddings.json"
-CONFIG_FILE = DATA_DIR / "config.json"
-
-# ==================== 置信度参数 ====================
-DEFAULT_CONFIDENCE = 0.7
-GREEN_THRESHOLD = 0.8
-YELLOW_THRESHOLD = 0.5
-DEAD_THRESHOLD = 0.3
-DECAY_P2 = 0.008
-DECAY_P1 = 0.004
-HIT_BOOST = 0.03
-USE_BOOST = 0.08
-
-
-# ==================== Embedding 后端 ====================
-
-class EmbeddingBackend:
-    """基类"""
-    name = "unknown"
-    def embed(self, text):
-        raise NotImplementedError
-
-
-class OllamaBackend(EmbeddingBackend):
-    """本地 Ollama — 零成本，需要 Ollama 运行"""
-    name = "ollama"
-    def __init__(self, url="http://localhost:11434", model="qwen3-embedding"):
-        self.url = url.rstrip("/")
-        self.model = model
-
-    def embed(self, text):
-        try:
-            req = urllib.request.Request(
-                f"{self.url}/api/embeddings",
-                data=json.dumps({"model": self.model, "prompt": text}).encode(),
-                headers={"Content-Type": "application/json"}
-            )
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                return json.loads(resp.read())["embedding"]
-        except Exception:
-            return None
-
-    @staticmethod
-    def check_available(url="http://localhost:11434"):
-        try:
-            req = urllib.request.Request(f"{url.rstrip('/')}/api/tags", method="GET")
-            with urllib.request.urlopen(req, timeout=5) as resp:
-                models = json.loads(resp.read()).get("models", [])
-                names = [m["name"] for m in models]
-                # 检查有没有 embedding 模型
-                embedding_models = [n for n in names if "embed" in n.lower()]
-                return bool(embedding_models), embedding_models
-        except Exception:
-            return False, []
-
-
-class ZhipuBackend(EmbeddingBackend):
-    """智谱 Embedding — 云端 API，需要 API key"""
-    name = "zhipu"
-    def __init__(self, api_key, model="embedding-3"):
-        self.api_key = api_key
-        self.model = model
-        self.url = "https://open.bigmodel.cn/api/paas/v4/embeddings"
-
-    def embed(self, text):
-        try:
-            req = urllib.request.Request(
-                self.url,
-                data=json.dumps({"model": self.model, "input": text}).encode(),
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {self.api_key}"
-                }
-            )
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                return json.loads(resp.read())["data"][0]["embedding"]
-        except Exception:
-            return None
-
-
-class OpenAIBackend(EmbeddingBackend):
-    """OpenAI Embedding — 云端 API，需要 API key"""
-    name = "openai"
-    def __init__(self, api_key, model="text-embedding-3-small", base_url=None):
-        self.api_key = api_key
-        self.model = model
-        self.base_url = (base_url or "https://api.openai.com/v1").rstrip("/")
-        self.url = f"{self.base_url}/embeddings"
-
-    def embed(self, text):
-        try:
-            req = urllib.request.Request(
-                self.url,
-                data=json.dumps({"model": self.model, "input": text}).encode(),
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {self.api_key}"
-                }
-            )
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                return json.loads(resp.read())["data"][0]["embedding"]
-        except Exception:
-            return None
-
-
-class KeywordBackend(EmbeddingBackend):
-    """关键词 fallback — 无需任何依赖，基于词频的简单相似度"""
-    name = "keyword"
-    def __init__(self):
-        self._cache = {}
-
-    def embed(self, text):
-        """生成词袋向量（归一化词频）"""
-        import string
-        # 中文按字切分 + 英文按词切分
-        words = list(text)
-        for word in re.findall(r'[a-zA-Z]{2,}', text.lower()):
-            words.append(word)
-        # 去除标点和空白
-        table = str.maketrans('', '', string.punctuation + string.whitespace)
-        words = [w for w in words if w.translate(table)]
-        if not words:
-            return None
-        # 词频
-        freq = {}
-        for w in words:
-            freq[w] = freq.get(w, 0) + 1
-        # 归一化
-        total = len(words)
-        return {k: v / total for k, v in freq.items()}
-
-
-def cosine_sim_vec(a, b):
-    """向量余弦相似度（list）"""
-    dot = sum(x * y for x, y in zip(a, b))
-    na = math.sqrt(sum(x * x for x in a))
-    nb = math.sqrt(sum(x * x for x in b))
-    return dot / (na * nb) if na > 0 and nb > 0 else 0
-
-
-def cosine_sim_dict(a, b):
-    """词袋余弦相似度（dict）"""
-    common = set(a.keys()) & set(b.keys())
-    if not common:
-        return 0
-    dot = sum(a[k] * b[k] for k in common)
-    na = math.sqrt(sum(v * v for v in a.values()))
-    nb = math.sqrt(sum(v * v for v in b.values()))
-    return dot / (na * nb) if na > 0 and nb > 0 else 0
-
-
-def cosine_sim(a, b):
-    """自动选择相似度计算方式"""
-    if isinstance(a, list) and isinstance(b, list):
-        return cosine_sim_vec(a, b)
-    elif isinstance(a, dict) and isinstance(b, dict):
-        return cosine_sim_dict(a, b)
-    return 0
-
-
-# ==================== 后端自动检测 ====================
-
-def auto_detect_backend():
-    """按优先级自动检测可用的 embedding 后端"""
-    config = load_json(CONFIG_FILE, {})
-    manual = config.get("backend")
-
-    # 1. 用户手动指定的后端
-    if manual == "keyword":
-        return KeywordBackend()
-    elif manual == "ollama":
-        url = config.get("ollama_url", "http://localhost:11434")
-        model = config.get("ollama_model", "qwen3-embedding")
-        return OllamaBackend(url, model)
-    elif manual == "zhipu":
-        key = config.get("zhipu_api_key", "")
-        if key:
-            return ZhipuBackend(key)
-    elif manual == "openai":
-        key = config.get("openai_api_key", "")
-        base = config.get("openai_base_url", "")
-        if key:
-            return OpenAIBackend(key, base_url=base if base else None)
-
-    # 2. 自动检测 Ollama（优先，零成本）
-    available, models = OllamaBackend.check_available()
-    if available:
-        model = config.get("ollama_model")
-        if model and model in models:
-            return OllamaBackend(model=model)
-        # 使用第一个 embedding 模型
-        return OllamaBackend(model=models[0])
-
-    # 3. 检测智谱配置
-    zhipu_key = config.get("zhipu_api_key") or os.environ.get("ZHIPU_API_KEY", "")
-    if zhipu_key:
-        return ZhipuBackend(zhipu_key)
-
-    # 4. 检测 OpenAI 配置
-    openai_key = config.get("openai_api_key") or os.environ.get("OPENAI_API_KEY", "")
-    if openai_key:
-        base = config.get("openai_base_url") or os.environ.get("OPENAI_BASE_URL", "")
-        return OpenAIBackend(openai_key, base_url=base if base else None)
-
-    # 5. 关键词 fallback
-    return KeywordBackend()
-
+OPENCLAW_CONFIG = Path.home() / ".openclaw" / "openclaw.json"
+WEEKLY_REPORTS_DIR = MEMORY_DIR / "weekly-reports"
 
 # ==================== 数据工具 ====================
 
-def ensure_data_dir():
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-
-
 def load_json(path, default=None):
     if path.exists():
-        with open(path, 'r', encoding='utf-8') as f:
-            return json.load(f)
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            return default or {}
     return default or {}
 
 
 def save_json(path, data):
-    ensure_data_dir()
+    path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
@@ -256,7 +51,35 @@ def text_hash(text):
     return hashlib.md5(text.strip().encode()).hexdigest()[:12]
 
 
+def estimate_tokens(text):
+    """粗略估算 token 数（字符/4）"""
+    return len(text) // 4
+
+
+def fmt_tokens(num):
+    """格式化 token 数量"""
+    if num >= 1_000_000:
+        return f"{num/1_000_000:.1f}M"
+    elif num >= 1_000:
+        return f"{num/1_000:.0f}K"
+    else:
+        return str(num)
+
+
+def fmt_size(size_bytes):
+    """格式化文件大小"""
+    if size_bytes < 1024:
+        return f"{size_bytes}B"
+    elif size_bytes < 1024 * 1024:
+        return f"{size_bytes/1024:.1f}KB"
+    else:
+        return f"{size_bytes/1024/1024:.1f}MB"
+
+
+# ==================== Memory 解析 ====================
+
 def parse_memory_blocks(content):
+    """解析 MEMORY.md 中的知识块"""
     blocks = []
     sections = re.split(r'(?=^## )', content, flags=re.MULTILINE)
     for section in sections:
@@ -265,375 +88,509 @@ def parse_memory_blocks(content):
             continue
         title_match = re.match(r'^##\s+(.+)', section)
         title = title_match.group(1).strip() if title_match else "无标题"
+        
+        # 检测永久标记
+        is_permanent = "📌" in title or "[P0]" in title
+        
+        # 检测优先级
         priority = "P2"
-        if "[P0]" in title:
+        if "[P0]" in title or "📌" in title:
             priority = "P0"
         elif "[P1]" in title:
             priority = "P1"
+        
         lines = section.split('\n')
         body = '\n'.join(lines[1:]).strip()
+        
         blocks.append({
             "title": title,
             "body": body,
             "priority": priority,
+            "is_permanent": is_permanent,
             "hash": text_hash(title + body),
             "full_text": title + "\n" + body
         })
     return blocks
 
 
-def get_confidence(db, block_hash, priority):
-    entry = db.get(block_hash, {})
-    if entry:
-        conf = entry.get("confidence", DEFAULT_CONFIDENCE)
-        last_access = entry.get("last_access")
-        if last_access and priority != "P0":
-            last = datetime.fromisoformat(last_access)
-            days_ago = (datetime.now() - last).days
-            rate = DECAY_P1 if priority == "P1" else DECAY_P2
-            conf = max(0, conf - (days_ago * rate))
-        return round(conf, 3)
-    return DEFAULT_CONFIDENCE
-
-
-def get_status(confidence):
-    if confidence >= GREEN_THRESHOLD:
-        return "🌿", "绿叶"
-    elif confidence >= YELLOW_THRESHOLD:
-        return "🍂", "黄叶"
-    elif confidence >= DEAD_THRESHOLD:
-        return "🍁", "枯叶"
-    else:
-        return "🪨", "土壤"
-
-
-# ==================== 核心命令 ====================
-
-def cmd_index():
+def get_permanent_memories():
+    """提取 MEMORY.md 中的永久记忆"""
     if not MEMORY_MD.exists():
-        print("❌ MEMORY.md 不存在")
-        return
+        return []
+    
     content = MEMORY_MD.read_text(encoding='utf-8')
     blocks = parse_memory_blocks(content)
-    db = load_json(CONFIDENCE_DB, {})
-    new_count = 0
+    
+    permanent = []
     for block in blocks:
-        h = block["hash"]
-        if h not in db:
-            db[h] = {
-                "confidence": DEFAULT_CONFIDENCE,
-                "priority": block["priority"],
-                "created": datetime.now().isoformat(),
-                "last_access": datetime.now().isoformat(),
-                "hit_count": 0,
-                "use_count": 0,
-                "title": block["title"]
-            }
-            new_count += 1
-        else:
-            db[h]["last_access"] = datetime.now().isoformat()
-    save_json(CONFIDENCE_DB, db)
-    print(f"✅ 索引完成: {len(blocks)} 条知识, {new_count} 条新增")
+        if block["is_permanent"] or block["priority"] == "P0":
+            # 提取摘要（第一行或前100字符）
+            lines = block["body"].split('\n')
+            summary = ""
+            for line in lines:
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    summary = line[:100]
+                    break
+            if not summary:
+                summary = block["title"][:100]
+            
+            permanent.append({
+                "title": block["title"].replace("📌", "").replace("[P0]", "").strip(),
+                "summary": summary,
+                "priority": block["priority"]
+            })
+    
+    return permanent
 
 
-def cmd_visualize():
-    if not MEMORY_MD.exists():
-        print("❌ MEMORY.md 不存在")
-        return
-    content = MEMORY_MD.read_text(encoding='utf-8')
-    blocks = parse_memory_blocks(content)
-    db = load_json(CONFIDENCE_DB, {})
-    statuses = {"🌿": 0, "🍂": 0, "🍁": 0, "🪨": 0}
-    details = []
-    for block in blocks:
-        h = block["hash"]
-        conf = get_confidence(db, h, block["priority"])
-        icon, label = get_status(conf)
-        statuses[icon] += 1
-        details.append((icon, conf, block["title"]))
-    total = len(blocks)
-    healthy = statuses["🌿"] / total * 100 if total else 0
-    backend = auto_detect_backend()
-    print(f"🌳 记忆树 ({datetime.now().strftime('%Y-%m-%d %H:%M')})")
-    print(f"├── 📊 健康度: {healthy:.0f}%")
-    print(f"├── 🔍 搜索后端: {backend.name}")
-    print(f"├── 🍃 总计: {total}")
-    print(f"│   ├── 🌿 绿叶: {statuses['🌿']}")
-    print(f"│   ├── 🍂 黄叶: {statuses['🍂']}")
-    print(f"│   ├── 🍁 枯叶: {statuses['🍁']}")
-    print(f"│   └── 🪨 土壤: {statuses['🪨']}")
-    print()
-    for icon, conf, title in sorted(details, key=lambda x: x[1]):
-        bar = "█" * int(conf * 10) + "░" * (10 - int(conf * 10))
-        print(f"  {icon} {bar} {conf:.2f} | {title}")
+# ==================== 周报生成 (v2.0 核心功能) ====================
 
-
-def cmd_decay():
-    db = load_json(CONFIDENCE_DB, {})
-    if not db:
-        print("📭 暂无记忆数据")
-        return
-    now = datetime.now()
-    decayed = 0
-    for h, entry in db.items():
-        priority = entry.get("priority", "P2")
-        if priority == "P0":
+def scan_weekly_new_memories():
+    """扫描本周新增的 memory 文件"""
+    today = datetime.now()
+    week_start = today - timedelta(days=today.weekday())  # 本周一
+    week_end = week_start + timedelta(days=6)  # 本周日
+    
+    new_memories = []
+    
+    for f in MEMORY_DIR.glob("*.md"):
+        if f.name == "README.md":
             continue
-        last = datetime.fromisoformat(entry.get("last_access", now.isoformat()))
-        days_ago = (now - last).days
-        if days_ago > 0:
-            rate = DECAY_P1 if priority == "P1" else DECAY_P2
-            entry["confidence"] = round(max(0, entry["confidence"] - (days_ago * rate)), 3)
-            entry["last_access"] = now.isoformat()
-            decayed += 1
-    save_json(CONFIDENCE_DB, db)
-    print(f"🍂 衰减完成: {decayed} 条知识已更新")
+        
+        # 检查文件修改时间
+        mtime = datetime.fromtimestamp(f.stat().st_mtime)
+        if week_start <= mtime <= week_end + timedelta(days=1):
+            try:
+                content = f.read_text(encoding='utf-8')
+                # 提取标题和摘要
+                lines = content.split('\n')
+                title = ""
+                summary = ""
+                
+                for line in lines:
+                    line = line.strip()
+                    if line.startswith('# ') and not title:
+                        title = line[2:].strip()
+                    elif line and not line.startswith('#') and not summary:
+                        summary = line[:80]
+                
+                if not title:
+                    title = f.stem
+                
+                # 检测是否永久记忆
+                is_permanent = "📌" in content or "[P0]" in content or "记住这个" in content
+                
+                new_memories.append({
+                    "title": title,
+                    "summary": summary,
+                    "file": f.name,
+                    "date": mtime.strftime('%Y-%m-%d'),
+                    "is_permanent": is_permanent
+                })
+            except Exception:
+                pass
+    
+    # 按日期排序
+    new_memories.sort(key=lambda x: x["date"], reverse=True)
+    return new_memories
+
+
+def detect_forgotten_memories():
+    """检测本周遗忘的内容（对比 MEMORY.md 和历史记录）"""
+    forgotten = []
+    
+    # 读取当前 MEMORY.md
+    if not MEMORY_MD.exists():
+        return forgotten
+    
+    current_content = MEMORY_MD.read_text(encoding='utf-8')
+    current_blocks = parse_memory_blocks(current_content)
+    current_titles = {b["title"] for b in current_blocks}
+    
+    # 检查 archive 目录
+    archive_dir = MEMORY_DIR / "archive"
+    if archive_dir.exists():
+        for f in archive_dir.glob("MEMORY-*.md"):
+            try:
+                content = f.read_text(encoding='utf-8')
+                blocks = parse_memory_blocks(content)
+                for block in blocks:
+                    if block["title"] not in current_titles:
+                        # 提取摘要
+                        lines = block["body"].split('\n')
+                        summary = ""
+                        for line in lines:
+                            line = line.strip()
+                            if line and not line.startswith('#'):
+                                summary = line[:60]
+                                break
+                        
+                        forgotten.append({
+                            "title": block["title"],
+                            "summary": summary,
+                            "reason": "被新内容替代或归档"
+                        })
+            except Exception:
+                pass
+    
+    return forgotten[:10]  # 最多显示10条
+
+
+def detect_enabled_channels():
+    """从 openclaw.json 检测已启用的推送渠道"""
+    config = load_json(OPENCLAW_CONFIG)
+    channels = config.get('channels', {})
+    
+    enabled = []
+    for name, cfg in channels.items():
+        if cfg.get('enabled', False):
+            enabled.append({
+                'name': name,
+                'config': cfg,
+            })
+    
+    return enabled
+
+
+def get_feishu_chat_id(config):
+    """从飞书配置获取默认 chatId"""
+    group_allow = config.get('groupAllowFrom', [])
+    if group_allow:
+        return group_allow[0]
+    return None
+
+
+def cmd_weekly():
+    """生成周报"""
+    print(f"🌳 记忆树 — 周报生成 ({datetime.now().strftime('%Y-%m-%d %H:%M')})\n")
+    
+    # 确保输出目录存在
+    WEEKLY_REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    
+    # 计算周数
+    today = datetime.now()
+    week_number = today.isocalendar()[1]
+    week_start = today - timedelta(days=today.weekday())
+    week_end = week_start + timedelta(days=6)
+    
+    report_date = today.strftime('%Y-%m-%d')
+    report_file = WEEKLY_REPORTS_DIR / f"memory-tree-{report_date}-W{week_number}.md"
+    
+    # 收集数据
+    print("📊 收集记忆数据...")
+    
+    # 1. 本周新记
+    new_memories = scan_weekly_new_memories()
+    permanent_new = [m for m in new_memories if m["is_permanent"]]
+    normal_new = [m for m in new_memories if not m["is_permanent"]]
+    
+    # 2. 本周遗忘
+    forgotten = detect_forgotten_memories()
+    
+    # 3. 永久记忆清单
+    permanent_memories = get_permanent_memories()
+    
+    # 4. MEMORY.md 统计
+    memory_size = MEMORY_MD.stat().st_size if MEMORY_MD.exists() else 0
+    memory_tokens = estimate_tokens(MEMORY_MD.read_text(encoding='utf-8')) if MEMORY_MD.exists() else 0
+    
+    # 生成报告
+    report_lines = [
+        f"# 🌳 记忆树周报 | {today.year}-W{week_number}",
+        f"",
+        f"> 生成时间：{report_date} {today.strftime('%H:%M')}",
+        f"> 统计周期：{week_start.strftime('%Y-%m-%d')} ~ {week_end.strftime('%Y-%m-%d')}",
+        f"",
+        f"---",
+        f"",
+    ]
+    
+    # 本周新记
+    report_lines.append("## 📝 本周新记")
+    report_lines.append("")
+    
+    if permanent_new:
+        report_lines.append("📌 **永久记忆**：")
+        report_lines.append("")
+        for m in permanent_new[:10]:
+            report_lines.append(f"  • {m['title']} ({m['date']})")
+            if m['summary']:
+                report_lines.append(f"    _{m['summary']}_")
+        report_lines.append("")
+    
+    if normal_new:
+        report_lines.append("🍃 **普通记忆**：")
+        report_lines.append("")
+        for m in normal_new[:15]:
+            report_lines.append(f"  • {m['title']} ({m['date']})")
+        report_lines.append("")
+    
+    if not new_memories:
+        report_lines.append("_本周无新增记忆_")
+        report_lines.append("")
+    
+    # 本周遗忘
+    report_lines.append("## 🗑️ 本周遗忘")
+    report_lines.append("")
+    
+    if forgotten:
+        for f in forgotten:
+            report_lines.append(f"  • {f['title']}")
+            report_lines.append(f"    _{f['reason']}_")
+        report_lines.append("")
+    else:
+        report_lines.append("_本周无遗忘内容_")
+        report_lines.append("")
+    
+    # 永久记忆清单
+    report_lines.append("## 📌 永久记忆清单")
+    report_lines.append("")
+    
+    if permanent_memories:
+        for i, p in enumerate(permanent_memories, 1):
+            report_lines.append(f"  {i}. {p['title']}")
+            if p['summary']:
+                report_lines.append(f"     _{p['summary'][:60]}_")
+        report_lines.append("")
+    else:
+        report_lines.append("_暂无永久记忆_")
+        report_lines.append("")
+    
+    # 记忆健康
+    report_lines.append("## 💡 记忆健康")
+    report_lines.append("")
+    report_lines.append(f"| 指标 | 数值 |")
+    report_lines.append(f"|------|------|")
+    report_lines.append(f"| MEMORY.md 大小 | {fmt_size(memory_size)} (~{fmt_tokens(memory_tokens)} tokens) |")
+    report_lines.append(f"| 永久记忆 | {len(permanent_memories)} 条 |")
+    report_lines.append(f"| 本周新增 | {len(new_memories)} 条 |")
+    report_lines.append(f"| 本周遗忘 | {len(forgotten)} 条 |")
+    report_lines.append("")
+    report_lines.append("---")
+    report_lines.append("")
+    report_lines.append(f"*由记忆树自动生成*")
+    
+    report_content = "\n".join(report_lines)
+    
+    # 写入本地文件
+    with open(report_file, 'w', encoding='utf-8') as f:
+        f.write(report_content)
+    
+    print(f"✅ 周报已保存: {report_file}\n")
+    
+    # 检测推送渠道
+    channels = detect_enabled_channels()
+    
+    if channels:
+        print(f"📡 检测到已启用渠道: {', '.join(c['name'] for c in channels)}")
+        
+        for ch in channels:
+            if ch['name'] == 'feishu':
+                chat_id = get_feishu_chat_id(ch['config'])
+                if chat_id:
+                    print(f"\n📱 飞书推送配置:")
+                    print(f"   chat_id: {chat_id}")
+                    print(f"\n💡 推送命令:")
+                    print(f"   message send --target {chat_id} --file {report_file}")
+    else:
+        print("📭 未检测到已启用的外部推送渠道")
+        print("   周报已保存到本地")
+    
+    # 输出到终端
+    print(f"\n{'='*60}")
+    print(report_content)
+    
+    return report_file
+
+
+# ==================== 搜索功能（关键词模式）====================
+
+def keyword_similarity(query, text):
+    """关键词相似度计算"""
+    import string
+    
+    # 中文按字切分 + 英文按词切分
+    query_words = set()
+    for char in query:
+        if '\u4e00' <= char <= '\u9fff':
+            query_words.add(char)
+    
+    for word in re.findall(r'[a-zA-Z]{2,}', query.lower()):
+        query_words.add(word)
+    
+    text_words = set()
+    for char in text:
+        if '\u4e00' <= char <= '\u9fff':
+            text_words.add(char)
+    
+    for word in re.findall(r'[a-zA-Z]{2,}', text.lower()):
+        text_words.add(word)
+    
+    if not query_words or not text_words:
+        return 0
+    
+    common = query_words & text_words
+    return len(common) / len(query_words)
 
 
 def cmd_search(query):
+    """关键词搜索"""
     if not MEMORY_MD.exists():
         print("❌ MEMORY.md 不存在")
         return
-    backend = auto_detect_backend()
-    query_vec = backend.embed(query)
-    if query_vec is None:
-        print(f"❌ {backend.name} embedding 获取失败")
-        return
+    
     content = MEMORY_MD.read_text(encoding='utf-8')
     blocks = parse_memory_blocks(content)
-    db = load_json(CONFIDENCE_DB, {})
-    emb_cache = load_json(EMBEDDINGS_DB, {})
+    
     results = []
     for block in blocks:
-        h = block["hash"]
-        # 获取或计算 embedding（关键词模式不缓存）
-        if isinstance(query_vec, dict):
-            # 关键词模式：实时计算
-            vec = backend.embed(block["full_text"])
-        else:
-            # 向量模式：使用缓存
-            if h not in emb_cache:
-                vec = backend.embed(block["full_text"])
-                if vec:
-                    emb_cache[h] = vec
-            else:
-                vec = emb_cache[h]
-        if vec is None:
-            continue
-        sim = cosine_sim(query_vec, vec)
-        conf = get_confidence(db, h, block["priority"])
-        if sim > 0.2:
+        sim = keyword_similarity(query, block["full_text"])
+        if sim > 0.1:
             results.append({
-                "similarity": round(sim, 3),
-                "confidence": conf,
-                "icon": get_status(conf)[0],
+                "similarity": round(sim, 2),
                 "title": block["title"],
                 "body": block["body"][:200],
-                "hash": h,
+                "is_permanent": block["is_permanent"],
                 "priority": block["priority"]
             })
-    # 关键词模式不缓存向量
-    if not isinstance(query_vec, dict):
-        save_json(EMBEDDINGS_DB, emb_cache)
-    # 更新命中计数
-    for r in sorted(results, key=lambda x: x["similarity"], reverse=True):
-        h = r["hash"]
-        if h in db:
-            db[h]["confidence"] = round(min(1.0, db[h]["confidence"] + HIT_BOOST), 3)
-            db[h]["last_access"] = datetime.now().isoformat()
-            db[h]["hit_count"] = db[h].get("hit_count", 0) + 1
-    save_json(CONFIDENCE_DB, db)
+    
     results.sort(key=lambda x: x["similarity"], reverse=True)
+    
     if not results:
         print("🔍 未找到相关记忆")
         return
-    print(f"🔍 找到 {len(results)} 条相关记忆 (后端: {backend.name}):")
-    for r in results:
-        print(f"\n  {r['icon']} 相似:{r['similarity']:.2f} 置信:{r['confidence']:.2f} | {r['title']}")
-        preview = r['body'][:120].replace('\n', ' ')
-        print(f"     {preview}...")
+    
+    print(f"🔍 找到 {len(results)} 条相关记忆:\n")
+    for r in results[:10]:
+        marker = "📌" if r["is_permanent"] else "  "
+        print(f"  {marker} 相似:{r['similarity']:.0%} | {r['title']}")
+        preview = r['body'][:100].replace('\n', ' ')
+        if preview:
+            print(f"     {preview}...")
+        print()
 
 
-def cmd_use(block_hash_prefix):
-    db = load_json(CONFIDENCE_DB, {})
-    matched = False
-    for h, entry in db.items():
-        if h.startswith(block_hash_prefix):
-            entry["confidence"] = round(min(1.0, entry.get("confidence", 0.5) + USE_BOOST), 3)
-            entry["last_access"] = datetime.now().isoformat()
-            entry["use_count"] = entry.get("use_count", 0) + 1
-            matched = True
-            print(f"🌿 已使用: {entry.get('title', h)} (置信度: {entry['confidence']:.2f})")
-    if matched:
-        save_json(CONFIDENCE_DB, db)
-    else:
-        print(f"❌ 未找到匹配的知识 (前缀: {block_hash_prefix})")
+# ==================== 永久标记 ====================
 
-
-def cmd_cleanup():
-    db = load_json(CONFIDENCE_DB, {})
-    if not db:
-        print("📭 暂无记忆数据")
+def cmd_mark(title_keyword):
+    """标记为永久记忆"""
+    if not MEMORY_MD.exists():
+        print("❌ MEMORY.md 不存在")
         return
-    dead = []
-    for h, entry in db.items():
-        conf = get_confidence(db, h, entry.get("priority", "P2"))
-        if conf < DEAD_THRESHOLD:
-            dead.append((h, conf, entry.get("title", "未知")))
-    if not dead:
-        print("✅ 没有需要清理的枯叶")
+    
+    content = MEMORY_MD.read_text(encoding='utf-8')
+    blocks = parse_memory_blocks(content)
+    
+    # 查找匹配的知识块
+    found = None
+    for block in blocks:
+        if title_keyword.lower() in block["title"].lower():
+            found = block
+            break
+    
+    if not found:
+        print(f"❌ 未找到匹配的知识块: {title_keyword}")
         return
-    print(f"🪨 发现 {len(dead)} 条枯叶/土壤知识:")
-    for h, conf, title in sorted(dead, key=lambda x: x[1]):
-        print(f"  🪨 {conf:.2f} | {title} (hash: {h})")
-    print(f"\n💡 使用 --auto 自动归档")
-
-
-def cmd_cleanup_auto():
-    db = load_json(CONFIDENCE_DB, {})
-    archive = load_json(DATA_DIR / "archive.json", [])
-    dead_hashes = set()
-    for h, entry in list(db.items()):
-        conf = get_confidence(db, h, entry.get("priority", "P2"))
-        if conf < DEAD_THRESHOLD and entry.get("priority") != "P0":
-            archive.append({
-                "hash": h,
-                "title": entry.get("title", ""),
-                "confidence": conf,
-                "archived_at": datetime.now().isoformat()
-            })
-            dead_hashes.add(h)
-            del db[h]
-    save_json(CONFIDENCE_DB, db)
-    save_json(DATA_DIR / "archive.json", archive)
-    if dead_hashes:
-        print(f"🪨 已归档 {len(dead_hashes)} 条枯叶知识")
+    
+    if found["is_permanent"]:
+        print(f"✅ 已经是永久记忆: {found['title']}")
+        return
+    
+    # 在标题中添加 📌 标记
+    old_title = found["title"]
+    new_title = old_title + " 📌"
+    
+    # 替换内容
+    new_content = content.replace(
+        f"## {old_title}",
+        f"## {new_title}"
+    )
+    
+    if new_content != content:
+        MEMORY_MD.write_text(new_content, encoding='utf-8')
+        print(f"✅ 已标记为永久记忆: {new_title}")
+        print(f"   该记忆永不衰减，永不参与清理")
     else:
-        print("✅ 没有需要归档的枯叶")
+        print(f"❌ 标记失败，请手动编辑 MEMORY.md")
 
 
-def cmd_setup():
-    """一键设置"""
-    import subprocess
-    workspace = str(WORKSPACE)
-    script = str(WORKSPACE / "memory-tree" / "core" / "memory_tree.py")
-    python = sys.executable
+# ==================== 可视化 ====================
 
-    # 检测后端
-    backend = auto_detect_backend()
-    print(f"🔍 自动检测到搜索后端: {backend.name}")
-
-    if backend.name == "keyword":
-        print("  ⚠️ 未检测到 Ollama 或云端 API，使用关键词模式")
-        print("  💡 安装 Ollama 可解锁语义搜索：")
-        print("     curl -fsSL https://ollama.ai/install.sh | sh")
-        print("     ollama pull qwen3-embedding")
+def cmd_visualize():
+    """显示 MEMORY.md 概览"""
+    if not MEMORY_MD.exists():
+        print("❌ MEMORY.md 不存在")
+        return
+    
+    content = MEMORY_MD.read_text(encoding='utf-8')
+    blocks = parse_memory_blocks(content)
+    
+    permanent = [b for b in blocks if b["is_permanent"]]
+    normal = [b for b in blocks if not b["is_permanent"]]
+    
+    memory_size = MEMORY_MD.stat().st_size
+    memory_tokens = estimate_tokens(content)
+    
+    print(f"🌳 记忆树概览 ({datetime.now().strftime('%Y-%m-%d %H:%M')})\n")
+    print(f"├── 📊 MEMORY.md: {fmt_size(memory_size)} (~{fmt_tokens(memory_tokens)} tokens)")
+    print(f"├── 📌 永久记忆: {len(permanent)} 条")
+    print(f"├── 🍃 普通记忆: {len(normal)} 条")
+    print(f"└── 📝 总计: {len(blocks)} 条知识块\n")
+    
+    if permanent:
+        print("📌 永久记忆清单:")
+        for b in permanent[:10]:
+            title = b["title"].replace("📌", "").replace("[P0]", "").strip()
+            print(f"   • {title}")
+        if len(permanent) > 10:
+            print(f"   ... 还有 {len(permanent) - 10} 条")
         print()
-
-    # 保存配置
-    config = load_json(CONFIG_FILE, {})
-    config["backend"] = backend.name
-    if isinstance(backend, OllamaBackend):
-        config["ollama_model"] = backend.model
-    save_json(CONFIG_FILE, config)
-
-    # 首次索引
-    print("🌱 执行首次索引...")
-    cmd_index()
-    print()
-
-    # 创建 cron 任务提示
-    print("⏰ 建议设置自动定时任务：")
-    print("  每天凌晨3点: 自动衰减")
-    print("  每周日凌晨4点: 自动归档枯叶")
-    print()
-    print("  crontab -e")
-    print(f'  0 3 * * * cd {workspace} && {python} {script} decay')
-    print(f'  0 4 * * 0 cd {workspace} && {python} {script} cleanup --auto')
-    print()
-    print("  或使用 OpenClaw cron（由 agent 自动配置）")
-    print()
-    print("✅ 设置完成！记忆树将自动生长。")
-
-
-def cmd_config(key=None, value=None):
-    """查看/修改配置"""
-    config = load_json(CONFIG_FILE, {})
-    if key and value:
-        config[key] = value
-        save_json(CONFIG_FILE, config)
-        print(f"✅ 已设置 {key} = {value}")
-    elif key:
-        val = config.get(key, "(未设置)")
-        print(f"  {key} = {val}")
-    else:
-        print("📋 当前配置:")
-        for k, v in config.items():
-            if "key" in k.lower() or "secret" in k.lower():
-                v = v[:8] + "..." if isinstance(v, str) and len(v) > 8 else v
-            print(f"  {k} = {v}")
-        print()
-        print("📌 可用配置项:")
-        print("  backend       搜索后端: ollama / zhipu / openai / keyword")
-        print("  ollama_url    Ollama 地址 (默认: http://localhost:11434)")
-        print("  ollama_model  Ollama embedding 模型")
-        print("  zhipu_api_key 智谱 API key")
-        print("  openai_api_key OpenAI API key")
-        print("  openai_base_url OpenAI 兼容 API 地址")
-        print()
-        print("用法: python3 memory_tree.py config <key> <value>")
+    
+    print("💡 使用 `search \"关键词\"` 搜索记忆")
+    print("💡 使用 `mark \"标题关键词\"` 标记为永久记忆")
 
 
 # ==================== CLI ====================
 
 def main():
     if len(sys.argv) < 2:
-        print("🌳 Memory Tree — 记忆生命周期管理")
+        print("🌳 Memory Tree v2.0 — 简化的记忆管理")
         print()
         print("用法:")
-        print("  setup              一键设置（首次使用）")
-        print("  index              索引 MEMORY.md")
-        print("  visualize          查看记忆树状态")
-        print("  search \"查询\"       语义搜索记忆")
-        print("  use <hash>         标记知识被使用")
-        print("  decay              执行置信度衰减")
-        print("  cleanup            查看枯叶")
-        print("  cleanup --auto     自动归档枯叶")
-        print("  config [key] [val] 查看/修改配置")
+        print("  weekly              生成周报（本周新记、遗忘、永久清单）")
+        print("  search \"查询\"       搜索记忆")
+        print("  mark \"标题关键词\"   标记为永久记忆")
+        print("  visualize           查看记忆概览")
+        print()
+        print("v2.0 变更:")
+        print("  - 删除 decay 命令（衰减无效）")
+        print("  - 删除枯叶/土壤概念")
+        print("  - 删除 ollama embedding（失败率高）")
+        print("  - 新增周报内容重构")
+        print("  - 新增推送渠道自动检测")
         return
 
     cmd = sys.argv[1]
-    if cmd == "setup":
-        cmd_setup()
-    elif cmd == "index":
-        cmd_index()
-    elif cmd == "visualize":
-        cmd_visualize()
-    elif cmd == "decay":
-        cmd_decay()
+    if cmd == "weekly":
+        cmd_weekly()
     elif cmd == "search":
         query = " ".join(sys.argv[2:]) if len(sys.argv) > 2 else ""
         if not query:
             print("❌ 请提供搜索内容")
             return
         cmd_search(query)
-    elif cmd == "use":
+    elif cmd == "mark":
         if len(sys.argv) < 3:
-            print("❌ 请提供知识 hash")
+            print("❌ 请提供标题关键词")
             return
-        cmd_use(sys.argv[2])
-    elif cmd == "cleanup":
-        if "--auto" in sys.argv:
-            cmd_cleanup_auto()
-        else:
-            cmd_cleanup()
-    elif cmd == "config":
-        cmd_config(
-            sys.argv[2] if len(sys.argv) > 2 else None,
-            sys.argv[3] if len(sys.argv) > 3 else None
-        )
+        cmd_mark(sys.argv[2])
+    elif cmd == "visualize":
+        cmd_visualize()
     else:
         print(f"❌ 未知命令: {cmd}")
+        print()
+        print("可用命令: weekly, search, mark, visualize")
 
 
 if __name__ == "__main__":
