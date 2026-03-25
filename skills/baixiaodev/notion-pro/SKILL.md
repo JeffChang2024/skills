@@ -1,6 +1,6 @@
 name: notion-pro
 description: Complete Notion API skill with Python CLI tool — auto-pagination, recursive blocks, 429 retry, and agent operation strategies.
-version: 1.0.0
+version: 1.0.1
 homepage: https://github.com/baixiaodev/notion-pro-skill
 metadata: {"clawdbot":{"emoji":"📝"}}
 env:

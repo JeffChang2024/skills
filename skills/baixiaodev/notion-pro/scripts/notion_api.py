@@ -20,21 +20,30 @@ MAX_RETRIES = 3
 
 
 def load_api_key():
-    """Load Notion API key from env or openclaw.json."""
-    key = os.environ.get("NOTION_API_KEY")
-    if key:
-        return key.strip()
+    """Load Notion API key from openclaw.json or env.
 
-    # Try openclaw.json
+    Priority: openclaw.json (notion-pro → notion) > NOTION_API_KEY env var.
+    Config file takes precedence to prevent stale env vars from overriding
+    freshly updated config values.
+    """
+    # Try openclaw.json first (authoritative source)
     config_path = pathlib.Path.home() / ".openclaw" / "openclaw.json"
     if config_path.exists():
         try:
             cfg = json.loads(config_path.read_text(encoding="utf-8"))
-            key = cfg.get("skills", {}).get("entries", {}).get("notion", {}).get("apiKey")
-            if key:
-                return key.strip()
+            entries = cfg.get("skills", {}).get("entries", {})
+            # Check both "notion-pro" and "notion" entries
+            for skill_name in ("notion-pro", "notion"):
+                key = entries.get(skill_name, {}).get("apiKey")
+                if key:
+                    return key.strip()
         except Exception:
             pass
+
+    # Fall back to env var
+    key = os.environ.get("NOTION_API_KEY")
+    if key:
+        return key.strip()
 
     return None
 
@@ -114,7 +123,9 @@ def cmd_search(key: str, query: str, filter_type: str = None,
     """Search pages and data sources with pagination support."""
     payload = {"query": query, "page_size": min(page_size, 100)}
     if filter_type in ("page", "database", "data_source"):
-        payload["filter"] = {"value": filter_type, "property": "object"}
+        # API 2025-09-03: "database" renamed to "data_source"
+        api_filter = "data_source" if filter_type == "database" else filter_type
+        payload["filter"] = {"value": api_filter, "property": "object"}
     if start_cursor:
         payload["start_cursor"] = start_cursor
 
@@ -312,12 +323,15 @@ def cmd_update_page(key: str, page_id: str, properties_json: str) -> dict:
 def cmd_append_blocks(key: str, block_id: str, children_json: str,
                       after_block_id: str = None) -> dict:
     """Append child blocks to a page/block, optionally after a specific block."""
-    payload = {"children": json.loads(children_json)}
+    children = json.loads(children_json)
+    payload = {"children": children}
     if after_block_id:
         payload["after"] = after_block_id
     result = _request("PATCH", f"{NOTION_BASE}/blocks/{block_id}/children", key, payload)
     new_blocks = [{"id": b.get("id"), "type": b.get("type")} for b in result.get("results", [])]
-    return {"parent_id": block_id, "appended": len(new_blocks), "blocks": new_blocks}
+    # When using --after, API returns the new block(s) + all subsequent blocks;
+    # report the actual number of blocks we appended, not the API result count
+    return {"parent_id": block_id, "appended": len(children), "blocks": new_blocks[:len(children)]}
 
 
 def cmd_delete_block(key: str, block_id: str) -> dict:
