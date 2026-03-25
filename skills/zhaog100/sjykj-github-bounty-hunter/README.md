@@ -92,6 +92,15 @@ github-bounty-hunter develop <task-id>
 - **耗时**：2 周
 - **难度**：⭐⭐⭐⭐⭐
 
+## 📝 更新日志
+
+### v1.4.0 (2026-03-18)
+- ✨ 新增 `bounty_preflight.sh` - Issue预检（状态/竞争/已有PR）
+- ✨ 新增 `bounty_claim.sh` - 自动/attempt认领
+- ✨ 新增 `bounty_scan.sh` - 多策略bounty扫描（💎标签/bounty标签//bounty关键词）
+- ✨ 新增 `bounty_dev.sh` - 一键开发流水线（预检→clone→准备开发环境）
+- 🔒 移除硬编码token，统一使用环境变量
+
 ## 🛠️ 开发计划
 
 - [x] 任务监控
@@ -110,3 +119,59 @@ github-bounty-hunter develop <task-id>
 ---
 
 *🦞 让龙虾自己赚钱！*
+
+## 🔒 安全注意事项
+
+### 环境变量配置
+**切勿硬编码敏感信息！** 使用环境变量：
+
+```bash
+# 设置 GitHub Token
+export GITHUB_TOKEN='your_token_here'
+
+# 设置 Algora API Key（可选）
+export ALGORA_API_KEY='your_api_key_here'
+```
+
+### 权限最小化
+**GitHub Token 权限要求**：
+- ✅ `repo` - 访问仓库
+- ✅ `read:user` - 读取用户信息
+- ✅ `user:email` - 读取邮箱
+- ❌ 不需要 `admin` 权限
+
+### 收款安全
+**USDT 地址验证**：
+- 地址：`TGu4W5T6q4KvLAbmXmZSRpUBNRCxr2aFTP`
+- 网络：TRC20（Tron）
+- 币种：USDT
+
+**建议**：定期更换收款地址，避免资金堆积。
+
+### 日志安全
+**自动过滤敏感信息**：
+- ✅ Token 自动打码
+- ✅ 地址部分隐藏
+- ✅ 日志文件权限 600
+
+---
+
+## 📄 许可证与版权声明
+
+MIT License
+
+Copyright (c) 2026 思捷娅科技 (SJYKJ)
+
+**免费使用、修改和重新分发时，需注明出处。**
+
+**出处**：
+- GitHub: https://github.com/zhaog100/openclaw-skills
+- ClawHub: https://clawhub.com
+- 创建者: 思捷娅科技 (SJYKJ)
+
+**商业使用授权**：
+- 个人/开源：免费
+- 小微企业（<10人）：¥999/年
+- 中型企业（10-50人）：¥4,999/年
+- 大型企业（>50人）：¥19,999/年
+- 源码买断：¥99,999一次性

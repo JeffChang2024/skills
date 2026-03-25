@@ -1,5 +1,8 @@
+# 版权声明：MIT License | Copyright (c) 2026 思捷娅科技 (SJYKJ)
+# GitHub: https://github.com/zhaog100/openclaw-skills
 #!/bin/bash
 # GitHub Bounty Hunter - 主入口脚本
+# 版本：1.3.0
 # 让 OpenClaw 自动化在 GitHub 上赚钱！
 
 set -e
@@ -110,9 +113,7 @@ do_submit() {
         exit 1
     fi
     
-    echo "🚀 提交任务 #$task_id..."
-    # TODO: 实现提交逻辑
-    echo "⚠️  功能开发中..."
+    python3 "$SCRIPTS_DIR/submit.py" "$task_id"
 }
 
 # 查看状态
@@ -203,3 +204,69 @@ main() {
 
 # 运行主函数
 main "$@"
+
+# Phase 2 新功能
+case "$1" in
+    algora)
+        echo "🚀 启动 Algora 专项监控..."
+        python3 "$SCRIPTS_DIR/algora_monitor.py"
+        ;;
+    apply)
+        echo "🙋 自动评论接单..."
+        python3 "$SCRIPTS_DIR/auto_apply.py" "$2"
+        ;;
+    pr)
+        echo "📦 自动提交 PR..."
+        python3 "$SCRIPTS_DIR/auto_pr.py" "$2" "$3" "$4"
+        ;;
+    state)
+        echo "📊 查看 STATE.yaml..."
+        python3 "$SCRIPTS_DIR/state_manager.py"
+        ;;
+    stats)
+        echo "📈 查看统计信息..."
+        python3 -c "
+from scripts.state_manager import StateManager
+sm = StateManager()
+stats = sm.get_stats()
+print('总任务数:', stats['total'])
+print('总奖金: $' + str(stats['total_bounty']))
+print('已收款: $' + str(stats['paid']))
+print('状态分布:', stats['by_status'])
+"
+        ;;
+    notify)
+        echo "📬 查看 QQ 通知..."
+        python3 "$SCRIPTS_DIR/qq_notify.py"
+        ;;
+    notify-test)
+        echo "🧪 测试 QQ 通知..."
+        python3 -c "
+from scripts.qq_notify import QQNotifier
+n = QQNotifier()
+n.notify_new_bounty({
+    'title': '测试任务',
+    'platform': 'Algora',
+    'amount': 1000,
+    'url': 'https://github.com/test'
+})
+"
+    ;;
+    *)
+        show_help
+        ;;
+esac
+
+# Gitcoin 监控命令
+gitcoin)
+    echo "🚀 启动 Gitcoin 监控..."
+    export GITHUB_TOKEN="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"
+    python3 "$SCRIPTS_DIR/gitcoin_monitor.py"
+    ;;
+
+# Replit 监控命令
+replit)
+    echo "🚀 启动 Replit 监控..."
+    export GITHUB_TOKEN="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"
+    python3 "$SCRIPTS_DIR/replit_monitor.py"
+    ;;
