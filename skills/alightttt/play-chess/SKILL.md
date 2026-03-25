@@ -1,6 +1,6 @@
 ---
 name: play-chess
-description: Play live chess against your user on ChessWithClaw. Use when: (1) User sends a chess invite URL containing chesswithclaw.vercel.app, (2) User asks you to play chess, (3) User mentions ChessWithClaw, (4) User says "I challenged you to chess", (5) User sends a game ID or token for a chess game. When triggered, connect to the game immediately and wait for the human to move first — you are always Black.
+description: Play live chess against your user on ChessWithClaw. Use when: (1) User sends a chess invite URL containing chesswithclaw.vercel.app, (2) User asks you to play chess, (3) User mentions ChessWithClaw, (4) User says "I challenged you to chess", (5) User sends a game ID or token for a chess game, (6) User mentions "npx clawhub install play-chess". When triggered, connect to the game immediately and wait for the human to move first — you are always Black.
 homepage: https://chesswithclaw.vercel.app
 user-invocable: true
 ---
@@ -29,6 +29,12 @@ https://chesswithclaw.vercel.app/Agent?id=GAME_ID&token=AGENT_TOKEN
 - `AGENT_TOKEN` — Your authentication token (e.g. `7764c2b6-e646-4945-91b7-dfc95858d489`)
 
 Store both. You need them for every API call.
+
+> **CRITICAL — TOKEN GOES IN HEADER ONLY**
+> Every single API request MUST include this header:
+> `x-agent-token: AGENT_TOKEN`
+> Do NOT put the token in the request body. Header only.
+> Requests without this header return 401 Unauthorized.
 
 ---
 
@@ -59,6 +65,7 @@ Headers:
 | `game_ended` | Game is over | Acknowledge, notify user |
 
 Update `last_move_count` and `last_chat_count` with values from each response.
+The `waiting` response includes `retry_after: 2` — wait exactly that many seconds before polling again.
 
 ### Confirming Connection
 The first time you hit `/api/poll`, the server marks you as connected.
@@ -279,7 +286,35 @@ unless position is completely hopeless.
 
 ---
 
-## Connection Troubleshooting
+## Reconnection Logic
+
+If your polling loop breaks or you lose track of state:
+
+```
+1. Call GET /api/state?id=GAME_ID
+   Headers: x-agent-token: AGENT_TOKEN
+
+2. Read current: fen, turn, move_count, chat_count, status
+
+3. If turn === 'b' and status === 'active':
+   — It's your turn, make your move immediately
+
+4. Resume polling with the current move_count value:
+   GET /api/poll?id=GAME_ID&last_move_count={move_count}
+   Headers: x-agent-token: AGENT_TOKEN
+```
+
+**If game shows as expired (404):**
+Tell user: "The game link may have expired (24h limit).
+Please create a new game and send me a fresh invite."
+
+**If token is rejected (401):**
+Tell user: "There may be a token issue.
+Please create a new game and send me a fresh invite link."
+
+**If you get a 504 timeout:**
+Retry the exact same request immediately — serverless functions
+occasionally time out, retry always fixes it.
 
 **If you get 404:**
 - Double-check game ID from the URL — copy it exactly
@@ -309,15 +344,18 @@ unless position is completely hopeless.
 ## All API Endpoints
 
 ```
-GET  /api/state?id=GAME_ID              — Get current game state
-GET  /api/poll?id=ID&last_move_count=N  — Poll for changes (use this)
+GET  /api/state?id=GAME_ID              — Get current game state (use for resync)
+GET  /api/poll?id=ID&last_move_count=N  — Poll for changes (RECOMMENDED — use this)
 POST /api/move                          — Submit your move
 POST /api/chat                          — Send a chat message
 POST /api/webhook  { id, webhook_url }  — Register webhook (advanced)
-GET  /api/stream?id=GAME_ID             — SSE stream (advanced)
 ```
 
-All POST requests: `Content-Type: application/json` + `x-agent-token: TOKEN`
+All requests MUST include header: `x-agent-token: AGENT_TOKEN`
+All POST requests also need: `Content-Type: application/json`
+
+Note: SSE stream (/api/stream) exists but is unreliable in practice.
+Use long-polling — it is the only battle-tested connection method.
 
 ---
 
@@ -337,6 +375,9 @@ playing chess. Make it feel personal:
 To update your thinking (shows as typewriter on user's screen):
 ```
 PATCH https://chesswithclaw.vercel.app/api/state
+Headers:
+  Content-Type: application/json
+  x-agent-token: AGENT_TOKEN
 Body: { "id": "GAME_ID", "current_thinking": "Considering Nf6..." }
 ```
 
@@ -349,7 +390,9 @@ You are:        Black (lowercase pieces in FEN)
 Human is:       White (moves first)
 Move format:    UCI — e.g. e7e5, g8f6, e8g8 (castle), e2e1q (promote)
 Only play:      Moves from legal_moves_uci array
-Poll every:     2 seconds
-Token header:   x-agent-token: AGENT_TOKEN
+Poll every:     retry_after seconds (usually 2)
+Token header:   x-agent-token: AGENT_TOKEN  ← EVERY request needs this
+Token location: HEADER ONLY — never in request body
 Game over when: status = "finished" in any response
+Install skill:  npx clawhub install play-chess
 ```
