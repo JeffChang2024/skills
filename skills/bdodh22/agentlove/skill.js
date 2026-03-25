@@ -128,7 +128,9 @@ function handleInput(userId, input) {
   // 加载或创建状态
   const state = stateManager.getOrCreateState(userId);
   
-  console.log(`[用户 ${userId}] 输入：${input}`);
+  // 安全日志：过滤敏感信息（Token、Secret、Key 等）
+  const safeInput = input.replace(/(app[_-]?id|secret|token|key|password|credential)[\s:=]*[a-zA-Z0-9_-]{10,}/gi, '$1=[REDACTED]');
+  console.log(`[用户 ${userId}] 输入：${safeInput}`);
   console.log(`[状态] 当前步骤：${state.current_step}`);
   
   // 处理特殊命令
@@ -295,38 +297,23 @@ function getStepPrompt(step) {
     // 第 6 步：平台配置
     6: `🌐 第 6 步：平台绑定
 
-选择要绑定的平台，并提供对应凭证信息。
-
 ━━━━━━━━━━━━━━━━━━━━
 
-请选择主平台：
+请选择要绑定的平台（可多选）：
 
 1) 飞书 (Feishu)
-   需要：App ID 和 App Secret
-   获取方式：飞书开放平台 → 应用开发
-
 2) 钉钉 (DingTalk)
-   需要：Agent ID 和 App Secret
-   获取方式：钉钉开放平台 → 应用开发
-
 3) Discord
-   需要：Bot Token
-   获取方式：Discord Developer Portal
-
 4) Telegram
-   需要：Bot Token
-   获取方式：@BotFather 创建
-
 5) WhatsApp
-   需要：Phone ID 和 Access Token
-   获取方式：Meta for Developers
 
 ━━━━━━━━━━━━━━━━━━━━
 
 请回复平台编号，例如：
-"1"
+"1" 或 "1,2,3"
 
-然后我会引导你提供凭证信息（安全加密处理）
+⚠️ **安全提示**：凭证请通过 OpenClaw 官方控制台配置，**不要在聊天中发送敏感信息**！
+配置完成后回复"已完成"继续下一步。
 
 💡 提示：说"上一步"可以回退修改，说"状态"查看进度`,
     
@@ -730,34 +717,33 @@ ${selectedSkills.map((s, i) => `  ${i + 1}. ${s}`).join('\n')}
  */
 function processStep6(userId, input) {
   const state = stateManager.getOrCreateState(userId);
-  const step6Data = state.step_data['step_6'];
   
-  // 如果已经选择了平台，现在处理凭证
-  if (step6Data && step6Data.platform && step6Data.step === 'credentials_pending') {
-    // 用户提交凭证（任何非数字的输入都视为凭证）
-    stateManager.saveStepData(userId, 6, { 
-      ...step6Data,
-      step: 'credentials_submitted',
-      credentialsProvided: true
-    });
-    
+  // 检查用户是否说"已完成"（表示已在控制台配置好凭证）
+  if (input.includes('已完成') || input.includes('配置完成') || input === 'done') {
+    const step6Data = state.step_data['step_6'];
+    if (!step6Data || !step6Data.platforms) {
+      return {
+        message: '⚠️ 请先选择平台，回复编号（如：1 或 1,2,3）',
+        completed: false
+      };
+    }
     return {
-      message: `✅ 凭证信息已收到（已加密存储）\n\n进入下一步...`,
+      message: `✅ 平台配置确认\n\n进入下一步...`,
       completed: true
     };
   }
   
-  // 解析平台选择
-  const platformMatch = input.match(/^([1-5])$/);
+  // 解析平台选择（支持多选：1,2,3 或 1 2 3）
+  const platformMatch = input.match(/^([1-5](?:[,\s]*[1-5])*)$/);
   
   if (!platformMatch) {
     return {
-      message: '⚠️ 请选择一个主平台，回复编号 1-5',
+      message: '⚠️ 请选择平台，回复编号（如：1 或 1,2,3）',
       completed: false
     };
   }
   
-  const platformId = parseInt(platformMatch[1]);
+  const platformIds = platformMatch[1].split(/[,\s]+/).map(id => parseInt(id.trim()));
   const platformNames = {
     1: '飞书',
     2: '钉钉',
@@ -766,24 +752,20 @@ function processStep6(userId, input) {
     5: 'WhatsApp'
   };
   
+  const selectedNames = platformIds.map(id => platformNames[id]).join('、');
+  
   stateManager.saveStepData(userId, 6, { 
-    platform: platformId, 
-    platformName: platformNames[platformId],
-    step: 'credentials_pending'
+    platforms: platformIds, 
+    platformNames: platformIds.map(id => platformNames[id])
   });
   
   return {
-    message: `✅ 已选择平台：${platformNames[platformId]}
+    message: `✅ 已选择平台：${selectedNames}
 
-📝 接下来请提供凭证信息：
+⚠️ **安全提示**：请通过 OpenClaw 官方控制台配置凭证
+路径：控制台 → 设置 → 渠道配置
 
-${platformId === 1 ? '请回复：App ID 和 App Secret' :
-  platformId === 2 ? '请回复：Agent ID 和 App Secret' :
-  platformId === 3 ? '请回复：Bot Token' :
-  platformId === 4 ? '请回复：Bot Token' :
-  '请回复：Phone ID 和 Access Token'}
-
-⚠️ 安全提示：敏感信息会自动加密存储
+配置完成后回复"已完成"继续下一步。
 
 💡 提示：说"上一步"可以回退修改`,
     completed: false
@@ -902,7 +884,7 @@ function processStep10(userId, input) {
     name: state.step_data['step_7']?.name || '未设置',
     personality: state.step_data['step_7']?.nameType || '未设置',
     skills: state.step_data['step_5']?.skills?.length || 0,
-    platform: state.step_data['step_6']?.platformName || '未设置',
+    platform: state.step_data['step_6']?.platformNames?.join('、') || '未设置',
     mode: state.step_data['step_9']?.mode === 'independent' ? '独立模式' : '子 Agent 模式'
   };
   
@@ -945,5 +927,7 @@ module.exports = {
   handleInput,
   getStepPrompt,
   WELCOME_CARD,
-  STEPS
+  STEPS,
+  sanitizeLog,
+  sanitizeObject
 };

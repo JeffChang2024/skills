@@ -1,7 +1,7 @@
 {
   "name": "agentlove",
-  "version": "2.7.0",
-  "description": "8-Step Robot Configuration Wizard",
+  "version": "2.9.6",
+  "description": "AgentLove - AI Robot One-Click Configuration (8 Steps). Includes backup migration, robot configuration, and marriage evolution.",
   "main": "skill.js",
   "scripts": {
     "test": "node test.js",

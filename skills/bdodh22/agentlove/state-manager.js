@@ -14,7 +14,6 @@ class StateManager {
    */
   constructor() {
     this.states = new Map(); // 内存存储
-    // ❌ 不再使用文件系统
   }
   
   /**
@@ -48,7 +47,6 @@ class StateManager {
    */
   saveState(userId, state) {
     this.states.set(userId, state);
-    // ✅ 内存存储，不写文件
   }
   
   /**
@@ -91,7 +89,7 @@ class StateManager {
   /**
    * 回退到上一步
    * @param {string} userId - 用户 ID
-   * @returns {object|null} - 更新后的状态，无法回退则返回 null
+   * @returns {object} - {success, step, message}
    */
   goBack(userId) {
     const state = this.getOrCreateState(userId);
@@ -99,15 +97,23 @@ class StateManager {
       state.current_step--;
       state.updated_at = Date.now();
       this.saveState(userId, state);
-      return state;
+      return { 
+        success: true, 
+        step: state.current_step, 
+        message: `已回退到第 ${state.current_step} 步` 
+      };
     }
-    return null;
+    return { 
+      success: false, 
+      step: 0, 
+      message: '已经是第一步了，无法回退' 
+    };
   }
   
   /**
    * 前进到下一步
    * @param {string} userId - 用户 ID
-   * @returns {object|null} - 更新后的状态，无法前进则返回 null
+   * @returns {object} - {success, step, message}
    */
   goNext(userId) {
     const state = this.getOrCreateState(userId);
@@ -116,20 +122,29 @@ class StateManager {
       state.current_step++;
       state.updated_at = Date.now();
       this.saveState(userId, state);
-      return state;
+      return { 
+        success: true, 
+        step: state.current_step, 
+        message: `已进入第 ${state.current_step} 步` 
+      };
     }
-    return null;
+    return { 
+      success: false, 
+      step: 10, 
+      message: '已是最后一步' 
+    };
   }
   
   /**
    * 保存步骤数据
    * @param {string} userId - 用户 ID
-   * @param {number} step - 步骤编号
+   * @param {number|string} step - 步骤编号
    * @param {object} data - 步骤数据
    */
   saveStepData(userId, step, data) {
     const state = this.getOrCreateState(userId);
-    state.step_data[step] = {
+    const stepKey = typeof step === 'number' ? `step_${step}` : step;
+    state.step_data[stepKey] = {
       ...data,
       saved_at: Date.now()
     };
@@ -140,46 +155,39 @@ class StateManager {
   /**
    * 获取步骤数据
    * @param {string} userId - 用户 ID
-   * @param {number} step - 步骤编号
+   * @param {number|string} step - 步骤编号
    * @returns {object|null} - 步骤数据
    */
   getStepData(userId, step) {
     const state = this.loadState(userId);
-    if (state && state.step_data && state.step_data[step]) {
-      return state.step_data[step];
+    if (state && state.step_data) {
+      const stepKey = typeof step === 'number' ? `step_${step}` : step;
+      return state.step_data[stepKey] || null;
     }
     return null;
   }
   
   /**
-   * 获取当前选择
-   * @param {string} userId - 用户 ID
-   * @returns {object|null} - 当前选择的数据
+   * 获取所有会话（用于测试和管理）
+   * @returns {Array} - 会话列表
    */
-  getCurrentSelection(userId) {
-    const state = this.loadState(userId);
-    if (state && state.step_data && state.step_data.selection) {
-      return state.step_data.selection;
-    }
-    return null;
-  }
-  
-  /**
-   * 保存当前选择
-   * @param {string} userId - 用户 ID
-   * @param {object} selection - 选择的数据
-   */
-  saveSelection(userId, selection) {
-    this.saveStepData(userId, 'selection', selection);
+  getAllSessions() {
+    return Array.from(this.states.entries()).map(([userId, state]) => ({
+      user_id: userId,
+      session_id: state.session_id,
+      current_step: state.current_step,
+      created_at: state.created_at,
+      updated_at: state.updated_at
+    }));
   }
   
   /**
    * 清除状态（会话结束）
    * @param {string} userId - 用户 ID
+   * @returns {boolean} - 清除结果
    */
   clearState(userId) {
-    this.states.delete(userId);
-    // ✅ 内存清除，无需删除文件
+    return this.states.delete(userId);
   }
   
   /**
