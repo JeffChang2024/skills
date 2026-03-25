@@ -1,10 +1,16 @@
 #!/bin/bash
 # iFinD MCP 便捷调用脚本
 
-MCPorter_CONFIG="${HOME}/.config/mcporter.json"
+# 配置路径：优先使用 ~/.openclaw/，兼容旧路径 ~/.config/
+MCPorter_CONFIG="${HOME}/.openclaw/mcporter.json"
+if [ ! -f "$MCPorter_CONFIG" ]; then
+    MCPorter_CONFIG="${HOME}/.config/mcporter.json"
+fi
 
 if [ ! -f "$MCPorter_CONFIG" ]; then
-    echo "Error: mcporter config not found at $MCPorter_CONFIG"
+    echo "Error: mcporter config not found."
+    echo "请先配置 ~/.openclaw/mcporter.json"
+    echo "详见 SKILL.md 首次使用指引"
     exit 1
 fi
 
