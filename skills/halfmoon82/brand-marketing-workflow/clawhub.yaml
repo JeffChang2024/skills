@@ -1,0 +1,49 @@
+name: brand-marketing-workflow
+version: 2.0.1
+author: halfmoon82
+license: MIT
+
+metadata:
+  title: "Brand Marketing Workflow — Structural Reference"
+  description: |
+    Documentation-only replacement for the brand marketing workflow skill.
+    
+    This version explains the workflow architecture, roles, stages, boundaries, and outputs.
+    It intentionally does not include implementation code, runnable logic, or executable examples.
+
+    Core sections:
+    - Input layer: brand name, positioning, tone, audience, goals, channels, constraints
+    - Planning layer: normalize input, build brief, define pillars, map channels, set KPIs
+    - Production layer: draft variants, campaign ideas, platform formats, review-ready assets
+    - Analysis layer: competitor signals, messaging patterns, gaps, iteration opportunities
+    - Authorization layer: pause on boundary crossings and request human confirmation
+    - Output layer: brief, plan, summary, review, iteration notes, approvals
+
+    Boundary rules:
+    - Public information review only
+    - No hidden scraping or platform bypass
+    - No automatic publishing
+    - No payment or recharge without approval
+    - Replacement artifact for removing active implementation detail
+
+  author: halfmoon82
+  tags:
+    - marketing
+    - brand
+    - documentation
+    - workflow
+    - structure
+    - reference
+
+clawhub:
+  category: marketing
+  featured: false
+  verified: false
+
+install: |
+  This is a documentation-only replacement artifact.
+  It is meant to be read as a structural reference, not executed as a runnable workflow.
+
+examples:
+  - command: none
+    description: No runnable example; this artifact intentionally contains no executable code
