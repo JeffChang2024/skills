@@ -160,7 +160,7 @@ cat .cache/vendor-compliance-1099/my-client-w9.json
 
 ## Integration Requirements
 
-- **QBO Client:** `integrations/qbo-client/` (Node.js, auth token must be set)
+- **QBO Client:** Node.js QBO client (auth token must be set)
 - **Python packages:** `pip install openpyxl`
 - **GL access required:** Pipeline reads full-year GL — ensure QBO auth has GL report access
 - **No write access to QBO** — read-only integration
@@ -196,4 +196,3 @@ Run this pipeline as part of year-end close:
 
 ---
 
-_Pipeline #10 | vendor-compliance-1099_
