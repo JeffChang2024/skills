@@ -1,21 +1,29 @@
 ---
 name: news-to-markdown
-description: 一键将新闻文章转换为 Markdown，支持智能内容提取和三层 HTML 抓取策略
-version: 1.0.0
+description: 一键将新闻文章转换为 Markdown，支持双引擎内容提取、智能封面图选择、三层 HTML 抓取策略和多平台专项优化。新增10个平台支持：头条、微信公众号、掘金、简书、CSDN、人人都是产品经理、开源中国、B站专栏、SegmentFault、博客园
+version: 2.3.9
 author: Ping Si <sipingme@gmail.com>
 type: command
 requires:
   - node: ">=18.0.0"
-  - npm: news-extractor-node@^0.1.0
-  - npm: @siping/html-to-markdown-node@^1.0.1
-  - npm: playwright@^1.40.0
+  - npm: news-to-markdown@^1.3.9
 tags:
   - news
   - markdown
   - converter
   - extractor
   - web-scraping
+  - toutiao
+  - wechat
+  - bilibili
+  - csdn
+  - cnblogs
+  - segmentfault
 repository: https://github.com/sipingme/news-to-markdown-skill
+core-library: https://github.com/sipingme/news-to-markdown
+files:
+  - bin/convert-url       # CLI 入口（轻量级包装）
+  - package.json
 ---
 
 # news-to-markdown Skill
@@ -26,11 +34,31 @@ repository: https://github.com/sipingme/news-to-markdown-skill
 
 ### 核心特点
 
-1. **智能内容提取**：基于文本密度算法，自动识别新闻正文
-2. **三层抓取策略**：curl → wget → Playwright，确保高成功率
-3. **自动元数据提取**：标题、作者、发布时间
-4. **噪音过滤**：自动去除广告、评论等无关内容
-5. **高质量输出**：保留文章结构，正确处理链接和图片
+1. **双引擎内容提取**：结合 Mozilla Readability + news-extractor-node
+   - Readability：完整内容提取，保留图片和多媒体
+   - NewsExtractor：元数据提取（标题、作者、时间）
+   - 智能选择最佳提取结果
+2. **智能封面图选择**：自动提取最佳封面图
+   - 优先使用 og:image / twitter:image meta 标签
+   - 智能降级到第一张有效图片
+   - 完美配合 wechat-md-publisher 等发布工具
+3. **三层抓取策略**：curl → wget → Playwright，确保高成功率
+4. **多平台支持**：新增10个平台专项优化
+   - ✅ 头条
+   - ✅ 微信公众号
+   - ✅ 掘金
+   - ✅ 简书
+   - ✅ CSDN
+   - ✅ 人人都是产品经理
+   - ✅ 开源中国
+   - ✅ B站专栏
+   - ✅ SegmentFault
+   - ✅ 博客园
+5. **图片保护**：解决纯图片段落被过滤的问题
+6. **高质量输出**：基于 `html-to-markdown-node` 的转换引擎
+7. **可扩展架构**：支持自定义平台适配器
+
+这是 [news-to-markdown](https://github.com/sipingme/news-to-markdown) 核心库的轻量级 CLI 包装。
 
 ## 🎯 使用场景
 
@@ -442,5 +470,48 @@ bash scripts/convert.sh --url "https://tech.qq.com/..."
 
 ---
 
-**版本**: 1.0.0  
-**最后更新**: 2026-03-22
+**版本**: 2.3.9  
+**最后更新**: 2026-03-25
+
+## 📝 更新日志
+
+### v2.3.9 (2026-03-25)
+
+#### 修复
+
+- ✅ **封面图重复问题修复**：
+  - 修复封面图在正文开头重复出现的问题
+  - 自动检测并移除与 frontmatter cover 相同的正文开头图片
+  - 比较图片 URL 时忽略查询参数差异
+  - 确保推送到微信公众号时不会出现重复图片
+
+#### 依赖更新
+
+- ✅ 升级 `news-to-markdown` 到 v1.3.9
+
+### v2.3.8 (2026-03-24)
+
+#### 新增平台支持（共10个）
+
+- ✅ **头条**（移动端 + PC 端）- v1.2.6
+- ✅ **微信公众号** - v1.2.6
+- ✅ **掘金** - v1.2.7
+- ✅ **简书** - v1.2.8
+- ✅ **CSDN** - v1.2.9
+- ✅ **人人都是产品经理** - v1.3.0
+- ✅ **开源中国** - v1.3.1
+- ✅ **B站专栏** - v1.3.2
+- ✅ **SegmentFault** - v1.3.3
+- ✅ **博客园** - v1.3.4
+
+#### 架构优化
+
+- ✅ **核心库分离**：所有业务逻辑迁移到 `news-to-markdown` 核心库
+- ✅ **Skill 精简化**：仅保留 CLI 包装层，专注于 ClawHub 集成
+- ✅ **TypeScript 支持**：核心库完全用 TypeScript 重写
+- ✅ **平台注册系统**：支持自定义平台适配器注册
+
+#### 依赖优化
+
+- ✅ 依赖数量从 4 个减少到 1 个（仅 `news-to-markdown`）
+- ✅ 所有底层依赖由核心库管理

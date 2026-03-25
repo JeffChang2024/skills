@@ -3,9 +3,15 @@
   "slug": "news-to-markdown-skill",
   "displayName": "News To Markdown Skill",
   "latest": {
-    "version": "0.1.0",
-    "publishedAt": 1774163673571,
-    "commit": "https://github.com/openclaw/skills/commit/2cd69f342cb77241ea665c3861c20e3cfb1ae251"
+    "version": "2.2.5",
+    "publishedAt": 1774403073643,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "0.1.0",
+      "publishedAt": 1774163673571,
+      "commit": "https://github.com/openclaw/skills/commit/2cd69f342cb77241ea665c3861c20e3cfb1ae251"
+    }
+  ]
 }
