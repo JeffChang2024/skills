@@ -1,15 +1,7 @@
 ---
 name: lucid-dreamer
 description: "Nightly AI memory reasoning system. Lucid runs every night while you sleep — it reads your daily notes and memory files, detects stale facts, unresolved todos, recurring problems, and forgotten decisions, then generates a review report for your approval. Zero dependencies, no database, no embeddings. Just a cron job and markdown files. Use when you want your AI agent to automatically maintain and improve its long-term memory over time. Triggers on \"memory dreamer\", \"nightly memory review\", \"lucid\", \"auto memory\", \"memory cleanup\", \"memory hygiene\"."
-metadata:
-  openclaw:
-    requires:
-      bins:
-        - git
-        - date
-      env:
-        CLAWD_DIR: "required — workspace path (e.g. /home/user/clawd)"
-    always: false
+metadata: {"openclaw":{"requires":{"bins":["git","date"],"env":{"CLAWD_DIR":"optional — workspace path, defaults to cwd"},"note":"Set CLAWD_DIR to your workspace. Auto-apply is opt-in and disabled by default."}}}
 ---
 
 # Lucid Dreamer 🧠
