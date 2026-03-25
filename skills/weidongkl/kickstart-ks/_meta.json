@@ -1,0 +1,11 @@
+{
+  "owner": "weidongkl",
+  "slug": "kickstart-ks",
+  "displayName": "kickstart",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774229457313,
+    "commit": null
+  },
+  "history": []
+}
