@@ -1,37 +1,37 @@
 # AI Unit Test Generation Rules
 
-> This file is written to the project as .claude/commands/gen-unit-test.md by /setup-unit-test.
+> This file is written to the project's .claude/commands/gen-unit-test.md by /setup-unit-test
 
 ## Input
 
-Analyze the path specified by $ARGUMENTS. Supported patterns:
+Analyze the path specified by $ARGUMENTS. Supports the following modes:
 
-- **Single File**: `/gen-unit-test src/utils/format.ts` → Generates tests for the file.
-- **Directory**: `/gen-unit-test src/services/` → Scans all source files in the directory and generates tests one by one.
-- **Full**: `/gen-unit-test src/` → Scans the entire src directory and fills in missing tests.
-- **No Arguments**: `/gen-unit-test` → Equivalent to `/gen-unit-test src/`.
+- **Single file**: `/gen-unit-test src/utils/format.ts` → generate tests for that file
+- **Directory**: `/gen-unit-test src/services/` → scan all source files in the directory and generate tests one by one
+- **Full scan**: `/gen-unit-test src/` → scan the entire src directory and generate tests for files missing them
+- **No arguments**: `/gen-unit-test` → equivalent to `/gen-unit-test src/`
 
 ## Workflow
 
-1. Determine input type (file / directory):
-   - If it's a directory, recursively scan all `.ts` / `.tsx` / `.vue` files (excluding `.test.`, `.spec.`, `.stories.`, `index.ts`, etc.).
-   - Check if a corresponding test file already exists in `tests/unit/` for each file; skip if it exists.
-2. For each source file to be generated:
-   a. Read the source code, extract all exported functions/classes/components.
+1. Determine the input type (file / directory):
+   - If a directory, recursively scan all `.ts` / `.tsx` / `.vue` files (excluding `.test.`, `.spec.`, `.stories.`, `index.ts`, etc.).
+   - For each file, check whether a corresponding test file already exists under `tests/unit/`; skip if it does.
+2. For each source file to generate tests for:
+   a. Read the source code and extract all exported functions/classes/components.
    b. Analyze parameter types, return values, branch paths, and external dependencies.
-   c. Decide on the test type:
-      - Pure Function → Vitest Unit Test
-      - React Component → @testing-library/react Component Test
-      - Vue Component → @testing-library/vue Component Test
-      - API Call → MSW Mock Integration Test
-      - Custom Hook/Composable → renderHook Test
-   d. Generate test files according to standards, including:
+   c. Determine the test type:
+      - Pure function → Vitest unit test
+      - React component → @testing-library/react component test
+      - Vue component → @testing-library/vue component test
+      - API call → MSW mock integration test
+      - Custom Hook/Composable → renderHook test
+   d. Generate the test file according to the specification, including:
       - Happy Path (at least 1)
-      - Boundary Values (at least 2)
-      - Exceptional Paths (at least 1)
-3. Run `vitest run <generated-test-file>` to verify.
-4. If it fails, analyze the error and auto-fix (up to 3 rounds).
-5. After all tests pass, output a generation summary: which files were generated, and the count of success/failure.
+      - Boundary values (at least 2)
+      - Error paths (at least 1)
+3. Run `vitest run <generated test file>` to verify.
+4. If it fails, analyze the error and auto-repair (up to 3 rounds).
+5. After all tests pass, output a generation summary: which files were generated, pass/fail counts.
 
 ## Framework Requirements
 
@@ -42,33 +42,33 @@ Analyze the path specified by $ARGUMENTS. Supported patterns:
 
 ## Coverage Requirements
 
-- Each exported function/component must cover:
+- Every exported function/component must cover:
   1. Happy Path (normal input → expected output).
-  2. Boundary Values (null, zero, max/min values).
-  3. Exceptional Paths (incorrect input → expected error).
-  4. Branch Coverage (at least one case for each if/switch branch).
+  2. Boundary values (null, zero, extremely large/small values).
+  3. Error paths (invalid input → expected error).
+  4. Branch coverage (at least one test case per if/switch branch).
 
-## Naming Convention
+## Naming Conventions
 
-- describe: Name of the function/component being tested.
+- describe: Name of the function/component under test.
 - it: "should [verb] [expected behavior] when [condition]".
 - Example: `it('should return 0 when both arguments are 0')`.
 
-## Mock Convention
+## Mocking Conventions
 
-- Prefer MSW to intercept network requests instead of mocking modules.
-- `vi.fn()` is used only for callback function verification.
-- Prohibit mocking the internal implementation of the module under test.
+- Prefer MSW to intercept network requests rather than directly mocking modules.
+- Use `vi.fn()` only for callback function verification.
+- Never mock the internal implementation of the module under test.
 
-## File Convention
+## File Conventions
 
-- Test files are centralized in the `tests/unit/` directory, mirroring the source structure of the module.
-- Unit Test: `src/utils/format.ts` → `tests/unit/utils/format.test.ts`.
-- Component Test: `src/components/Button.tsx` → `tests/unit/components/Button.test.tsx`.
+- Test files are centralized in the `tests/unit/` directory, mirroring the source code structure by module.
+- Unit tests: `src/utils/format.ts` → `tests/unit/utils/format.test.ts`.
+- Component tests: `src/components/Button.tsx` → `tests/unit/components/Button.test.tsx`.
 
 ## Constraints
 
-- Use Vitest, do not use Jest.
-- Use MSW for mocking network requests, do not mock module internal functions.
+- Use Vitest, not Jest.
+- Mock network requests with MSW; do not mock internal module functions.
 - Test files are centralized in the `tests/unit/` directory, mirroring the `src/` structure.
-- Use the name of the object under test for `describe`, and use English for `it` descriptions.
+- Use the component/function name for describe; use English to describe expected behavior in it (for easier maintenance).

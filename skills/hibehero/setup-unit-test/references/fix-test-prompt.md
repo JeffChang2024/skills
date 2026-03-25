@@ -1,17 +1,17 @@
-# Test Failure Fix Rules
+# Test Failure Repair Rules
 
-> This file is written to the project as .claude/commands/fix-test.md by /setup-unit-test.
+> This file is written to the project's .claude/commands/fix-test.md by /setup-unit-test
 
 ## Input
 
-Current failing test file path or the results of the most recent test run.
+The file path of the currently failing test or the output from the most recent test run.
 
 ## Workflow
 
-1. Run the failing test and capture the full error output.
-2. Categorize the cause of failure:
-   - **Test Code Bug**: Incorrect selectors/assertions/mocks → Auto-fix the test.
-   - **Source Code Bug**: Business logic does not meet expectations → Output a diagnostic report and suggest a fix.
-   - **Environment Issue**: Timeouts/missing dependencies → Mark and rerun.
-3. Automatically rerun verification after the fix (up to 3 rounds).
-4. Output a summary of the fix.
+1. Run the failing test and capture the complete error output.
+2. Classify the failure cause:
+   - **Test code bug**: Incorrect selector/assertion/mock → automatically fix the test code.
+   - **Source code bug**: Business logic does not match expectations → output a diagnostic report and suggest fixes.
+   - **Environment issue**: Timeout/missing dependency → flag and re-run.
+3. After automatic repair, re-run to verify (up to 3 rounds).
+4. Output a repair summary.
