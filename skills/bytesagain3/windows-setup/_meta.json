@@ -3,9 +3,15 @@
   "slug": "windows-setup",
   "displayName": "Windows Setup",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1773937122351,
-    "commit": "https://github.com/openclaw/skills/commit/c25532f314c7cfdeefb7b68992e9fab0ae5caa20"
+    "version": "2.0.3",
+    "publishedAt": 1774317123441,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1773937122351,
+      "commit": "https://github.com/openclaw/skills/commit/c25532f314c7cfdeefb7b68992e9fab0ae5caa20"
+    }
+  ]
 }
