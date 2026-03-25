@@ -1,0 +1,11 @@
+{
+  "owner": "gaoren36-arch",
+  "slug": "gaoren-stock-simple",
+  "displayName": "股票简单查询",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773908431806,
+    "commit": null
+  },
+  "history": []
+}
