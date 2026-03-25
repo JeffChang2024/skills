@@ -1,7 +1,7 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const { GoogleGenAI } = require('@google/genai');
+const { getGeminiClient } = require('../utils/geminiClient');
 const state = require('../config/state');
 const { emitStreamLog } = require('../utils/streamer');
 
@@ -11,7 +11,6 @@ router.post('/draft-image-prompt', async (req, res) => {
     const { id } = req.body;
     const safeId = state.sanitizeId(id);
     const sessionDir = path.join(state.downloadsDir, safeId);
-    const apiKey = process.env.GEMINI_API_KEY;
 
     const scriptFile = path.join(sessionDir, 'script.txt');
     if (!fs.existsSync(scriptFile)) {
@@ -19,7 +18,8 @@ router.post('/draft-image-prompt', async (req, res) => {
     }
 
     try {
-        const ai = new GoogleGenAI({ apiKey: apiKey });
+        // The SDK automatically pulls from process.env.GEMINI_API_KEY
+        const ai = getGeminiClient();
         const scriptText = fs.readFileSync(scriptFile, 'utf8');
 
         emitStreamLog(safeId, { message: "Analyzing podcast script for visual concepts..." });
@@ -43,13 +43,13 @@ router.post('/generate-thumbnail', async (req, res) => {
     const { id, prompt } = req.body;
     const safeId = state.sanitizeId(id);
     const sessionDir = path.join(state.downloadsDir, safeId);
-    const apiKey = process.env.GEMINI_API_KEY;
 
     if (!prompt) return res.status(400).json({ error: "Image prompt is required." });
     if (!fs.existsSync(sessionDir)) fs.mkdirSync(sessionDir, { recursive: true });
 
     try {
-        const ai = new GoogleGenAI({ apiKey: apiKey });
+        // The SDK automatically pulls from process.env.GEMINI_API_KEY
+        const ai = getGeminiClient();
 
         emitStreamLog(safeId, { message: "Rendering 16:9 image via Gemini 3.1 Flash Image Preview..." });
         

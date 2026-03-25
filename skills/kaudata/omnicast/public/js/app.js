@@ -3,18 +3,29 @@ import { requestSessionCleanup } from './api.js';
 
 let currentVideoId = `session_${Date.now()}`;
 
+const saveEditedFile = async (type, content, btnElement) => {
+    try {
+        const res = await fetch('/api/save-file', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: currentVideoId, type, content })
+        });
+        if (!res.ok) throw new Error("Failed to save.");
+        btnElement.innerText = "✅ Saved!";
+        setTimeout(() => { btnElement.innerText = "💾 Save " + (type==='linkedin'?'Post':type.charAt(0).toUpperCase() + type.slice(1)); }, 2000);
+    } catch(err) { alert(err.message); }
+};
+
+document.getElementById('btn-save-script').addEventListener('click', (e) => saveEditedFile('script', document.getElementById('script-editor').value, e.target));
+document.getElementById('btn-save-prompt').addEventListener('click', (e) => saveEditedFile('prompt', document.getElementById('image-prompt-input').value, e.target));
+document.getElementById('btn-save-linkedin').addEventListener('click', (e) => saveEditedFile('linkedin', document.getElementById('linkedin-post-text').value, e.target));
+
 document.getElementById('btn-ingest').addEventListener('click', async () => {
     const url = document.getElementById('sourceUrl').value;
-    const fileInput = document.getElementById('sourceFile');
-    const file = fileInput.files[0];
-
+    const file = document.getElementById('sourceFile').files[0];
     if (!url && !file) return alert("Please enter a URL or select a file.");
     
-    setApiLoading(true);
-    showSessionControls();
-    
-    log("Initiating media ingestion...");
-    updateLoadingMessage("Extracting text...");
+    setApiLoading(true); showSessionControls();
+    log("Initiating media ingestion..."); updateLoadingMessage("Extracting text...");
     
     const eventSource = new EventSource(`/api/stream-logs?id=${currentVideoId}`);
     await new Promise(resolve => { eventSource.onopen = resolve; setTimeout(resolve, 500); });
@@ -26,37 +37,54 @@ document.getElementById('btn-ingest').addEventListener('click', async () => {
     else { formData.append('sourceType', 'url'); formData.append('url', url); }
     
     try {
-        await fetch('/api/ingest', { method: 'POST', body: formData });
+        const res = await fetch('/api/ingest', { method: 'POST', body: formData });
+        const data = await res.json();
+        if(data.success) {
+            document.getElementById('original-text-section').style.display = 'block';
+            document.getElementById('original-text-viewer').value = data.fullText;
+            fetchSessions(); // Refresh sessions list in case it's new
+        }
     } catch (e) { log(`❌ ${e.message}`); }
     
     eventSource.close(); setApiLoading(false);
 });
 
+document.getElementById('btn-translate-original').addEventListener('click', async () => {
+    const targetLang = document.getElementById('viewLanguage').value;
+    const viewer = document.getElementById('original-text-viewer');
+    viewer.value = "Translating... please wait.";
+    try {
+        const res = await fetch('/api/translate-original', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: currentVideoId, targetLanguage: targetLang })
+        });
+        const data = await res.json();
+        viewer.value = data.text;
+    } catch(err) { viewer.value = "Translation failed."; }
+});
+
 const updateScriptStats = () => {
     const text = document.getElementById('script-editor').value;
     const wordCount = text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
-    const totalSeconds = Math.round((wordCount / 150) * 60);
-    const mins = Math.floor(totalSeconds / 60);
-    const secs = (totalSeconds % 60).toString().padStart(2, '0');
-    
     document.getElementById('word-count').innerText = wordCount;
-    document.getElementById('est-time').innerText = `${mins}:${secs}`;
-    
-    const warningEl = document.getElementById('linkedin-warning');
-    if (wordCount > 0 && (wordCount < 450 || wordCount > 2100)) warningEl.style.display = 'inline';
-    else warningEl.style.display = 'none';
+    document.getElementById('est-time').innerText = `${Math.floor(Math.round((wordCount / 150) * 60) / 60)}:${(Math.round((wordCount / 150) * 60) % 60).toString().padStart(2, '0')}`;
+    document.getElementById('linkedin-warning').style.display = (wordCount > 0 && (wordCount < 450 || wordCount > 2100)) ? 'inline' : 'none';
 };
 
-document.getElementById('script-editor').addEventListener('input', updateScriptStats);
+document.getElementById('script-editor').addEventListener('input', () => {
+    updateScriptStats();
+    document.getElementById('btn-save-script').style.display = 'block';
+});
+document.getElementById('image-prompt-input').addEventListener('input', () => {
+    document.getElementById('btn-save-prompt').style.display = 'block';
+});
+document.getElementById('linkedin-post-text').addEventListener('input', () => {
+    document.getElementById('btn-save-linkedin').style.display = 'block';
+});
 
 document.getElementById('btn-draft').addEventListener('click', async () => {
-    setApiLoading(true);
-    log("Initiating Gemini script drafting sequence...");
-    updateLoadingMessage("Drafting...");
-    
-    const host1 = document.getElementById('host1').value || 'Alex';
-    const host2 = document.getElementById('host2').value || 'Sam';
-    const language = document.getElementById('targetLanguage').value;
+    setApiLoading(true); log("Initiating Gemini script drafting..."); updateLoadingMessage("Drafting...");
+    const host1 = document.getElementById('host1').value || 'Alex', host2 = document.getElementById('host2').value || 'Sam', language = document.getElementById('targetLanguage').value;
 
     const eventSource = new EventSource(`/api/stream-logs?id=${currentVideoId}`);
     await new Promise(resolve => { eventSource.onopen = resolve; setTimeout(resolve, 500); });
@@ -71,8 +99,8 @@ document.getElementById('btn-draft').addEventListener('click', async () => {
         if (!res.ok) throw new Error(data.error);
         document.getElementById('script-editor').value = data.script;
         updateScriptStats();
+        document.getElementById('btn-save-script').style.display = 'block';
     } catch (e) { log(`❌ ${e.message}`); }
-    
     eventSource.close(); setApiLoading(false);
 });
 
@@ -203,44 +231,35 @@ document.getElementById('btn-generate-linkedin').addEventListener('click', async
     finally { eventSource.close(); setApiLoading(false); btn.disabled = false; }
 });
 
-document.getElementById('btn-copy-linkedin').addEventListener('click', async () => {
-    const textToCopy = document.getElementById('linkedin-post-text').value;
-    const btn = document.getElementById('btn-copy-linkedin');
-    try {
-        await navigator.clipboard.writeText(textToCopy);
-        btn.innerText = "✅ Copied!";
-        setTimeout(() => { btn.innerText = "📋 Copy Text"; }, 2000);
-    } catch (err) { alert("Failed to copy text. Please select and copy manually."); }
-});
-
-document.getElementById('btn-clear-session').addEventListener('click', async () => {
-    await requestSessionCleanup(currentVideoId);
-    resetWorkspace();
-    currentVideoId = `session_${Date.now()}`;
-});
-
-// --- YOUTUBE OAUTH & UPLOAD LOGIC ---
 let youtubeAccessToken = null;
 let tokenClient;
 
-window.onload = () => {
-    tokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: 'YOUR_GOOGLE_CLIENT_ID_HERE.apps.googleusercontent.com', 
-        scope: 'https://www.googleapis.com/auth/youtube.upload',
-        callback: (tokenResponse) => {
-            if (tokenResponse && tokenResponse.access_token) {
-                youtubeAccessToken = tokenResponse.access_token;
-                document.getElementById('youtube-auth-status').innerText = '✅ Authenticated';
-                document.getElementById('youtube-auth-status').style.color = '#fff';
-                document.getElementById('btn-youtube-login').style.display = 'none';
-                document.getElementById('youtube-upload-controls').style.display = 'block';
-            }
-        },
-    });
+window.onload = async () => {
+    try {
+        const configRes = await fetch('/api/config');
+        const config = await configRes.json();
+
+        if (config.googleClientId) {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: config.googleClientId, 
+                scope: 'https://www.googleapis.com/auth/youtube.upload',
+                callback: (tokenResponse) => {
+                    if (tokenResponse && tokenResponse.access_token) {
+                        youtubeAccessToken = tokenResponse.access_token;
+                        document.getElementById('youtube-auth-status').innerText = '✅ Authenticated';
+                        document.getElementById('youtube-auth-status').style.color = '#fff';
+                        document.getElementById('btn-youtube-login').style.display = 'none';
+                        document.getElementById('youtube-upload-controls').style.display = 'block';
+                    }
+                },
+            });
+        }
+    } catch (err) { console.error("Failed to load config:", err); }
 };
 
 document.getElementById('btn-youtube-login').addEventListener('click', () => {
-    tokenClient.requestAccessToken();
+    if (tokenClient) { tokenClient.requestAccessToken(); } 
+    else { alert("Client ID missing from .env configuration."); }
 });
 
 document.getElementById('btn-upload-youtube').addEventListener('click', async () => {
@@ -287,5 +306,138 @@ document.getElementById('btn-upload-youtube').addEventListener('click', async ()
         eventSource.close(); 
         setApiLoading(false); 
         btn.disabled = false; 
+    }
+});
+
+// --- SESSION MANAGEMENT LOGIC ---
+
+const fetchSessions = async () => {
+    try {
+        const res = await fetch('/api/sessions');
+        const data = await res.json();
+        const select = document.getElementById('session-select');
+        
+        const currentVal = select.value;
+        
+        select.innerHTML = '<option value="">-- Start a New Session --</option>';
+        data.sessions.forEach(session => {
+            const option = document.createElement('option');
+            option.value = session;
+            option.innerText = session;
+            select.appendChild(option);
+        });
+        
+        if (currentVal && data.sessions.includes(currentVal)) {
+            select.value = currentVal;
+        }
+    } catch (err) { console.error("Failed to load sessions:", err); }
+};
+
+fetchSessions();
+
+document.getElementById('btn-load-session').addEventListener('click', async () => {
+    const selectedSession = document.getElementById('session-select').value;
+    
+    if (!selectedSession) {
+        currentVideoId = `session_${Date.now()}`;
+        document.getElementById('current-session-label').innerText = "Active: New Session";
+        resetWorkspace();
+        return; 
+    }
+    
+    currentVideoId = selectedSession;
+    document.getElementById('current-session-label').innerText = `Active: ${currentVideoId}`;
+    
+    try {
+        const res = await fetch(`/api/session-data?id=${currentVideoId}`);
+        const data = await res.json();
+        
+        if (data.originalText) {
+            document.getElementById('original-text-section').style.display = 'block';
+            document.getElementById('original-text-viewer').value = data.originalText;
+        } else {
+            document.getElementById('original-text-section').style.display = 'none';
+        }
+        
+        if (data.script) {
+            document.getElementById('script-editor').value = data.script;
+            updateScriptStats(); 
+        } else { 
+            document.getElementById('script-editor').value = ""; 
+        }
+        
+        if (data.prompt) {
+            document.getElementById('prompt-editor-section').style.display = 'block';
+            document.getElementById('image-prompt-input').value = data.prompt;
+        } else {
+            document.getElementById('image-prompt-input').value = "";
+        }
+        
+        if (data.linkedinPost) {
+            document.getElementById('linkedin-display').style.display = 'block';
+            document.getElementById('linkedin-post-text').value = data.linkedinPost;
+        } else {
+            document.getElementById('linkedin-post-text').value = "";
+        }
+        
+        if (data.hasAudio) {
+            document.getElementById('audio-container').style.display = 'block';
+            document.getElementById('podcast-audio').src = `/downloads/${currentVideoId}/podcast.m4a`;
+            document.getElementById('podcast-vtt').src = `/downloads/${currentVideoId}/podcast.vtt`;
+            
+            try {
+                const vttRes = await fetch(`/downloads/${currentVideoId}/podcast.vtt`);
+                buildLiveCaptions(await vttRes.text());
+            } catch (err) { console.error("Could not load VTT", err); }
+            
+        } else {
+            document.getElementById('audio-container').style.display = 'none';
+        }
+        
+        if (data.hasImage) {
+            displayThumbnail(`/downloads/${currentVideoId}/thumbnail.png`, "");
+        } else {
+            document.getElementById('thumbnail-display').style.display = 'none';
+        }
+
+        if (data.hasVideo) {
+            document.getElementById('linkedin-video-player').src = `/downloads/${currentVideoId}/linkedin_podcast.mp4`;
+        } else {
+            document.getElementById('linkedin-video-player').src = "";
+        }
+
+        alert(`Session loaded: ${currentVideoId}`);
+    } catch (err) { 
+        alert("Failed to load session data."); 
+    }
+});
+
+document.getElementById('btn-delete-session').addEventListener('click', async () => {
+    const sessionToDelete = document.getElementById('session-select').value || currentVideoId;
+    if (!sessionToDelete || sessionToDelete === `session_${Date.now()}`) return alert("No saved session selected to delete.");
+    
+    if (!confirm(`Are you sure you want to permanently delete data for ${sessionToDelete}?`)) return;
+    
+    await requestSessionCleanup(sessionToDelete);
+    
+    currentVideoId = `session_${Date.now()}`;
+    document.getElementById('current-session-label').innerText = "Active: New Session";
+    resetWorkspace();
+    fetchSessions(); 
+});
+
+document.getElementById('btn-clear-all-sessions').addEventListener('click', async () => {
+    if (!confirm("☢️ WARNING: This will permanently delete ALL session folders in your downloads directory. This cannot be undone. Proceed?")) return;
+    
+    try {
+        await fetch('/api/delete-all-sessions', { method: 'DELETE' });
+        
+        currentVideoId = `session_${Date.now()}`;
+        document.getElementById('current-session-label').innerText = "Active: New Session";
+        resetWorkspace();
+        fetchSessions();
+        alert("All sessions have been cleared.");
+    } catch(err) { 
+        alert("Failed to clear sessions."); 
     }
 });

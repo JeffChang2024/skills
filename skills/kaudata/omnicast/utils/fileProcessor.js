@@ -12,7 +12,6 @@ async function processLocalFile(filePath, mimeType, sessionDir, safeId) {
         text = await fs.promises.readFile(filePath, 'utf8');
     } else if (mimeType === 'video/mp4' || mimeType === 'audio/mp4') {
         const chunkPaths = await extractAndChunkAudio(filePath, sessionDir);
-        // Notice we no longer pass the API key down
         text = await transcribeChunks(chunkPaths, safeId);
         chunkPaths.forEach(chunk => { if (fs.existsSync(chunk)) fs.unlinkSync(chunk); });
     } else {

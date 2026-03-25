@@ -3,11 +3,16 @@
   "slug": "omnicast",
   "displayName": "Omnicast",
   "latest": {
-    "version": "1.0.6",
-    "publishedAt": 1774108117670,
-    "commit": "https://github.com/openclaw/skills/commit/d5bc44be79b57cf188eab036a3ac02ff34c3f037"
+    "version": "1.0.14",
+    "publishedAt": 1774160927787,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.6",
+      "publishedAt": 1774108117670,
+      "commit": "https://github.com/openclaw/skills/commit/d5bc44be79b57cf188eab036a3ac02ff34c3f037"
+    },
     {
       "version": "1.0.4",
       "publishedAt": 1774088438473,

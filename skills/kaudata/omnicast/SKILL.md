@@ -1,112 +1,34 @@
-# OmniCast Studio API Reference
+# OmniCast Studio 
 
-## Overview
-The OmniCast Studio local API (`http://127.0.0.1:7860`) provides a multi-modal pipeline to ingest media, draft scripts, synthesize audio, generate cover art, compile social media video assets, and upload to YouTube. 
+## Description
+OmniCast Studio is a local Node.js application that provides a multi-modal pipeline for processing text, audio, and video into podcast scripts and social media assets. It exposes a set of local API endpoints to orchestrate these tasks.
 
-All endpoints accept JSON (except `/api/ingest` which accepts multipart/form-data). A consistent `<UNIQUE_SESSION_ID>` must be passed to link the pipeline steps together.
-metadata:
-  openclaw:
-    requires:
-      bins:
-        - curl
-        - node
-        - npm
-        - ffmpeg
-      env:
-        - GEMINI_API_KEY
-        - OPENAI_API_KEY
-    always: false
+## Setup Requirements
+This application requires the following environment variables to be set in a local `.env` file:
+* `GEMINI_API_KEY`: Required for text analysis, translation, and script drafting.
+* `OPENAI_API_KEY`: Required for audio transcription and synthesis.
+* `PORT`: Defaults to 7860.
 
+**System Requirements:**
+* Node.js >= 20.0.0
+* FFmpeg installed and available in the system PATH.
 
----
+## API Endpoints (Localhost:7860)
 
-### 1. Media Ingestion (`/api/ingest`)
-Extracts raw text from a target URL (Web article, MP4 video, or YouTube link).
+The service runs strictly on `http://127.0.0.1:7860`. The following endpoints are available:
 
-    curl -X POST http://127.0.0.1:7860/api/ingest \
-      -H "Content-Type: multipart/form-data" \
-      -F "id=<UNIQUE_SESSION_ID>" \
-      -F "sourceType=url" \
-      -F "url=<TARGET_URL>"
+### 1. Media Ingestion
+* **Endpoint:** `POST /api/ingest`
+* **Purpose:** Accepts a URL or file upload. It extracts the text, detects the language, and translates it to English if necessary.
 
----
+### 2. Script Drafting
+* **Endpoint:** `POST /api/draft-script`
+* **Purpose:** Utilizes the ingested text to format a conversational, two-host script suitable for audio synthesis.
 
-### 2. Script Drafting (`/api/draft-script`)
-Drafts a tightly grounded multi-host podcast script from the ingested text (max 2100 words).
+### 3. Audio Synthesis
+* **Endpoint:** `POST /api/synthesize`
+* **Purpose:** Converts the drafted script into a final audio file using TTS services.
 
-    curl -X POST http://127.0.0.1:7860/api/draft-script \
-      -H "Content-Type: application/json" \
-      -d '{
-        "id": "<UNIQUE_SESSION_ID>",
-        "host1": "Alex",
-        "host2": "Sam",
-        "targetLanguage": "English"
-      }'
-
----
-
-### 3. Audio Synthesis (`/api/synthesize`)
-Converts the drafted script into a compiled `.m4a` podcast file. Default engine is `openai`.
-
-    curl -X POST http://127.0.0.1:7860/api/synthesize \
-      -H "Content-Type: application/json" \
-      -d '{
-        "id": "<UNIQUE_SESSION_ID>", 
-        "script": "<ESCAPED_SCRIPT_STRING>", 
-        "host1": "Alex", 
-        "host2": "Sam",
-        "ttsEngine": "openai"
-      }'
-
----
-
-### 4. Draft Cover Art Prompt (`/api/draft-image-prompt`)
-Analyzes the script to generate a 1-sentence prompt for the image generator.
-
-    curl -X POST http://127.0.0.1:7860/api/draft-image-prompt \
-      -H "Content-Type: application/json" \
-      -d '{"id": "<UNIQUE_SESSION_ID>"}'
-
----
-
-### 5. Render Widescreen Cover Art (`/api/generate-thumbnail`)
-Generates a 16:9 podcast thumbnail based on the prompt.
-
-    curl -X POST http://127.0.0.1:7860/api/generate-thumbnail \
-      -H "Content-Type: application/json" \
-      -d '{
-        "id": "<UNIQUE_SESSION_ID>",
-        "prompt": "<PROMPT_STRING_FROM_STEP_4>"
-      }'
-
----
-
-### 6. LinkedIn Package Generation (`/api/generate-linkedin`)
-Compiles the audio and cover art into a formatted MP4 video and returns a social media post.
-
-    curl -X POST http://127.0.0.1:7860/api/generate-linkedin \
-      -H "Content-Type: application/json" \
-      -d '{
-        "id": "<UNIQUE_SESSION_ID>",
-        "targetCaptionLanguages": ["English", "Spanish"]
-      }'
-
----
-
-### 7. YouTube Upload (`/api/upload-youtube`)
-Uploads the generated video to YouTube as a private draft. Requires an OAuth Access Token.
-
-    curl -X POST http://127.0.0.1:7860/api/upload-youtube \
-      -H "Content-Type: application/json" \
-      -d '{
-        "id": "<UNIQUE_SESSION_ID>",
-        "title": "My Podcast Episode",
-        "description": "Episode details...",
-        "accessToken": "<OAUTH_ACCESS_TOKEN>"
-      }'
-
----
-
-### 8. File Download & Deletion
-* **Download:** `GET http://127.0.0.1:7860/api/download-zip?id=<UNIQUE_SESSION_ID>`
-* **Delete:** `DELETE http://127.0.0.1:7860/api/delete-folder` (Pass `id` in JSON body).
+### 4. LinkedIn Packaging
+* **Endpoint:** `POST /api/generate-linkedin`
+* **Purpose:** Generates a social media text post and renders a looping MP4 video of the podcast cover art with the synthesized audio.

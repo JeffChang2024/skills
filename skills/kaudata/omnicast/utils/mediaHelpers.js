@@ -20,10 +20,10 @@ async function transcribeChunks(chunkPaths, sessionId) {
     let previousContext = "";
     
     for (let i = 0; i < chunkPaths.length; i++) {
-        emitStreamLog(sessionId, { message: `[Whisper] Transcribing chunk ${i + 1} of ${chunkPaths.length}...` });
+        emitStreamLog(sessionId, { message: `[Whisper] Translating and Transcribing chunk ${i + 1} of ${chunkPaths.length} to English...` });
         const requestOptions = { file: fs.createReadStream(chunkPaths[i]), model: "whisper-1" };
         if (previousContext) requestOptions.prompt = previousContext;
-        const response = await openai.audio.transcriptions.create(requestOptions);
+        const response = await openai.audio.translations.create(requestOptions);
         fullTranscription += response.text + " ";
         previousContext = response.text.slice(-200); 
     }

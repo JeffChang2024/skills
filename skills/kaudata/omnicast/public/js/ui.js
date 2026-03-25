@@ -27,7 +27,6 @@ export const resetWorkspace = () => {
     document.getElementById('image-prompt-input').value = ''; 
     
     document.getElementById('linkedin-display').style.display = 'none';
-    document.getElementById('session-controls').style.display = 'none';
     document.getElementById('live-captions').innerHTML = '';
     
     document.getElementById('sourceUrl').value = '';
@@ -39,7 +38,7 @@ export const resetWorkspace = () => {
 };
 
 export const showSessionControls = () => { 
-    document.getElementById('session-controls').style.display = 'block'; 
+    // Intentionally left blank as the HTML element does not exist
 };
 
 export const buildLiveCaptions = (vttText) => {

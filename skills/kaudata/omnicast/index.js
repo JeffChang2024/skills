@@ -17,7 +17,16 @@ const app = express();
 const port = process.env.PORT || 7860;
 
 app.use(express.static('public'));
-app.use('/downloads', express.static(state.downloadsDir)); 
+
+// Security: Restrict static file access strictly to the local machine
+app.use('/downloads', (req, res, next) => {
+    const isLocal = req.ip === '127.0.0.1' || req.ip === '::ffff:127.0.0.1' || req.ip === '::1';
+    if (!isLocal) {
+        return res.status(403).json({ error: "Security Exception: Remote file access forbidden." });
+    }
+    next();
+}, express.static(state.downloadsDir));
+
 app.use(express.json({ limit: '50mb' }));
 
 app.use('/api', ingestRoutes);
@@ -36,4 +45,5 @@ app.get('/api/stream-logs', (req, res) => {
     req.on('close', () => { delete state.sseClients[id]; });
 });
 
-app.listen(port, () => console.log(`🚀 Studio running securely at http://127.0.0.1:${port}`));
+// Security: Explicitly bind to localhost to prevent external network access
+app.listen(port, '127.0.0.1', () => console.log(`🚀 Studio running securely at http://127.0.0.1:${port}`));
