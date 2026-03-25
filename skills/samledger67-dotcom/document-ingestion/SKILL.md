@@ -28,8 +28,6 @@ Use when a user needs to process raw accounting source documents into standardiz
 
 ## What It Does
 
-Pipeline `#6` of the PrecisionLedger Deterministic Pipeline Build.
-
 Processes 6 document types → standardized records → Excel workbook + QBO import CSV.
 
 | Input Type | Formats | Extracts |
@@ -135,7 +133,7 @@ brew install tesseract     # Image receipt OCR (JPG/PNG)
 
 ### Node.js QBO Client
 ```
-integrations/qbo-client/   # Auth token must be set via .env.wallet
+Node.js QBO client   # Auth token must be configured
 ```
 
 ---

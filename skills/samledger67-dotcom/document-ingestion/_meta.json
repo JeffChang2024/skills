@@ -1,11 +1,17 @@
 {
   "owner": "samledger67-dotcom",
   "slug": "document-ingestion",
-  "displayName": "Document Ingestion Engine",
+  "displayName": "Document Ingestion",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1773800464535,
-    "commit": "https://github.com/openclaw/skills/commit/77ce7c811145902f4b0c20c552ae75002693b589"
+    "version": "1.0.2",
+    "publishedAt": 1774166525735,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1773800464535,
+      "commit": "https://github.com/openclaw/skills/commit/77ce7c811145902f4b0c20c552ae75002693b589"
+    }
+  ]
 }
