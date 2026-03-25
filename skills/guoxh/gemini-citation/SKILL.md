@@ -1,6 +1,7 @@
 ---
 name: gemini-citation
 description: Conduct evidence-based research with exact, accurate APA citations using the Gemini API's 'scientific citation' (Google Search grounding) feature. Use when Xiaoyan (Research Assistant) or others need highly factual, cited research summaries, literature reviews, or exact evidence with inline APA citations tied to real web sources.
+metadata: { "openclaw": { "emoji": "📚", "requires": { "bins": ["python3"], "env":["GEMINI_API_KEY"] }, "primaryEnv": "GEMINI_API_KEY" } }
 ---
 
 # Gemini Citation

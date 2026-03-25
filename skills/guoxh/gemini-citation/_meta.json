@@ -3,11 +3,16 @@
   "slug": "gemini-citation",
   "displayName": "Gemini Citation",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1773896431668,
-    "commit": "https://github.com/openclaw/skills/commit/788faf9a145b1832824d3de1b18bbe2af32e49cd"
+    "version": "1.0.2",
+    "publishedAt": 1774139764363,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1773896431668,
+      "commit": "https://github.com/openclaw/skills/commit/788faf9a145b1832824d3de1b18bbe2af32e49cd"
+    },
     {
       "version": "1.0.0",
       "publishedAt": 1773750725178,

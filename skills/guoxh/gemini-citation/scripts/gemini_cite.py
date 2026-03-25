@@ -4,8 +4,6 @@ Gemini Citation - Evidence-based research with APA citations.
 
 This tool uses Google's Gemini API with Search Grounding to provide
 factually accurate, cited research responses.
-
-Safe, open-source research utility. No malware.
 """
 import os
 import argparse
