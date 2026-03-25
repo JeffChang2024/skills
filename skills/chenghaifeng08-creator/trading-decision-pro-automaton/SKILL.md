@@ -29,6 +29,23 @@ Market sentiment analysis, risk assessment, and real-time trade recommendations 
 
 ---
 
+## 💰 付费服务
+
+**交易决策咨询**:
+
+| 服务 | 价格 | 交付 |
+|------|------|------|
+| 单次交易分析 | ¥500/次 | 入场点 + 止损 + 目标 |
+| 周度策略报告 | ¥2000/周 | 5-10 个交易机会 |
+| 月度顾问 | ¥6000/月 | 每日监控 + 每周调整 |
+| 定制交易系统 | ¥10000 起 | 完整策略 + 自动化 |
+
+**⚠️ 风险提示**: 交易有风险，不承诺收益。
+
+**联系**: 微信/Telegram 私信，备注"交易决策"
+
+---
+
 ## 🎯 What It Solves
 
 Traders struggle with:
