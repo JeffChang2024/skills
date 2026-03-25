@@ -8,31 +8,57 @@ import json
 import urllib.request
 import urllib.parse
 import sys
+import os
 
-BASE_URL = "http://160ttth72797.vicp.fun:59745/api"
-TENANT_ID = "2"
+# Configuration - can be overridden by environment variables
+BASE_URL = os.environ.get("ASSETHUB_URL", "http://160ttth72797.vicp.fun:59745/api")
+TENANT_ID = os.environ.get("ASSETHUB_TENANT", "2")
+USERNAME = os.environ.get("ASSETHUB_USER", "")
+PASSWORD = os.environ.get("ASSETHUB_PASS", "")
 _token = None
 
 def login():
     """Login and get token"""
-    global _token
+    global _token, USERNAME, PASSWORD
+    
+    # If no credentials, prompt user
+    if not USERNAME or not PASSWORD:
+        print("🔐 请输入 AssetHub 登录信息", file=sys.stderr)
+        USERNAME = input("用户名: ").strip()
+        import getpass
+        PASSWORD = getpass.getpass("密码: ").strip()
+        
+        if not USERNAME or not PASSWORD:
+            print("错误: 用户名和密码不能为空", file=sys.stderr)
+            return None
+    
     url = f"{BASE_URL}/users/login"
-    data = json.dumps({"username": "su", "password": "123456"}).encode()
+    data = json.dumps({"username": USERNAME, "password": PASSWORD}).encode()
     req = urllib.request.Request(url, data=data, method="POST")
     req.add_header("Content-Type", "application/json")
     req.add_header("X-Tenant-ID", TENANT_ID)
-    with urllib.request.urlopen(req) as r:
-        result = json.loads(r.read())
-        if result.get("success"):
-            _token = result["data"]["token"]
-            return _token
-    return None
+    
+    try:
+        with urllib.request.urlopen(req) as r:
+            result = json.loads(r.read())
+            if result.get("success"):
+                _token = result["data"]["token"]
+                return _token
+            else:
+                print(f"登录失败: {result.get('message')}", file=sys.stderr)
+                return None
+    except Exception as e:
+        print(f"登录请求失败: {e}", file=sys.stderr)
+        return None
 
 def api_call(endpoint, method="GET", data=None):
     """Make API call"""
     global _token
     if not _token:
         login()
+    
+    if not _token:
+        return {"error": "未登录"}
     
     url = f"{BASE_URL}{endpoint}"
     req = urllib.request.Request(url, method=method)
@@ -42,8 +68,11 @@ def api_call(endpoint, method="GET", data=None):
         req.add_header("Content-Type", "application/json")
         req.data = json.dumps(data).encode()
     
-    with urllib.request.urlopen(req) as r:
-        return json.loads(r.read())
+    try:
+        with urllib.request.urlopen(req) as r:
+            return json.loads(r.read())
+    except Exception as e:
+        return {"error": str(e)}
 
 # MCP Tools
 TOOLS = [

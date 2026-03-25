@@ -1,7 +1,7 @@
 ---
 name: "assethub-mcp"
 description: "资产管理系统AI助手(openclaw技能)。提供资产查询、维修报修等工具 via MCP 协议"
-version: "1.0.2"
+version: "1.0.3"
 metadata: { "openclaw": { "emoji": "🔧", "requires": { "bins": ["python3"] } } }
 ---
 

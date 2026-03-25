@@ -3,9 +3,15 @@
   "slug": "assethub-mcp",
   "displayName": "Assethub Mcp",
   "latest": {
-    "version": "1.0.2",
-    "publishedAt": 1774158984869,
-    "commit": "https://github.com/openclaw/skills/commit/df7c356811843d4e8db85a20e22374ee2bc374d6"
+    "version": "1.0.3",
+    "publishedAt": 1774181391470,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.2",
+      "publishedAt": 1774158984869,
+      "commit": "https://github.com/openclaw/skills/commit/df7c356811843d4e8db85a20e22374ee2bc374d6"
+    }
+  ]
 }
