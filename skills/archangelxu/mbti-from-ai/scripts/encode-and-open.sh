@@ -2,6 +2,11 @@
 # encode-and-open.sh — 读取 result.json，Base64 编码，拼接 URL，打开浏览器
 # 输入：_mbti_work/result.json
 # 输出：URL 打印到 stdout，并尝试自动打开浏览器
+#
+# 🔒 隐私说明：
+# - 本脚本不执行任何网络请求（无 curl/wget/fetch POST）
+# - 数据放在 URL Hash（#data=...），Hash 不会被浏览器发送到服务器（HTTP 协议规范 RFC 3986 §3.5）
+# - 目标网页 https://www.mingxi.tech/ 是纯静态单文件 HTML，无后端、无数据库
 
 set -euo pipefail
 
