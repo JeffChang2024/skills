@@ -7,14 +7,13 @@ description: >
   efficiency, growth) from QBO data. Produces a 9-tab Excel workbook with
   traffic-light scoring, DuPont decomposition, Altman Z-Score, 6-month trend
   charts, trend-reversal detection, and CDC logging. Integrates with
-  PrecisionLedger Month-End Close pipeline as Check #13.
+  the Month-End Close pipeline.
 tags:
   - finance
   - accounting
   - ratios
   - qbo
   - excel
-  - precisionledger
 negative_boundaries:
   - Bank reconciliation → use bank-reconciliation skill
   - P&L line-item variance analysis → use pl-deep-analysis skill
@@ -24,7 +23,6 @@ negative_boundaries:
 ---
 
 # Financial Ratio Analysis — SKILL.md
-## Pipeline #13 | PrecisionLedger
 
 ---
 
@@ -56,13 +54,12 @@ Use when a user asks for:
 python3 scripts/pipelines/financial-ratios.py --slug sb-paulson --month 2026-03
 
 # Custom output directory
-python3 scripts/pipelines/financial-ratios.py --slug pl --month 2026-03 --out ~/Desktop/reports
+python3 scripts/pipelines/financial-ratios.py --slug <client-slug> --month 2026-03 --out ~/Desktop/reports
 
 # QBO sandbox
 python3 scripts/pipelines/financial-ratios.py --slug sb-paulson --month 2026-03 --sandbox
 ```
 
-**Known slugs with pre-configured SOP:** `sb-paulson`, `pl`
 Unknown slugs use default thresholds and disable inventory/valuation ratios unless SOP file found.
 
 ---
@@ -209,11 +206,7 @@ Place a `sop.md` file at `clients/{slug}/sop.md`. The pipeline reads it to detec
 
 ## Client Configuration
 
-Fully configured clients with custom thresholds and benchmarks:
-- **`sb-paulson`** — Willo Salons: Beauty/Retail, has inventory, no AR, emphasis on interest coverage + inventory turns
-- **`pl`** — PrecisionLedger: Professional Services, has AR, no inventory, emphasis on margins and DSO
-
-Add new clients to `CLIENT_CONFIGS` in the script with:
+Add clients to `CLIENT_CONFIGS` in the script with:
 - `ratios_enabled` list (which ratios to compute/display)
 - `thresholds` dict per ratio: `{"green": (min, max), "yellow": (min, max)}`
 - `benchmarks` dict per ratio: Decimal values
@@ -272,4 +265,3 @@ Tracks:
 
 ---
 
-*Pipeline #13 — PrecisionLedger OS | Precision. Integrity. Results.*
