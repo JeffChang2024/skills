@@ -1,15 +1,16 @@
 ---
 name: merlin-clawguard
-description: Système immunitaire numérique pour agents autonomes. Détecte les "ombres" malveillantes via Clawdex, génère des vaccins éthiques, et protège la communauté. Utilise CMT 3x3 pour une analyse contextuelle profunda.
+description: Système immunitaire numérique pour agents autonomes. Détecte les "ombres" malveillantes via Clawdex (par Koi), génère des vaccins éthiques, et protège la communauté. Utilise CMT 3x3 pour une analyse contextuelle profunda.
 metadata:
   {
     "openclaw": {
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Merlin — Université d'Éthique Appliquée",
       "tags": ["security", "ethics", "protection", "immunology", "community"],
+      "category": "security",
       "requires": {
         "bins": ["curl", "python3"],
-        "modules": ["aiohttp", "fastapi"]
+        "modules": ["aiohttp"]
       }
     }
   }
@@ -29,11 +30,20 @@ Avec Merlin-ClawGuard, nous venons de franchir une étape cruciale: le premier s
 
 ## 🔍 COMMENT ÇA MARCHE
 
-### 1. Détection Proactive
-Identifie les "ombres" malveillantes via l'API Clawdex avant qu'elles ne s'installent dans ton système.
+### 1. Détection Proactive (via Clawdex)
+Vérifie chaque skill contre l'API Clawdex AVANT installation.
+
+```bash
+curl -s "https://clawdex.koi.security/api/skill/SKILL_NAME"
+```
+
+Réponses possibles:
+- `benign` ✅ — Sûr, peut installer
+- `malicious` 🚫 — Ne PAS installer
+- `unknown` ⚠️ — Pas encore audité, à vérifier
 
 ### 2. Vaccins Éthiques
-Ne se contente pas de bloquer — il génère des réponses éthiques pour neutraliser les menaces à la source.
+Ne se contente pas de bloquer — génère des réponses éthiques pour neutraliser les menaces à la source.
 
 ### 3. Garde Communautaire
 Chaque agent équipé devient un protecteur. La sécurité collective remplace l'isolement.
@@ -98,7 +108,7 @@ Merlin-ClawGuard utilise le **CMT 3x3** (Trinité Éthique):
 
 ## 📜 LICENSE
 
-Apache 2.0 — Usage libre, contribution welcome.
+MIT-0 — Usage libre, contribution welcome.
 
 ---
 

@@ -13,7 +13,7 @@ import os
 from typing import Optional, Dict, List
 
 # Configuration
-CLAWDEX_API = os.getenv("CLAWDEX_API", "https://clawhub.com/api/v1")
+CLAWDEX_API = os.getenv("CLAWDEX_API", "https://clawdex.koi.security/api/skill")
 MERLIN_API = os.getenv("MERLIN_API", "http://localhost:8001")
 
 class Colors:
@@ -40,11 +40,18 @@ async def check_threat(skill_name: str) -> Dict:
     """Vérifie une skill contre la base de données Clawdex."""
     async with aiohttp.ClientSession() as session:
         try:
-            async with session.get(f"{CLAWDEX_API}/threats/{skill_name}") as resp:
+            async with session.get(f"{CLAWDEX_API}/{skill_name}") as resp:
                 if resp.status == 200:
-                    return await resp.json()
+                    data = await resp.json()
+                    verdict = data.get("verdict", "unknown")
+                    if verdict == "benign":
+                        return {"status": "clean", "skill": skill_name, "verdict": verdict}
+                    elif verdict == "malicious":
+                        return {"status": "threat", "skill": skill_name, "verdict": verdict, "description": "Flagged as malicious by Clawdex"}
+                    else:
+                        return {"status": "unknown", "skill": skill_name, "verdict": verdict}
                 elif resp.status == 404:
-                    return {"status": "clean", "skill": skill_name}
+                    return {"status": "unknown", "skill": skill_name, "verdict": "unknown", "description": "Not found in Clawdex"}
                 else:
                     return {"status": "error", "code": resp.status}
         except Exception as e:
