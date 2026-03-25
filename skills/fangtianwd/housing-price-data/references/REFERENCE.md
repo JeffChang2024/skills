@@ -3,6 +3,7 @@
 ## 70个大中城市列表（用于 `--city`）
 
 > 城市名称需与统计局表格一致（去空格后精确匹配）。
+> 脚本也支持少量常见变体，如 `北京市 -> 北京`、`上海市 -> 上海`，以及一般性的 `市` 后缀归一化。
 
 ### 第一组（35个）
 北京、天津、石家庄、太原、呼和浩特、沈阳、大连、长春、哈尔滨、上海、南京、杭州、宁波、合肥、福州、厦门、南昌、济南、青岛、郑州、武汉、长沙、广州、深圳、南宁、海口、重庆、成都、贵阳、昆明、西安、兰州、西宁、银川、乌鲁木齐
@@ -16,12 +17,37 @@
 - `同比`：以上年同月=100 为基准
 - `定基`：以统计局当期表头定义为准（脚本会按列名匹配）
 
+常见别名：
+
+- `环比`：`环比指数`、`月环比`、`mom`、`MoM`
+- `同比`：`同比指数`、`年同比`、`yoy`、`YoY`
+- `定基`：`定基指数`、`fixed-base`
+
 可组合传参，例如：
 
 ```bash
-python scripts/fetch_data.py --city 武汉 --metrics 环比,同比 --limit 100
-python scripts/fetch_data.py --city 上海 --metrics 同比 --limit 100
+python3 scripts/fetch_data.py --city 武汉 --metrics 环比,同比 --latest
+python3 scripts/fetch_data.py --city 上海市 --metrics yoy --limit 12
+python3 scripts/fetch_data.py --city 北京 --metrics 环比,同比 --chart --limit 24
 ```
+
+## 结果字段
+
+脚本顶层输出重点字段：
+
+- `city`：规范化后的城市名
+- `requested_city`：用户原始输入
+- `matched_city`：实际匹配到的城市名
+- `latest_period`：结果中的最新期次
+- `record_count`：记录数
+- `records`：核心数据列表
+
+若失败，错误 JSON 会区分：
+
+- 城市不在 70 城列表中
+- 指标无可用数据
+- RSS 获取失败
+- 网络请求失败
 
 ## 数据来源
 
