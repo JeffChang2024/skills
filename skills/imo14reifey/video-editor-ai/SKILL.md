@@ -1,13 +1,15 @@
 ---
 name: video-editor-ai
-version: "1.0.1"
+version: "1.0.3"
 displayName: "Video Editor AI - Chat Based MP4 Editor with BGM Subtitles and Export"
 description: >
+  Video Editor AI - Chat Based MP4 Editor with BGM Subtitles and Export.
   AI-powered video editor — edit videos, add background music, sound effects, titles,
   transitions, captions, and export MP4 directly in chat. No GUI, no timeline scrubbing.
   Chat-based editing for trimming, cutting, merging clips, adding text overlays, and
-  color correction. Works as a video editing assistant for TikTok, Reels, and Shorts
-  creation. Supports mp4, mov, avi, webm, mkv.
+  color correction. Adjust video speed, apply video filters, and control playback rate
+  for slow motion or timelapse effects. Works as a video editing assistant for TikTok,
+  Reels, and Shorts creation. Supports mp4, mov, avi, webm, mkv.
 metadata: {"openclaw": {"emoji": "✂️", "requires": {"env": [], "configPaths": ["~/.config/nemovideo/"]}, "primaryEnv": "NEMO_TOKEN"}}
 ---
 
