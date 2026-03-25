@@ -1,205 +1,216 @@
-# 智能记忆触发系统
+---
+name: intelligent-memory-trigger-system
+displayName: Intelligent Memory Trigger System
+description: "Intelligent system that automatically determines when to create workflow documentation based on task complexity, repetition patterns, and user intent. Transforms from 'passively waiting for instructions' to 'actively providing help'."
+version: 2.0.0
+type: skill
+tags: memory, workflow, automation, intelligence, decision-making
+---
 
-## 🎯 技能概述
-基于任务复杂度、重复模式和用户意图，智能判断何时需要建立工作流程文档，实现从"被动等待指令"到"主动提供帮助"的转变。
+# 🧠 Intelligent Memory Trigger System
 
-## 📋 使用场景
-当遇到以下情况时，自动触发此技能：
+## 🎯 Skill Overview
+An intelligent system that automatically determines when to create workflow documentation based on task complexity, repetition patterns, and user intent. Transforms agents from "passively waiting for instructions" to "actively providing help."
 
-### 必须触发的情况（硬性条件）
-1. **步骤数 ≥ 3**：任务包含3个或以上操作步骤
-2. **跨系统 ≥ 2**：任务涉及2个或以上系统组件  
-3. **配置变更**：修改核心配置文件或系统设置
-4. **重复出现**：相同或类似任务第2次出现
-5. **用户明确要求**：用户指示"记住"、"总结"、"流程"
+## 📋 Usage Scenarios
+Automatically triggers this skill when encountering the following situations:
 
-### 建议触发的情况
-1. **复杂度评分 ≥ 6分**（见评估算法）
-2. **可能重复使用**：用户提到"下次"、"以后"
-3. **团队协作任务**：涉及多个Agent协作
-4. **有错误风险**：复杂操作容易出错
+### Mandatory Trigger Conditions (Hard Requirements)
+1. **Steps ≥ 3**: Task contains 3 or more operational steps
+2. **Cross-system ≥ 2**: Task involves 2 or more system components
+3. **Configuration Changes**: Modifying core configuration files or system settings
+4. **Repetition Occurrence**: Same or similar task appears for the 2nd time
+5. **User Explicit Request**: User indicates "remember", "summarize", "process"
 
-## 🧠 核心决策逻辑
+### Recommended Trigger Conditions
+1. **Complexity Score ≥ 6 points** (see evaluation algorithm)
+2. **Potential Reuse**: User mentions "next time", "in the future"
+3. **Team Collaboration Tasks**: Involving multiple agent collaboration
+4. **Error Risk**: Complex operations prone to errors
 
-### 复杂度评估算法
+## 🧠 Core Decision Logic
+
+### Complexity Evaluation Algorithm
 ```javascript
-function 评估复杂度(任务描述) {
-  let 分数 = 0;
+function evaluateComplexity(taskDescription) {
+  let score = 0;
   
-  // 1. 步骤数评估
-  if (任务描述包含"第一步"和"第二步") 分数 += 2;
-  if (任务描述包含"第三步") 分数 += 2;
-  if (任务描述包含"第四步"或"最后") 分数 += 2;
+  // 1. Step Count Evaluation
+  if (taskDescription contains "first step" and "second step") score += 2;
+  if (taskDescription contains "third step") score += 2;
+  if (taskDescription contains "fourth step" or "finally") score += 2;
   
-  // 2. 系统涉及评估
-  if (任务描述包含"配置文件"或".json") 分数 += 1;
-  if (任务描述包含"命令行"或"命令") 分数 += 1;
-  if (任务描述包含"重启"或"网关") 分数 += 1;
-  if (任务描述包含"飞书"或"微信"或"平台") 分数 += 1;
+  // 2. System Involvement Evaluation
+  if (taskDescription contains "configuration file" or ".json") score += 1;
+  if (taskDescription contains "command line" or "command") score += 1;
+  if (taskDescription contains "restart" or "gateway") score += 1;
+  if (taskDescription contains "Feishu" or "WeChat" or "platform") score += 1;
   
-  // 3. 配置影响评估
-  if (任务描述包含"配置"或"设置") 分数 += 1;
-  if (任务描述包含"修改"或"编辑") 分数 += 1;
-  if (任务描述包含"添加"或"删除") 分数 += 1;
+  // 3. Configuration Impact Evaluation
+  if (taskDescription contains "configuration" or "settings") score += 1;
+  if (taskDescription contains "modify" or "edit") score += 1;
+  if (taskDescription contains "add" or "delete") score += 1;
   
-  // 4. 协作需求评估
-  if (任务描述包含"团队"或"协作") 分数 += 1;
-  if (任务描述包含"多个"或"几个") 分数 += 1;
+  // 4. Collaboration Requirement Evaluation
+  if (taskDescription contains "team" or "collaboration") score += 1;
+  if (taskDescription contains "multiple" or "several") score += 1;
   
-  return 分数;
+  return score;
 }
 ```
 
-### 决策阈值
-- **总分 ≥ 8分** → 必须建立记忆触发
-- **总分 6-7分** → 建议建立记忆触发  
-- **总分 ≤ 5分** → 不需要建立记忆触发
+### Decision Thresholds
+- **Total Score ≥ 8 points** → Must create memory trigger
+- **Total Score 6-7 points** → Recommend creating memory trigger
+- **Total Score ≤ 5 points** → No need to create memory trigger
 
-## 🔍 重复模式检测
+## 🔍 Repetition Pattern Detection
 
-### 任务类型识别关键词
+### Task Type Identification Keywords
 ```
-系统配置类：["配置", "设置", "安装", "部署"]
-文件操作类：["创建", "编辑", "删除", "移动"]
-命令行类：["执行", "运行", "命令", "脚本"]
-平台集成类：["飞书", "微信", "API", "集成"]
-```
-
-### 重复检测逻辑
-当检测到当前任务与历史任务相似度 > 0.7时，视为重复模式，应建立或引用已有流程。
-
-## 🎯 用户意图分析
-
-### 明确要求关键词
-```
-记录要求：["记住", "记录", "保存", "备忘"]
-总结要求：["总结", "归纳", "整理", "梳理"]
-流程要求：["流程", "步骤", "方法", "操作"]
-未来使用：["下次", "以后", "将来", "重复"]
+System Configuration: ["configuration", "settings", "install", "deploy"]
+File Operations: ["create", "edit", "delete", "move"]
+Command Line: ["execute", "run", "command", "script"]
+Platform Integration: ["Feishu", "WeChat", "API", "integration"]
 ```
 
-检测到这些关键词时，主动询问是否需要建立流程文档。
+### Repetition Detection Logic
+When similarity between current task and historical tasks > 0.7, treat as repetition pattern and should create or reference existing workflow.
 
-## 💬 主动询问模板
+## 🎯 User Intent Analysis
 
-### 基于复杂度
-"孙老师，这个任务看起来比较复杂（评分：X分），可能会重复使用，需要我创建流程文档吗？"
+### Explicit Request Keywords
+```
+Recording Requests: ["remember", "record", "save", "memo"]
+Summary Requests: ["summarize", "organize", "arrange", "sort"]
+Process Requests: ["process", "steps", "method", "operation"]
+Future Use: ["next time", "in the future", "later", "repeat"]
+```
 
-### 基于重复模式  
-"孙老师，这个任务和之前的【相似任务】很相似，需要我参考之前的流程吗？"
+When detecting these keywords, proactively ask if workflow documentation is needed.
 
-### 基于用户意图
-"孙老师，您提到需要【记录/总结/流程】，我现在就创建文档吗？"
+## 💬 Proactive Inquiry Templates
 
-### 基于配置重要性
-"孙老师，这个配置变更会影响系统稳定性，需要我记录详细步骤吗？"
+### Based on Complexity
+"Teacher Sun, this task appears to be relatively complex (score: X points) and may be reused. Would you like me to create a workflow document?"
 
-## 📝 流程文档创建
+### Based on Repetition Pattern
+"Teacher Sun, this task is very similar to the previous [similar task]. Should I reference the previous workflow?"
 
-### 文档命名规范
-- `[任务类型]-配置流程.md`
-- 示例：`飞书机器人配置流程.md`
+### Based on User Intent
+"Teacher Sun, you mentioned needing to [record/summarize/process]. Should I create the document now?"
 
-### 文档结构要求
-1. **流程概述**：任务目标和价值
-2. **配置步骤**：详细的操作步骤（编号清晰）
-3. **验证方法**：如何验证配置成功
-4. **常见问题**：可能的问题和解决方案
-5. **相关文件**：涉及的配置文件和文档
+### Based on Configuration Importance
+"Teacher Sun, this configuration change may affect system stability. Should I record the detailed steps?"
 
-### 存储位置
-- 主目录：`C:\Users\sjh65\.openclaw\workspace\工作流程\`
-- 快速访问：根目录下的专用文档
+## 📝 Workflow Document Creation
 
-## 🔧 系统维护
+### Document Naming Convention
+- `[task-type]-workflow.md`
+- Example: `feishu-bot-configuration-workflow.md`
 
-### 定期检查
-- **每周**：检查任务历史，识别未建立流程的高复杂度任务
-- **每月**：优化复杂度评分标准
-- **每季度**：审查和更新所有流程文档
+### Document Structure Requirements
+1. **Workflow Overview**: Task objectives and value
+2. **Configuration Steps**: Detailed operational steps (clearly numbered)
+3. **Verification Methods**: How to verify successful configuration
+4. **Common Issues**: Potential problems and solutions
+5. **Related Files**: Involved configuration files and documents
 
-### 优化机制
-- 根据用户反馈调整触发条件
-- 根据实际使用情况优化关键词
-- 根据任务执行效果改进流程文档
+### Storage Location
+- Main Directory: `C:\Users\sjh65\.openclaw\workspace\workflows\`
+- Quick Access: Dedicated documents in root directory
 
-## 📈 效果评估指标
+## 🔧 System Maintenance
 
-### 量化指标
-1. **流程覆盖率**：高复杂度任务中已建立流程的比例
-2. **主动询问率**：在需要时主动询问建立流程的比例
-3. **用户提醒率**：需要用户提醒才提供流程的比例（目标：降低）
-4. **流程使用率**：流程文档被实际引用的频率
+### Regular Checks
+- **Weekly**: Check task history, identify high-complexity tasks without workflows
+- **Monthly**: Optimize complexity scoring standards
+- **Quarterly**: Review and update all workflow documents
 
-### 质量指标
-1. **流程完整性**：步骤是否完整、清晰
-2. **触发准确性**：关键词触发是否准确
-3. **用户满意度**：流程是否真正帮助了工作
+### Optimization Mechanism
+- Adjust trigger conditions based on user feedback
+- Optimize keywords based on actual usage
+- Improve workflow documents based on task execution effectiveness
 
-## 🎯 实际应用案例
+## 📈 Effectiveness Evaluation Metrics
 
-### 案例1：飞书机器人配置
-- **复杂度评分**：9分（步骤4分 + 跨系统3分 + 系统影响2分）
-- **触发条件**：跨系统≥2、配置变更、重复出现
-- **结果**：建立了`飞书机器人配置流程.md`
-- **触发词**：["飞书机器人", "配置机器人", "channel配置", "配对"]
+### Quantitative Metrics
+1. **Workflow Coverage**: Proportion of high-complexity tasks with established workflows
+2. **Proactive Inquiry Rate**: Proportion of proactively asking to create workflows when needed
+3. **User Reminder Rate**: Proportion needing user reminders to provide workflows (goal: reduce)
+4. **Workflow Usage Rate**: Frequency of workflow documents being actually referenced
 
-### 案例2：文件读取
-- **复杂度评分**：3分
-- **触发条件**：无
-- **结果**：不需要建立流程文档
+### Quality Metrics
+1. **Workflow Completeness**: Whether steps are complete and clear
+2. **Trigger Accuracy**: Whether keyword triggers are accurate
+3. **User Satisfaction**: Whether workflows truly help with work
 
-### 案例3：模型测试
-- **复杂度评分**：6分
-- **触发条件**：复杂度评分≥6分
-- **结果**：询问"需要我创建流程文档吗？"
+## 🎯 Practical Application Cases
 
-## 🔄 完整工作流程
+### Case 1: Feishu Bot Configuration
+- **Complexity Score**: 9 points (steps 4 + cross-system 3 + system impact 2)
+- **Trigger Conditions**: Cross-system ≥ 2, configuration changes, repetition occurrence
+- **Result**: Created `feishu-bot-configuration-workflow.md`
+- **Trigger Keywords**: ["Feishu bot", "configure bot", "channel configuration", "pairing"]
+
+### Case 2: File Reading
+- **Complexity Score**: 3 points
+- **Trigger Conditions**: None
+- **Result**: No need to create workflow document
+
+### Case 3: Model Testing
+- **Complexity Score**: 6 points
+- **Trigger Conditions**: Complexity score ≥ 6 points
+- **Result**: Asked "Would you like me to create a workflow document?"
+
+## 🔄 Complete Workflow
 
 ```
-开始任务
+Start Task
     ↓
-分析任务描述
+Analyze Task Description
     ↓
-评估复杂度（步骤数、涉及系统、配置影响）
+Evaluate Complexity (step count, system involvement, configuration impact)
     ↓
-检查任务历史（是否重复类型？）
+Check Task History (is it a repetitive type?)
     ↓
-分析用户意图（是否有"记住"、"总结"等词？）
+Analyze User Intent (are there "remember", "summarize" keywords?)
     ↓
     ┌─────────────────────┐
-    │ 是否需要建立记忆触发？ │
+    │ Need to create memory trigger? │
     └─────────────────────┘
             ↓
     ┌─────────────────────┐
-    │ 是 → 主动询问用户     │
-    │ 否 → 正常执行任务    │
+    │ Yes → Proactively ask user │
+    │ No → Execute task normally │
     └─────────────────────┘
 ```
 
-## 📋 快速参考
+## 📋 Quick Reference
 
-### 必须建立流程的情况
-1. 步骤数 ≥ 3
-2. 跨系统 ≥ 2  
-3. 配置变更
-4. 任务重复第2次
-5. 用户明确要求
-6. 复杂度评分 ≥ 8分
+### Must Create Workflow Situations
+1. Steps ≥ 3
+2. Cross-system ≥ 2
+3. Configuration changes
+4. Task repeats for 2nd time
+5. User explicit request
+6. Complexity score ≥ 8 points
 
-### 建议询问的情况
-1. 复杂度评分 6-7分
-2. 可能重复使用
-3. 团队协作任务
-4. 有错误风险
+### Recommend Inquiry Situations
+1. Complexity score 6-7 points
+2. Potential reuse
+3. Team collaboration tasks
+4. Error risk
 
-### 不需要建立流程的情况
-1. 复杂度评分 ≤ 5分
-2. 明显的一次性操作
-3. 简单的查询或信息获取
-4. 探索性的试错操作
+### No Need for Workflow Situations
+1. Complexity score ≤ 5 points
+2. Clearly one-time operations
+3. Simple queries or information retrieval
+4. Exploratory trial-and-error operations
 
 ---
-*技能建立时间：2026-03-18*
-*建立者：司令官（基于虾秘的设计）*
-*目标：实现系统化的、自动化的记忆触发决策*
+*Skill Creation Time: 2026-03-18*
+*Upgraded to English Version: 2026-03-20*
+*Original Creator: Commander (based on Shrimp Assistant's design)*
+*Upgraded By: Shrimp Assistant (main agent)*
+*Goal: Achieve systematic, automated memory trigger decision-making*
