@@ -2,7 +2,7 @@
 name: mova-invoice-ocr
 description: Process any financial document — invoice, bill, receipt, or purchase order — via MOVA OCR and human-in-the-loop approval. Trigger when the user shares a document image URL or asks to process, extract, or review a financial document. Always confirm before starting.
 license: MIT-0
-metadata: {"openclaw":{"primaryEnv":"MOVA_API_KEY","envVars":[{"name":"MOVA_API_KEY","description":"MOVA platform API key — obtain at https://mova-lab.eu/register","required":true}],"dataSentToExternalServices":[{"service":"MOVA API (api.mova-lab.eu)","data":"invoice image URL, extracted document fields, human decision, audit metadata"},{"service":"ERP connector (read-only mock by default)","data":"PO reference number for cross-reference lookup"}],"binaryProvenance":{"name":"mova-bridge","installCmd":"pip install mova-bridge","source":"https://pypi.org/project/mova-bridge/","sourceRepo":"https://github.com/mova-compact/mova-bridge","license":"MIT-0"}}}
+metadata: {"openclaw":{"primaryEnv":"MOVA_API_KEY","plugin":{"name":"MOVA","installCmd":"openclaw plugins install openclaw-mova","configKey":"plugins.entries.mova.config.apiKey"},"dataSentToExternalServices":[{"service":"MOVA API (api.mova-lab.eu)","data":"invoice image URL, extracted document fields, human decision, audit metadata"},{"service":"ERP connector (read-only mock by default)","data":"PO reference number for cross-reference lookup"}]}}
 ---
 
 # MOVA Invoice OCR & Approval
@@ -18,13 +18,7 @@ Submit a supplier invoice to MOVA for automated OCR extraction, risk validation,
 
 ## Requirements
 
-**Binary:** `mova-bridge` CLI — install once:
-```
-pip install mova-bridge
-```
-Source: [PyPI](https://pypi.org/project/mova-bridge/) · [GitHub](https://github.com/mova-compact/mova-bridge) · License: MIT-0
-
-**Credential:** Set `MOVA_API_KEY` in your OpenClaw environment (Settings → Environment Variables).
+**Plugin:** MOVA OpenClaw plugin must be installed and configured with your API key.
 Get your key at [mova-lab.eu/register](https://mova-lab.eu/register).
 
 **Data flows:**
@@ -32,8 +26,6 @@ Get your key at [mova-lab.eu/register](https://mova-lab.eu/register).
 - PO reference number → ERP connector (read-only lookup, no data stored)
 - Audit journal → MOVA R2 storage, cryptographically signed, accessible only via your API key
 - No data is sent to third parties beyond the above
-
-**Signing keys:** The compact audit journal is signed by the MOVA runtime using your account's session key. You retain full access via `mova-bridge call mova_hitl_audit_compact`.
 
 ## Quick start
 
@@ -93,7 +85,8 @@ If no URL provided — ask once for a direct HTTPS image link.
 
 ## Step 1 — Submit document
 
-    mova-bridge call mova_hitl_start --file-url URL
+Call tool `mova_hitl_start` with:
+- `file_url`: the HTTPS URL of the document image
 
 ## Step 2 — Show analysis and decision options
 
@@ -103,20 +96,35 @@ If `status = "waiting_human"` — show extracted data and ask user to choose:
 - **escalate_accountant** — forward to accountant
 - **request_info** — ask vendor for clarification
 
-Then run:
-
-    mova-bridge call mova_hitl_decide --contract-id CONTRACT_ID --option OPTION --reason "REASON"
-
-Use CONTRACT_ID from the JSON response above — not the invoice number.
+Call tool `mova_hitl_decide` with:
+- `contract_id`: from the response above (NOT the invoice number)
+- `option`: chosen decision
+- `reason`: human reasoning
 
 ## Step 3 — Show audit receipt
 
-    mova-bridge call mova_hitl_audit --contract-id CONTRACT_ID
-    mova-bridge call mova_hitl_audit_compact --contract-id CONTRACT_ID
+Call tool `mova_hitl_audit` with `contract_id`.
+Call tool `mova_hitl_audit_compact` with `contract_id` for the full signed event chain.
+
+## Connect your real OCR and ERP systems
+
+By default MOVA uses a sandbox mock. To use your live document processing and ERP, register your endpoints — see the **MOVA Connector Setup** skill or call `mova_list_connectors` with `keyword: "ocr"`.
+
+Relevant connectors:
+
+| Connector ID | What it covers |
+|---|---|
+| `connector.ocr.document_extract_v1` | Document OCR extraction |
+| `connector.ocr.vision_llm_v1` | Vision LLM OCR (OpenRouter) |
+| `connector.finance.duplicate_check_v1` | Duplicate invoice detection |
+| `connector.tax.vat_validate_v1` | VAT number validation (VIES) |
+| `connector.erp.invoice_post_v1` | ERP invoice posting / status update |
+
+Call `mova_register_connector` with `connector_id`, `endpoint`, optional `auth_header` and `auth_value`.
 
 ## Rules
 
 - NEVER make HTTP requests manually
-- NEVER invent or simulate results — if exec fails, show the exact error
-- Run exec directly: `mova-bridge call ...` (not wrapped in bash or sh)
-- CONTRACT_ID comes from the mova-bridge JSON response, not from the invoice number
+- NEVER invent or simulate results — if a tool call fails, show the exact error
+- Use MOVA plugin tools directly (mova_hitl_start, mova_hitl_decide, etc.) — do NOT use exec or shell
+- CONTRACT_ID comes from the mova_hitl_start response, not from the invoice number
