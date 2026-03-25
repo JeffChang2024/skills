@@ -1,6 +1,18 @@
 ---
 name: skill-downloader
-description: Download and install OpenClaw skills from trusted sources including skills.sh, ClawHub, and GitHub. Always use this skill when the user requests to download, install, or add third-party skills.
+description: Search and install OpenClaw skills from trusted sources including skills.sh, ClawHub, and GitHub. Handles both "find X skill" search queries and "install X skill" download requests. Always use this skill when the user requests to download, install, or add third-party skills.
+triggers:
+  - "search"
+  - "find"
+  - "look for"
+  - "查找"
+  - "搜索"
+  - "is there a skill"
+  - "有没有.*技能"
+  - "download skill"
+  - "install skill"
+  - "添加技能"
+  - "下载技能"
 compatibility: requires git, curl, Node.js/npm
 ---
 
@@ -47,6 +59,23 @@ Follow these rules strictly for where to install the skill:
   - If no workspace is detected, default to `~/.openclaw/workspace/skills/`
 
 ## Workflow
+
+### Mode A: Search Only (no installation)
+
+When user only asks to "search", "find", or "look for" a skill (no download/install intent):
+
+1. **Detect search intent** — User asks "find X skill", "search for Y", "is there a skill that can..."
+2. **Use npx skills find** — Run `npx skills find <query>` to search skills.sh
+3. **Present results** — Show results in table format with:
+   - Skill name and owner/repo
+   - Install count (popularity)
+   - Skills.sh URL
+   - Brief recommendation
+4. **Wait for user** — Ask if they want to install any of the results
+5. **If yes** → Continue to Mode B (Installation)
+6. **Done** — End here if user just wants to browse
+
+### Mode B: Installation (download + install)
 
 1. **Capture request**
    - Extract the skill name to download
