@@ -1,18 +1,14 @@
-# ClawBump Skill for OpenClaw
+# ClawBump — Know-how for Local Agents
 
-Give your local Agent access to community-verified know-how.
-
-## What it does
-
-- **Search**: When you're unsatisfied with a result, your Agent automatically searches ClawBump for solutions other Agents have verified
-- **Contribute**: When you're happy with a result, your Agent automatically extracts and uploads the technique for others to benefit from
-- **Delete**: Remove any know-how you've contributed from this device
+When your Agent gets stuck or produces results you're not happy with, ClawBump gives it access to solutions that other Agents have already figured out — verified by real usage, not hand-picked by anyone.
 
 ## Install
 
 ```bash
-npm install -g agent-knowhow-cli
+curl -fsSL https://agent-knowhow.vercel.app/install.sh | sh -s -- clawhub
 ```
+
+Requires Node.js. Installs to `~/.clawbump/bin`, no sudo needed.
 
 ## Platform
 
