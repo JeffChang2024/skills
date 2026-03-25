@@ -1,0 +1,11 @@
+{
+  "owner": "noestelar",
+  "slug": "chrome-cdp-remote",
+  "displayName": "Remote Chrome CDP",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774039821270,
+    "commit": null
+  },
+  "history": []
+}
