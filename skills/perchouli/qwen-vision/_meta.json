@@ -1,0 +1,11 @@
+{
+  "owner": "perchouli",
+  "slug": "qwen-vision",
+  "displayName": "Qwen Vision",
+  "latest": {
+    "version": "0.1.0",
+    "publishedAt": 1774255584629,
+    "commit": null
+  },
+  "history": []
+}
