@@ -230,7 +230,7 @@ def create_pdf(articles, output_path):
 
 
 async def main():
-    pdf_output = f"/tmp/Miao's Daily English News {datetime.now().strftime('%Y-%m-%d')}.pdf"
+    pdf_output = f"/tmp/Miaosi Daily English News {datetime.now().strftime('%Y-%m-%d')}.pdf"
     
     print("="*50)
     print("="*50)
@@ -268,7 +268,7 @@ async def main():
     
     if create_pdf(all_articles, pdf_output):
         print(f"PDF: {pdf_output}")
-        dest = f"/root/.openclaw/workspace-explodegao/english-audio/Miao's Daily English News {datetime.now().strftime('%Y-%m-%d')}.pdf"
+        dest = f"/root/.openclaw/workspace-explodegao/english-audio/Miaosi Daily English News {datetime.now().strftime('%Y-%m-%d')}.pdf"
         import shutil
         shutil.copy(pdf_output, dest)
         print(f"Copied to: {dest}")
