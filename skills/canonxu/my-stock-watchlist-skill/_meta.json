@@ -1,0 +1,11 @@
+{
+  "owner": "canonxu",
+  "slug": "my-stock-watchlist-skill",
+  "displayName": "My Stock Watchlist Skill",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774355767134,
+    "commit": null
+  },
+  "history": []
+}
