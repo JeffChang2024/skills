@@ -1,0 +1,11 @@
+{
+  "owner": "matthewsweeney",
+  "slug": "gomboc-security",
+  "displayName": "Deterministic security fixes for infrastructure code via Gomboc.ai Community Edition",
+  "latest": {
+    "version": "0.2.0",
+    "publishedAt": 1774459015585,
+    "commit": null
+  },
+  "history": []
+}
