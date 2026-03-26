@@ -1,0 +1,11 @@
+{
+  "owner": "blacktor-tor",
+  "slug": "openclaw-git-backup",
+  "displayName": "OpenClaw Git Backup",
+  "latest": {
+    "version": "0.1.0",
+    "publishedAt": 1774455498450,
+    "commit": null
+  },
+  "history": []
+}
