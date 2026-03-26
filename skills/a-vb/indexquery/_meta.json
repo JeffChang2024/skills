@@ -1,0 +1,11 @@
+{
+  "owner": "a-vb",
+  "slug": "indexquery",
+  "displayName": "承运商指数查询",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774257681396,
+    "commit": null
+  },
+  "history": []
+}
