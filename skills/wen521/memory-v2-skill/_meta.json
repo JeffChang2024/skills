@@ -3,9 +3,15 @@
   "slug": "memory-v2-skill",
   "displayName": "Memory V2 Skill",
   "latest": {
-    "version": "2.5.0",
-    "publishedAt": 1774409830791,
-    "commit": "https://github.com/openclaw/skills/commit/effb32dfcfd5690f9062cc048ee65a48e8e6bfa0"
+    "version": "2.5.4",
+    "publishedAt": 1774417560322,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "2.5.0",
+      "publishedAt": 1774409830791,
+      "commit": "https://github.com/openclaw/skills/commit/effb32dfcfd5690f9062cc048ee65a48e8e6bfa0"
+    }
+  ]
 }

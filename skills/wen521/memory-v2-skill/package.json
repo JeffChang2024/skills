@@ -1,6 +1,6 @@
 {
   "name": "memory-lucia",
-  "version": "2.5.0",
+  "version": "2.5.4",
   "description": "Advanced memory system for OpenClaw agents with priority analysis, learning tracking, decision recording, and skill evolution",
   "main": "api/index.js",
   "scripts": {

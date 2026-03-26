@@ -1,15 +1,13 @@
 /**
- * Memory V2.5 - Hybrid Query Module
+ * Memory Query Module
  * 
  * Features:
- * - Local-first query (SQLite)
- * - Semantic search (Qdrant)
- * - API fallback (LLM)
- * - Smart caching
- * - Cost tracking
+ * - Local SQLite query with text search
+ * - Multi-table search
+ * - Result ranking
  * 
  * @module QueryModule
- * @version 2.5.0
+ * @version 2.5.3
  */
 
 const sqlite3 = require('sqlite3').verbose();
@@ -18,123 +16,166 @@ class QueryModule {
   constructor(options = {}) {
     this.dbPath = options.dbPath || './memory-v2.5.db';
     this.db = null;
-    this.cache = new Map();
-    this.cacheEnabled = options.cacheEnabled !== false;
-    this.useAPIFallback = options.useAPIFallback !== false;
-    
-    this.costStats = {
-      localQueries: 0,
-      apiFallbacks: 0,
-      totalTokens: 0
+    this.stats = {
+      totalQueries: 0,
+      resultsFound: 0
     };
   }
 
   async init() {
     this.db = new sqlite3.Database(this.dbPath);
-    console.log('✅ Query Module V2.5 initialized');
+    console.log('✅ Query Module initialized');
     return this;
   }
 
-  async query(queryText, options = {}) {
+  /**
+   * Search across all memory tables
+   * @param {string} queryText - Search text
+   * @param {Object} options - Search options
+   * @returns {Object} Search results
+   */
+  async search(queryText, options = {}) {
     const startTime = Date.now();
     
-    console.log(`\n🔍 Query: "${queryText}"`);
+    console.log(`\n🔍 Search: "${queryText}"`);
     
-    // Try local first
-    const localResults = await this.localQuery(queryText, options);
-    if (localResults.length > 0) {
-      this.costStats.localQueries++;
-      return {
-        source: 'local',
-        results: localResults,
-        time: Date.now() - startTime,
-        cost: 0
-      };
+    const results = [];
+    
+    // Search learning table
+    try {
+      const learning = await this.searchLearning(queryText);
+      results.push(...learning.map(r => ({ ...r, _source: 'learning', _score: this.calculateScore(r, queryText) })));
+    } catch (err) {
+      // Table might not exist
     }
     
-    // Fallback to API if enabled
-    if (this.useAPIFallback) {
-      this.costStats.apiFallbacks++;
-      // API call placeholder
-      return {
-        source: 'api',
-        results: [],
-        time: Date.now() - startTime,
-        cost: 'tokens'
-      };
+    // Search priorities table
+    try {
+      const priorities = await this.searchPriorities(queryText);
+      results.push(...priorities.map(r => ({ ...r, _source: 'priority', _score: this.calculateScore(r, queryText) })));
+    } catch (err) {
+      // Table might not exist
     }
+    
+    // Search decisions table
+    try {
+      const decisions = await this.searchDecisions(queryText);
+      results.push(...decisions.map(r => ({ ...r, _source: 'decision', _score: this.calculateScore(r, queryText) })));
+    } catch (err) {
+      // Table might not exist
+    }
+    
+    // Search evolution table
+    try {
+      const evolution = await this.searchEvolution(queryText);
+      results.push(...evolution.map(r => ({ ...r, _source: 'evolution', _score: this.calculateScore(r, queryText) })));
+    } catch (err) {
+      // Table might not exist
+    }
+    
+    // Sort by score and limit
+    results.sort((a, b) => b._score - a._score);
+    const limited = results.slice(0, options.limit || 10);
+    
+    this.stats.totalQueries++;
+    this.stats.resultsFound += limited.length;
     
     return {
-      source: 'none',
-      results: [],
-      time: Date.now() - startTime,
-      cost: 0
+      query: queryText,
+      results: limited,
+      total: results.length,
+      time: Date.now() - startTime
     };
   }
 
-  async localQuery(queryText, options) {
+  /**
+   * Search learning table
+   */
+  async searchLearning(queryText) {
     const pattern = `%${queryText}%`;
-    const results = [];
-    
-    // Query learning table (handle missing table gracefully)
-    try {
-      const learning = await this.queryTable('memory_learning', ['learning_topic', 'notes'], pattern);
-      results.push(...learning.map(r => ({ ...r, _source: 'learning' })));
-    } catch (err) {
-      // Table might not exist yet, skip
-    }
-    
-    // Query priorities table
-    try {
-      const priorities = await this.queryTable('memory_priorities', ['message_text', 'reasoning'], pattern);
-      results.push(...priorities.map(r => ({ ...r, _source: 'priority' })));
-    } catch (err) {
-      // Table might not exist yet, skip
-    }
-    
-    // Query decisions table
-    try {
-      const decisions = await this.queryTable('memory_decisions', ['decision_summary', 'context'], pattern);
-      results.push(...decisions.map(r => ({ ...r, _source: 'decision' })));
-    } catch (err) {
-      // Table might not exist yet, skip
-    }
-    
-    // Query evolution table
-    try {
-      const evolution = await this.queryTable('memory_evolution', ['skill_name'], pattern);
-      results.push(...evolution.map(r => ({ ...r, _source: 'evolution' })));
-    } catch (err) {
-      // Table might not exist yet, skip
-    }
-    
-    return results.slice(0, options.limit || 10);
-  }
-
-  async queryTable(table, fields, pattern) {
     return new Promise((resolve, reject) => {
-      // Build OR query for multiple fields
-      const whereClause = fields.map(f => `${f} LIKE ?`).join(' OR ');
-      const params = fields.map(() => pattern);
-      const sql = `SELECT * FROM ${table} WHERE ${whereClause} LIMIT 10`;
-      
-      this.db.all(sql, params, (err, rows) => {
-        if (err) {
-          // Return empty array for missing tables
-          if (err.message.includes('no such table')) {
-            resolve([]);
-          } else {
-            reject(err);
-          }
-        } else {
-          resolve(rows || []);
-        }
+      const sql = `SELECT * FROM memory_learning 
+                   WHERE learning_topic LIKE ? OR notes LIKE ? 
+                   LIMIT 10`;
+      this.db.all(sql, [pattern, pattern], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows || []);
       });
     });
   }
 
+  /**
+   * Search priorities table
+   */
+  async searchPriorities(queryText) {
+    const pattern = `%${queryText}%`;
+    return new Promise((resolve, reject) => {
+      const sql = `SELECT * FROM memory_priorities 
+                   WHERE context_summary LIKE ? OR keywords LIKE ? 
+                   LIMIT 10`;
+      this.db.all(sql, [pattern, pattern], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows || []);
+      });
+    });
+  }
+
+  /**
+   * Search decisions table
+   */
+  async searchDecisions(queryText) {
+    const pattern = `%${queryText}%`;
+    return new Promise((resolve, reject) => {
+      const sql = `SELECT * FROM memory_decisions 
+                   WHERE decision_question LIKE ? OR decision_context LIKE ? OR rationale LIKE ? 
+                   LIMIT 10`;
+      this.db.all(sql, [pattern, pattern, pattern], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows || []);
+      });
+    });
+  }
+
+  /**
+   * Search evolution table
+   */
+  async searchEvolution(queryText) {
+    const pattern = `%${queryText}%`;
+    return new Promise((resolve, reject) => {
+      const sql = `SELECT * FROM memory_evolution 
+                   WHERE skill_name LIKE ? OR skill_category LIKE ? 
+                   LIMIT 10`;
+      this.db.all(sql, [pattern, pattern], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows || []);
+      });
+    });
+  }
+
+  /**
+   * Calculate relevance score
+   */
+  calculateScore(row, queryText) {
+    const query = queryText.toLowerCase();
+    let score = 0;
+    
+    // Check all text fields
+    for (const key of Object.keys(row)) {
+      if (typeof row[key] === 'string') {
+        const value = row[key].toLowerCase();
+        if (value.includes(query)) {
+          score += 1;
+          // Bonus for exact match
+          if (value === query) score += 2;
+        }
+      }
+    }
+    
+    return score;
+  }
+
   getStats() {
-    return this.costStats;
+    return this.stats;
   }
 
   close() {

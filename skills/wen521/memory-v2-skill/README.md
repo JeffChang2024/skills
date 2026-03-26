@@ -4,7 +4,7 @@
 [![GitHub](https://img.shields.io/badge/github-memory--lucia-blue.svg)](https://github.com/wen521/memory-lucia-)
 [![License](https://img.shields.io/npm/l/memory-lucia.svg)](LICENSE)
 
-Advanced memory system for OpenClaw agents with priority analysis, learning tracking, decision recording, and skill evolution.
+Local SQLite-based memory system for OpenClaw agents. All data stored locally with no external dependencies.
 
 ## 📦 Installation
 
@@ -104,7 +104,7 @@ SQLite backend with tables:
 
 ## 📋 Version
 
-Current: 2.5.0
+Current: 2.5.4
 
 ## 📄 License
 

@@ -1,12 +1,12 @@
 ---
 name: memory-lucia
-version: 2.5.0
+version: 2.5.4
 description: |
-  Memory Lucia V2.5 - Advanced memory system with hybrid query, enhanced learning tracking,
-  autonomous decision recording, and skill evolution monitoring.
-  Use when: (1) Tracking learning progress with milestones, (2) Recording decisions with review scheduling,
-  (3) Analyzing message priorities, (4) Monitoring skill evolution with proficiency levels,
-  (5) Hybrid query with local-first + API fallback.
+  Memory Lucia - Local SQLite-based memory system for OpenClaw agents.
+  Features: (1) Priority analysis and tracking, (2) Learning progress with milestones,
+  (3) Decision recording with review scheduling, (4) Skill evolution monitoring,
+  (5) Local text search across all memory tables, (6) Automatic database backups.
+  All data stored locally in SQLite database. No external API calls.
 ---
 
 # Memory V2 Skill
