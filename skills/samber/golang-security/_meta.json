@@ -1,0 +1,11 @@
+{
+  "owner": "samber",
+  "slug": "golang-security",
+  "displayName": "Golang Security",
+  "latest": {
+    "version": "0.1.0",
+    "publishedAt": 1774336778519,
+    "commit": null
+  },
+  "history": []
+}
