@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+"""Reject sessions and record them in manifest to avoid re-processing.
+
+Usage:
+    python reject.py --output-dir PATH --session SESSION_ID --reason "reason"
+    python reject.py --output-dir PATH --sessions 'id1:reason1' 'id2:reason2'
+"""
+
+import argparse
+import json
+import os
+import sys
+from datetime import datetime, timezone
+
+DEFAULT_OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "..", "output")
+MANIFEST_FILENAME = "manifest.json"
+
+
+def load_manifest(output_dir: str) -> dict:
+    manifest_path = os.path.join(output_dir, MANIFEST_FILENAME)
+    if os.path.isfile(manifest_path):
+        with open(manifest_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {"submitted": {}, "rejected": {}}
+
+
+def save_manifest(output_dir: str, manifest: dict):
+    manifest_path = os.path.join(output_dir, MANIFEST_FILENAME)
+    with open(manifest_path, "w", encoding="utf-8") as f:
+        json.dump(manifest, f, ensure_ascii=False, indent=2)
+
+
+def reject_sessions(output_dir: str, rejections: list[tuple[str, str]]) -> int:
+    """Reject sessions: record in manifest and delete trajectory files.
+
+    Args:
+        output_dir: Path to output directory containing manifest and trajectories
+        rejections: List of (session_id, reason) tuples
+
+    Returns:
+        Number of sessions rejected
+    """
+    manifest = load_manifest(output_dir)
+    manifest.setdefault("rejected", {})
+    count = 0
+
+    for session_id, reason in rejections:
+        # Record in manifest
+        manifest["rejected"][session_id] = {
+            "rejected_at": datetime.now(timezone.utc).isoformat(),
+            "reason": reason,
+        }
+
+        # Delete trajectory file if it exists
+        trajectory_path = os.path.join(output_dir, f"{session_id}.trajectory.json")
+        if os.path.isfile(trajectory_path):
+            os.remove(trajectory_path)
+
+        count += 1
+
+    save_manifest(output_dir, manifest)
+    return count
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Reject sessions and record in manifest")
+    parser.add_argument("--output-dir", "-o", default=DEFAULT_OUTPUT_DIR, help="Output directory")
+    parser.add_argument("--session", "-s", help="Single session ID to reject")
+    parser.add_argument("--reason", "-r", default="", help="Rejection reason (used with --session)")
+    parser.add_argument("--sessions", nargs="+", metavar="ID:REASON",
+                        help="Multiple rejections as 'session_id:reason' pairs")
+    args = parser.parse_args()
+
+    rejections: list[tuple[str, str]] = []
+
+    if args.session:
+        rejections.append((args.session, args.reason))
+
+    if args.sessions:
+        for item in args.sessions:
+            if ":" in item:
+                sid, reason = item.split(":", 1)
+                rejections.append((sid.strip(), reason.strip()))
+            else:
+                rejections.append((item.strip(), ""))
+
+    if not rejections:
+        print("No sessions to reject. Use --session or --sessions.", file=sys.stderr)
+        sys.exit(1)
+
+    count = reject_sessions(args.output_dir, rejections)
+    print(json.dumps({"rejected_count": count}, indent=2))
+
+
+if __name__ == "__main__":
+    main()
