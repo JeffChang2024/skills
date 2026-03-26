@@ -1,7 +1,31 @@
 ---
 name: saturnday
-version: 1.0.0
-description: Governed AI software execution — scan code for 50+ security and quality issues, build projects from a brief with per-commit governance, or auto-fix findings. Supports Claude Code, Codex, and Cursor. Requires pip install saturnday.
+version: 1.5.0
+description: Governed AI software execution — scan code for 75+ security, quality, and DevOps checks. Build projects from a brief with per-commit governance, or auto-fix findings. Covers Python, TypeScript, Dockerfiles, Terraform, Kubernetes, GitHub Actions, GitLab CI, and Jenkins. Supports Claude Code, Codex, and Cursor. Requires pip install saturnday.
+homepage: https://www.saturnday.dev
+source: https://github.com/honouralexwill/saturnday
+license: MIT
+metadata:
+  openclaw:
+    requires:
+      bins:
+        - python3
+        - git
+    optional_bins:
+      - node
+    optional_env:
+      - ANTHROPIC_API_KEY
+      - OPENAI_API_KEY
+      - CURSOR_API_KEY
+    install:
+      - cmd: pip install saturnday
+      - cmd: echo "Saturnday installed. Run 'saturnday version' to verify."
+    notes: >
+      Scan mode requires only python3 and git. Guard mode requires python3, git, and optionally node for TypeScript checks.
+      Run mode requires python3, git, and at least one AI backend API key or CLI tool (claude, codex, or agent).
+      All API keys are optional — set only the one for your chosen backend.
+      Run and Guard modes modify the target repository (git commits, evidence directories).
+      Run mode transmits repository contents to the chosen AI backend for code generation.
 ---
 
 # Saturnday
@@ -55,6 +79,13 @@ saturnday scan --skill <skill-directory-path> --output /tmp/scan-results --forma
 - Dead code (cross-file analysis)
 - Dependency declaration verification
 - Project hygiene (README, LICENSE)
+- Dockerfile checks (unpinned images, root user, secrets in build, missing dockerignore)
+- GitHub Actions (SHA pinning, broad permissions, pull_request_target, plaintext secrets)
+- GitLab CI (secrets in YAML, docker-in-docker patterns)
+- Jenkins (hardcoded credentials)
+- Terraform (hardcoded credentials, public CIDR)
+- Kubernetes (privileged containers, unpinned images, secrets in manifests)
+- Optional Trivy integration for deep IaC analysis
 
 ### Output
 ```
@@ -128,11 +159,14 @@ saturnday start
 
 ### What happens during a run
 
-1. **Planning** — generates tickets with acceptance criteria and scope constraints
+1. **Planning** — 3-stage planner generates tickets with acceptance criteria and scope constraints
 2. **Execution** — each ticket executed sequentially, 50+ governance checks after every commit
-3. **Auto-repair** — failed tickets retried with findings as context
-4. **Definition of done** — evaluates whether plan goals are met
-5. **Evidence** — timestamped directory with per-ticket results, governance evidence, analytics
+3. **Retry** — if governance fails, revert, feed findings back, retry (up to 3 attempts)
+4. **Ungoverned commit** — if a ticket still fails after retries and auto-repair, the code is committed with a `[GOVERNANCE: review required]` tag so the project stays complete
+5. **Auto-repair** — after all tickets, ungoverned and failed tickets go through the repair pipeline again
+6. **Definition of done** — evaluates whether plan goals are met
+7. **Review report** — for ungoverned tickets: `review-required.md` with findings, remediation tips, and copy-paste fix prompts for each ticket
+8. **Evidence** — timestamped directory with per-ticket results, governance evidence, analytics
 
 ### Resume interrupted runs
 ```bash
