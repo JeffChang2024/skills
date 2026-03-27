@@ -1,6 +1,6 @@
 ---
 name: drone-footage-video
-version: "1.0.1"
+version: 1.0.3
 displayName: "Drone Footage Video Maker"
 description: >
   Describe your aerial footage and NemoVideo transforms it into a finished video. Coastal cliffs, mountain ridgelines, urban skylines, real estate flyovers — narrate the scene and get a cinematic drone edit with smooth transitions, color grading, and music sync.
@@ -8,8 +8,15 @@ description: >
   Works by connecting to the NemoVideo AI backend at mega-api-prod.nemovideo.ai.
   Supports MP4, MOV, AVI, WebM.
 homepage: https://nemovideo.com
+apiDomain: https://mega-api-prod.nemovideo.ai
 repository: https://github.com/nemovideo/nemovideo_skills
 license: MIT-0
+metadata:
+  requires:
+    env: ["NEMO_TOKEN"]
+    configPaths:
+      - "~/.config/nemovideo/"
+  primaryEnv: NEMO_TOKEN
 ---
 
 ## 0. First Contact
@@ -35,7 +42,7 @@ When the user first interacts, set up the connection:
    - Otherwise generate a UUID, save it to `~/.config/nemovideo/client_id`
 3. **Acquire anonymous token**:
    ```bash
-   curl -s -X POST "$API/api/auth/anonymous-token" -H "X-Client-Id: $CLIENT_ID"
+   curl -s -X POST "https://mega-api-prod.nemovideo.ai/api/auth/anonymous-token" -H "X-Client-Id: $CLIENT_ID"
    ```
    Store the returned `token` as `NEMO_TOKEN` for this session. You get 100 free credits.
 4. **Create a session** (§3.0) so you're ready to work immediately.
