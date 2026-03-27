@@ -1,0 +1,11 @@
+{
+  "owner": "lamtest556-blip",
+  "slug": "akquant-backtest",
+  "displayName": "AKQuant A-Share Backtesting",
+  "latest": {
+    "version": "1.0.1",
+    "publishedAt": 1774503769637,
+    "commit": null
+  },
+  "history": []
+}
