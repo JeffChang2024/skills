@@ -1,6 +1,7 @@
 ---
 name: archive-project
-version: 1.2.1
+version: 1.2.2
+homepage: https://github.com/KaigeGao1110/ArchiveProject
 description: Organize completed projects into searchable archives with session transcript backup.
 required:
   bins:
@@ -12,7 +13,11 @@ env:
     required: false
     default: ~/.openclaw/agents/main/sessions/
 configPaths:
-  - ~/.openclaw/agents/main/sessions/
+  - path: ~/.openclaw/agents/main/sessions/
+    description: |
+      Required for reading session transcript files prior to archiving.
+      This is the standard OpenClaw session transcript directory.
+      Access is limited to reading only; deletions require explicit human approval.
 permissions:
   - read: session transcripts from configured path (~/.openclaw/agents/main/sessions/ or SESSION_TRANSCRIPT_PATH)
   - write: workspace/projects/ directory
