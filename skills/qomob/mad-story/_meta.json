@@ -3,9 +3,15 @@
   "slug": "mad-story",
   "displayName": "MadStory",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1773284434956,
-    "commit": "https://github.com/openclaw/skills/commit/862cd54581a988c0991c1cac6c92b25b56a67e12"
+    "version": "1.0.3",
+    "publishedAt": 1774596577188,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1773284434956,
+      "commit": "https://github.com/openclaw/skills/commit/862cd54581a988c0991c1cac6c92b25b56a67e12"
+    }
+  ]
 }
