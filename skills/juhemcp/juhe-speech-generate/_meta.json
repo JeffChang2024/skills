@@ -1,0 +1,11 @@
+{
+  "owner": "juhemcp",
+  "slug": "juhe-speech-generate",
+  "displayName": "AI语音合成TTS - 聚合数据",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774521529055,
+    "commit": null
+  },
+  "history": []
+}
