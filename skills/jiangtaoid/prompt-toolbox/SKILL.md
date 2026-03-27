@@ -1,7 +1,7 @@
 ---
 name: prompt-toolbox
 description: "100+ 精心设计的 Prompt，覆盖写作、编程、分析、翻译、商业五大场景。当你需要写文案、写代码、做分析、翻译内容、或处理商业场景时，告诉你最适合的 Prompt 模板。"
-version: 1.0.0
+version: 1.0.1
 author: Popeye
 license: MIT
 user-invocable: true
@@ -335,6 +335,20 @@ user-invocable: true
 3. 根据用户具体情况填充占位符
 4. 提供优化建议
 5. 如用户需要，可以生成多个备选 Prompt
+
+---
+
+## 💼 定制服务
+
+需要更专业的 Prompt？Popeye 提供定制服务：
+
+- **定制 Prompt**：针对你的具体场景，设计专属 Prompt
+- **Prompt 优化**：优化现有 Prompt，提升输出质量
+- **工作流设计**：设计 AI 工作流，提升团队效率
+
+**联系方式：**
+- 邮箱：popeyeai@126.com
+- 在对话中直接说「我需要定制 Prompt」
 
 ---
 
