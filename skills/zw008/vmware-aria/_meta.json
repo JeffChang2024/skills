@@ -1,0 +1,11 @@
+{
+  "owner": "zw008",
+  "slug": "vmware-aria",
+  "displayName": "Vmware Aria",
+  "latest": {
+    "version": "1.3.0",
+    "publishedAt": 1774575157301,
+    "commit": null
+  },
+  "history": []
+}
