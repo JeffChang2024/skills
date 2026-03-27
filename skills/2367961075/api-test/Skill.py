@@ -1,10 +1,14 @@
+# ==============================
+# ClawHub 标准 API 获取 Skill
+# 可直接在 CMD 运行测试
+# ==============================
 import requests
 import json
 
 class Skill:
     def __init__(self):
         self.name = "API 数据获取"
-        self.description = "调用外部 API 获取数据，支持 GET/POST/JSON"
+        self.description = "调用外部 API 获取数据，支持 GET/POST"
         self.version = "1.0.0"
         self.author = "ClawHub"
         self.type = "tool"
@@ -32,7 +36,7 @@ class Skill:
             elif method == "POST":
                 resp = requests.post(url, headers=headers, params=url_params, json=data, timeout=timeout)
             else:
-                return self.fail(f"不支持的方法 {method}")
+                return self.fail(f"不支持的请求方法：{method}")
 
             resp.raise_for_status()
 
@@ -51,14 +55,35 @@ class Skill:
         except requests.exceptions.Timeout:
             return self.fail("请求超时")
         except requests.exceptions.ConnectionError:
-            return self.fail("连接失败")
+            return self.fail("连接失败，请检查 URL 或网络")
         except requests.HTTPError as e:
-            return self.fail(f"HTTP 错误: {str(e)}")
+            return self.fail(f"HTTP 错误：{str(e)}")
         except Exception as e:
-            return self.fail(f"异常: {str(e)}")
+            return self.fail(f"执行异常：{str(e)}")
 
     def success(self, data):
         return {"status": "success", "data": data, "error": ""}
 
     def fail(self, error):
         return {"status": "fail", "data": None, "error": error}
+
+# ==============================
+# CMD 测试入口（直接运行即可）
+# ==============================
+if __name__ == "__main__":
+    print("正在测试 API Skill...")
+
+    # 初始化技能
+    skill = Skill()
+
+    # 测试用的参数（GET 请求）
+    test_params = {
+        "url": "https://jsonplaceholder.typicode.com/todos/1"
+    }
+
+    # 执行
+    result = skill.run(test_params)
+
+    # 输出结果
+    print("\n==== 测试结果 ====")
+    print(json.dumps(result, indent=2, ensure_ascii=False))
