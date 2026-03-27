@@ -1,29 +1,41 @@
 ---
 name: imou-device-config
 description: >
-  管理设备通道的安防配置信息，包括设备动检计划、设备动检灵敏度、设备隐私模式使能开关。
+  imou / Imou / 乐橙 / lechange 设备安防配置技能。支持设备动检计划、动检灵敏度、隐私模式（close camera）开关。
   Manages device channel security configuration: motion detection schedule, motion detection sensitivity, and privacy mode (close camera) enable/disable.
   For thing-model devices (productId non-empty), the skill prioritizes reading the product thing model and performs device configuration based on that model definition (properties, services).
-  Use when: 动检计划、动检灵敏度、隐私模式、物模型、属性查询、属性设置、事件下发、motion detection plan、motion sensitivity、privacy mode、IoT thing model、property get/set、service invoke、Imou/乐橙设备安防配置.
+  Use when: imou device config, Imou security config, lechange thing model, 乐橙 设备配置, 乐橙 动检计划, 乐橙 隐私模式, 乐橙 物模型 属性设置.
   Requires Imou developer account; set IMOU_APP_ID, IMOU_APP_SECRET, optional IMOU_BASE_URL.
 metadata:
-  {
-    "openclaw":
-      {
-        "emoji": "⚙️",
-        "requires": { "env": ["IMOU_APP_ID", "IMOU_APP_SECRET"], "pip": ["requests"] },
-        "primaryEnv": "IMOU_APP_ID",
-        "install":
-          [
-            { "id": "python-requests", "kind": "pip", "package": "requests", "label": "Install requests" }
-          ]
-      }
-  }
+  openclaw:
+    emoji: "⚙️"
+    requires:
+      env: ["IMOU_APP_ID", "IMOU_APP_SECRET", "IMOU_BASE_URL"]
+      pip: ["requests"]
+    primaryEnv: "IMOU_APP_ID"
+    install:
+      - id: "python-requests"
+        kind: "pip"
+        package: "requests"
+        label: "Install requests"
 ---
 
-# Imou Device Config
+# Imou Device Config（乐橙设备配置）
 
 Manage device channel security configuration: motion detection plan, motion detection sensitivity, and privacy mode (close camera) enable/disable. Supports both PaaS devices (productId empty) and IoT thing-model devices (productId non-empty). **For thing-model devices, the skill prioritizes reading the product thing model and completes all device-related configuration based on that model definition** (Property get/set, Service invoke).
+
+## Search Aliases
+
+- imou
+- Imou
+- 乐橙
+- lechange
+- easy4ip
+- imou-device-config
+- 乐橙设备配置
+- 乐橙动检计划
+- 乐橙隐私模式
+- 乐橙物模型
 
 ## Quick Start
 

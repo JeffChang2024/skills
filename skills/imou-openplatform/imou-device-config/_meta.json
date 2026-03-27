@@ -3,9 +3,15 @@
   "slug": "imou-device-config",
   "displayName": "Imou Open Device Config",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1773833818428,
-    "commit": "https://github.com/openclaw/skills/commit/6b96308f573d73986bd6a6f586ab9d6fb0aaf114"
+    "version": "1.0.2",
+    "publishedAt": 1774580092431,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1773833818428,
+      "commit": "https://github.com/openclaw/skills/commit/6b96308f573d73986bd6a6f586ab9d6fb0aaf114"
+    }
+  ]
 }
