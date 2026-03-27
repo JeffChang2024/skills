@@ -1,0 +1,11 @@
+{
+  "owner": "aqara",
+  "slug": "aqara-agent",
+  "displayName": "Aqara Agent",
+  "latest": {
+    "version": "0.1.0",
+    "publishedAt": 1774618446804,
+    "commit": null
+  },
+  "history": []
+}
