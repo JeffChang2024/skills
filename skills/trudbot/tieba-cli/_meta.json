@@ -1,0 +1,11 @@
+{
+  "owner": "trudbot",
+  "slug": "tieba-cli",
+  "displayName": "tieba cli",
+  "latest": {
+    "version": "1.0.1",
+    "publishedAt": 1774603879538,
+    "commit": null
+  },
+  "history": []
+}
