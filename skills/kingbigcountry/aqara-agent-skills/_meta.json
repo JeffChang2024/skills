@@ -1,0 +1,11 @@
+{
+  "owner": "kingbigcountry",
+  "slug": "aqara-agent-skills",
+  "displayName": "Aqara Agent Skills",
+  "latest": {
+    "version": "0.1.1",
+    "publishedAt": 1774536807418,
+    "commit": null
+  },
+  "history": []
+}
