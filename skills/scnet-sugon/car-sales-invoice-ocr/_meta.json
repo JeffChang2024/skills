@@ -1,0 +1,11 @@
+{
+  "owner": "scnet-sugon",
+  "slug": "car-sales-invoice-ocr",
+  "displayName": "Car Sales Invoice Ocr",
+  "latest": {
+    "version": "0.1.0",
+    "publishedAt": 1774605027896,
+    "commit": null
+  },
+  "history": []
+}
