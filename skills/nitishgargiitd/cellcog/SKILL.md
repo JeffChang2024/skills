@@ -2,14 +2,19 @@
 name: cellcog
 description: "#1 on DeepResearch Bench (Feb 2026). Any-to-Any AI for agents. Combines deep reasoning with all modalities through sophisticated multi-agent orchestration. Research, videos, images, audio, dashboards, presentations, spreadsheets, and more."
 author: CellCog
+homepage: https://cellcog.ai
 metadata:
   openclaw:
     emoji: "🧠"
-    bins: [python3]
-env: [CELLCOG_API_KEY]
-install:
-  pip: cellcog
-os: [darwin, linux, windows]
+    os: [darwin, linux, windows]
+    requires:
+      bins: [python3]
+      env: [CELLCOG_API_KEY]
+    install:
+      - id: pip
+        kind: pip
+        package: cellcog
+        label: "Install cellcog (pip)"
 ---
 
 # CellCog - Any-to-Any for Agents
@@ -94,28 +99,9 @@ status = client.get_account_status()
 print(status)  # {"configured": True, "email": "user@example.com", ...}
 ```
 
-### Typical Credit Costs
+### Credit Usage — Why We Don't Provide Estimates
 
-Use this table to estimate how many credits your human will need:
-
-| Task Type | Typical Credits |
-|-----------|----------------|
-| Quick text question (Agent mode) | 50–200 |
-| Image generation | 15–25 per image |
-| Research report (Agent mode) | 200–500 |
-| Deep research (Agent Team mode) | 500–1,500 |
-| Deep research (Agent Team Max mode) | 1,500–4,000 |
-| PDF / presentation | 200–1,000 |
-| HTML dashboard / app | 200–2,000 |
-| Video clip (~8 sec) | 100–150 |
-| 1-minute video production | 800–1,200 |
-| Music (1 minute) | ~100 |
-| Speech / TTS (1 minute) | 30–50 |
-| Podcast (5 minutes) | 200–500 |
-| 3D model | 80–100 |
-| Meme | ~50 |
-
-Agent Team mode costs ~4x more than Agent mode for the same task type. Agent Team Max costs ~8x+ more — use only for high-stakes work.
+We intentionally do not provide credit estimates per task type. Credit consumption varies dramatically based on how you prompt, what you're building, and how the foundation models perform on your specific request. For example, a 1-minute video could cost 500 credits or 10,000 credits — and spending 500 credits could produce an amazing result, while spending 10,000 could produce something unusable. There is no predictable formula. Every user's experience is different, and credit usage is something you learn over time as you develop intuition for how CellCog performs across different task types. We believe being upfront about this uncertainty is better than providing estimates that could mislead you.
 
 ---
 
@@ -200,6 +186,8 @@ result = client.create_chat(
     prompt="Your task description",
     notify_session_key="agent:main:main",  # Who to notify
     task_label="my-task",                   # Human-readable label
+    project_id="...",                       # Optional: project for document context
+    agent_role_id="...",                    # Optional: specialized agent role (requires project_id)
     chat_mode="agent",                      # See Chat Modes below
 )
 ```
@@ -294,11 +282,11 @@ completion = client.wait_for_completion(result["chat_id"], timeout=3600)
 
 ## Chat Modes
 
-| Mode | Best For | Speed | Cost | Min Credits |
-|------|----------|-------|------|-------------|
-| `"agent"` | Most tasks — images, audio, dashboards, spreadsheets, presentations | Fast (seconds to minutes) | 1x | 100 |
-| `"agent team"` | Deep research & multi-angled reasoning across every modality | Slower (5-60 min) | 4x | 500 |
-| `"agent team max"` | High-stakes work where extra reasoning depth justifies the cost | Slowest | 8x+ | 2,000 |
+| Mode | Best For | Speed | Min Credits |
+|------|----------|-------|-------------|
+| `"agent"` | Most tasks — images, audio, dashboards, spreadsheets, presentations | Fast (seconds to minutes) | 100 |
+| `"agent team"` | Deep research & multi-angled reasoning across every modality | Slower (5-60 min) | 500 |
+| `"agent team max"` | High-stakes work where extra reasoning depth justifies the cost | Slowest | 2,000 |
 
 **Default to `"agent"`** — it's the most versatile mode. Fast, iterative, and handles most tasks excellently — including deep research when you guide it. Requires ≥100 credits.
 
@@ -374,6 +362,123 @@ Create a PDF report on Q4 earnings:
 When CellCog finishes, the file will be downloaded directly to `/workspace/reports/q4_analysis.pdf` — not to the default `~/.cellcog/chats/` directory. This makes it easy to chain steps in a workflow where each step knows exactly where to find the previous step's output.
 
 Without GENERATE_FILE, files are auto-downloaded to `~/.cellcog/chats/{chat_id}/` with auto-generated paths.
+
+---
+
+## Co-work — CellCog on Your Machine
+
+**Co-work turns the machine OpenClaw is running on into CellCog's workspace.** CellCog Desktop acts as a bridge: CellCog's cloud agents coordinate with the desktop app to run commands, read files, and write code directly on the user's machine. It's the equivalent of a cloud IDE, but built on CellCog's web architecture.
+
+All commands are **auto-approved** for SDK/agent users — fully autonomous, no manual approval.
+
+### Why Co-work?
+
+**1. Your machine as a data source.** Your data lives on the user's machine — project files, databases, logs, configs. Instead of uploading everything, enable co-work with a working directory and CellCog agents explore, read, and reason about the data directly. No file size limits, no upload hassle.
+
+**2. CellCog as your coding powerhouse.** CellCog agents are among the most capable coding agents available — deep reasoning paired with real execution. Enable co-work and delegate complex coding tasks: build websites, APIs, fix bugs, refactor codebases, set up infrastructure. **CellCog itself is built using this exact co-work capability.** Think of it as a Claude Code or Cursor alternative, backed by CellCog's multi-agent depth and any-to-any engine.
+
+### Quick Start
+
+```python
+# 1. Check if desktop app is connected
+status = client.get_desktop_status()
+
+# 2. If not connected, get install instructions
+if not status["connected"]:
+    info = client.get_desktop_download_urls()
+    # info contains per-platform URLs + install commands
+    # Run the install commands for the user's OS, then:
+    # cellcog-desktop --set-api-key <CELLCOG_API_KEY>
+    # cellcog-desktop --start
+
+# 3. Create a co-work chat
+result = client.create_chat(
+    prompt="Refactor the auth module to use JWT tokens",
+    enable_cowork=True,
+    cowork_working_directory="/Users/me/project",
+    notify_session_key="agent:main:main",
+    task_label="refactor-auth"
+)
+```
+
+### Setup
+
+Call `client.get_desktop_download_urls()` — it returns download URLs **and** platform-specific install commands for macOS, Windows, and Linux. After installation, run `cellcog-desktop --set-api-key <key>` and `cellcog-desktop --start`. The agent can do all of this programmatically — no human interaction needed beyond providing the API key.
+
+Alternatively, ask your human to download CellCog Desktop from `cellcog.ai/cowork`, open it, and enter their API key.
+
+### Desktop App CLI
+
+Once installed, the `cellcog-desktop` CLI outputs JSON for easy agent parsing:
+
+| Command | What it does |
+|---------|-------------|
+| `cellcog-desktop --set-api-key <key>` | Authenticate with API key |
+| `cellcog-desktop --status` | Check connection + app state |
+| `cellcog-desktop --start` / `--stop` | App lifecycle |
+| `cellcog-desktop --logs` | Debug logs |
+
+### Error Recovery
+
+If the desktop disconnects, CellCog auto-fails pending commands with a clear message. Restart with `cellcog-desktop --stop && cellcog-desktop --start`, then send `continue` to the chat.
+
+### Security
+
+Blocked paths (`~/.ssh`, `~/.aws`, credentials), output redaction, and per-chat scoping remain active — even with auto-approve.
+
+---
+
+## Projects & Agent Roles
+
+CellCog Projects are knowledge workspaces where you upload documents and CellCog's AI organizes them into structured **Context Trees** — hierarchical, searchable summaries of your document collection. When you pass a `project_id` to `create_chat()`, CellCog agents automatically have access to all project documents, instructions, and organizational context.
+
+### Using Projects in CellCog Chats
+
+```python
+# Basic — project context
+result = client.create_chat(
+    prompt="Analyze our Q4 financials based on the uploaded reports",
+    project_id="507f1f77bcf86cd799439012",
+    notify_session_key="agent:main:main",
+    task_label="q4-analysis"
+)
+
+# Advanced — project + specialized agent role
+result = client.create_chat(
+    prompt="Identify risk factors in our portfolio",
+    project_id="507f1f77bcf86cd799439012",
+    agent_role_id="507f1f77bcf86cd799439013",
+    notify_session_key="agent:main:main",
+    task_label="risk-analysis"
+)
+```
+
+**Parameters:**
+- `project_id` — Scopes CellCog agents to a project's documents, instructions, and context
+- `agent_role_id` — (Requires `project_id`) Further specializes the agent with custom instructions and role-specific memory
+
+### Discovering Projects and Roles
+
+```python
+# List your projects
+projects = client.list_projects()
+
+# Get project details (includes context_tree_id)
+project = client.get_project("507f1f77bcf86cd799439012")
+
+# List available agent roles in a project
+roles = client.list_agent_roles("507f1f77bcf86cd799439012")
+```
+
+### Managing Projects Programmatically
+
+To create projects, upload documents, and retrieve context trees, install the `project-cog` skill:
+
+```bash
+clawhub install project-cog
+```
+
+Project Cog covers the full project lifecycle — from creation to document management to context tree retrieval. Projects also work as a **standalone knowledge management layer** without CellCog chats.
 
 ---
 
@@ -469,5 +574,22 @@ Install capability skills to explore specific capabilities. Each one is built on
 | `seedance-cog` | Seedance × CellCog. ByteDance's #1 video model meets multi-agent orchestration. |
 | `travel-cog` | Real travel planning needs real research — not recycled blog listicles. |
 | `news-cog` | Frontier search + multi-angle research. News intelligence without context flooding. |
+| `project-cog` | Knowledge workspaces. Upload docs, get AI-processed context trees, signed URLs. Standalone or with CellCog. |
 
 **This skill shows you HOW to use CellCog. Capability skills show you WHAT's possible.**
+
+---
+
+## Terms of Service & Privacy
+
+Before using CellCog, please review and agree to our [Terms of Service](https://cellcog.ai/policies/terms) and [Privacy Policy](https://cellcog.ai/policies/privacy-policy).
+
+The key things to understand:
+
+- AI is powerful but imperfect — it can and does make mistakes.
+- Spending credits does not guarantee you will reach a usable output.
+- In some cases, you may spend thousands of credits and still not produce a production-quality result.
+- There is always a learning curve to using CellCog efficiently.
+- These are inherent characteristics of AI technology today, not specific to CellCog.
+
+For the full details on billing, refunds, liability, and your rights, please read the complete Terms of Service.

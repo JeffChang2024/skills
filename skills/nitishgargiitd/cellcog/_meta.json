@@ -1,13 +1,18 @@
 {
   "owner": "nitishgargiitd",
   "slug": "cellcog",
-  "displayName": "cellcog",
+  "displayName": "Cellcog",
   "latest": {
-    "version": "1.0.23",
-    "publishedAt": 1773921096295,
-    "commit": "https://github.com/openclaw/skills/commit/a8e60a1877df6f10c26ae86a67772d76bd045df9"
+    "version": "2.0.0",
+    "publishedAt": 1774584433126,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.23",
+      "publishedAt": 1773921096295,
+      "commit": "https://github.com/openclaw/skills/commit/a8e60a1877df6f10c26ae86a67772d76bd045df9"
+    },
     {
       "version": "1.0.21",
       "publishedAt": 1771696856727,
