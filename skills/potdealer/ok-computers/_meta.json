@@ -3,11 +3,16 @@
   "slug": "ok-computers",
   "displayName": "OK Computers + Ring Gates + Net Protocol",
   "latest": {
-    "version": "2.1.0",
-    "publishedAt": 1771106530964,
-    "commit": "https://github.com/openclaw/skills/commit/089146fc3af1e4496f0380c88f31a69a6fc40a49"
+    "version": "2.2.0",
+    "publishedAt": 1774486303164,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.1.0",
+      "publishedAt": 1771106530964,
+      "commit": "https://github.com/openclaw/skills/commit/089146fc3af1e4496f0380c88f31a69a6fc40a49"
+    },
     {
       "version": "1.0.2",
       "publishedAt": 1770670650669,
