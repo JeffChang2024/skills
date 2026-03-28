@@ -54,6 +54,27 @@ This workspace has the **files-memory-system** skill installed.
 2. `memory/global/GLOBAL.md` - **跨群组全局共享记忆**
 3. `MEMORY.md` (仅私聊)
 
+**🔴 重要：群聊自动加载失效 Workaround (2026-03-26)**
+
+当前 OpenClaw 版本在群聊中**不会自动加载**群记忆文件。
+
+**Agent 必须在会话开始时手动加载：**
+```
+IF is_group_chat == true:
+  1. 从 metadata 获取 conversation_label (如: oc_a2b821...)
+  2. 构建路径: memory/group_feishu_<conversation_label>/
+  3. 手动读取:
+     - GLOBAL.md
+     - YYYY-MM-DD.md (today)
+     - YYYY-MM-DD.md (yesterday)  
+     - memory/global/GLOBAL.md
+```
+
+**检查清单** (群聊中执行任何操作前):
+- [ ] 已读取群组 GLOBAL.md?
+- [ ] 已读取今日群组日志?
+- [ ] 已读取全局 GLOBAL.md?
+
 ### When to Use
 - User says "remember this" → Write to appropriate location
 - User asks "what did we discuss" → Search memory directories

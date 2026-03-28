@@ -1,6 +1,43 @@
 ---
 name: files-memory-system
-description: Multi-context memory management system for OpenClaw agents with group-isolated storage, global shared memory, workspace organization, and group-specific skills isolation. Use when initializing or managing memory systems for multi-channel deployments, creating group-specific memory directories, setting up MEMORY.md for long-term cross-group memories, organizing workspace directories (projects/repos), or managing group-isolated skills.
+description: Multi-context memory management system for OpenClaw agents with group-isolated storage, global shared memory, workspace organization, and group-specific skills isolation. Use when initializing or managing memory systems for multi-channel deployments, creating group-specific memory directories, setting up MEMORY.md for long-term cross-group memories, organizing workspace directories (projects/repos), cloning repositories to group-isolated locations, managing group-isolated skills, or handling any file operations in group chat contexts.
+---
+
+# ⚠️ CRITICAL RULES
+
+## 群聊中克隆仓库的硬性规定
+
+**❌ 禁止**：直接使用 `git clone` 命令
+**✅ 必须**：使用 `auto-clone.sh` 脚本并传入 `--group` 参数
+
+当用户在群聊中要求"克隆仓库"时：
+1. **不要**执行 `git clone <url>` → 这会克隆到 `/workspace/repos/`
+2. **必须**执行 `./skills/files-memory-system/scripts/auto-clone.sh --group feishu <group_id> <url>` → 这会克隆到群组目录
+
+**Group ID 获取方式**：从 metadata 中的 `conversation_label` 字段获取（如 `oc_a2b821...`）
+
+---
+
+## 🔴 会话开始强制检查清单 (群聊)
+
+**OpenClaw Bug: 群聊不会自动加载群记忆文件**
+
+每次在群聊中收到消息时，**必须**执行以下检查：
+
+```
+检查 metadata.is_group_chat:
+├── IF true (群聊):
+│   ├── 读取 memory/group_<channel>_<conversation_label>/GLOBAL.md
+│   ├── 读取 memory/group_<channel>_<conversation_label>/YYYY-MM-DD.md (today)
+│   └── 读取 memory/global/GLOBAL.md
+│
+└── IF false (私聊):
+    ├── 读取 memory/private/YYYY-MM-DD.md (today)
+    └── 读取 memory/global/GLOBAL.md
+```
+
+**禁止在群聊中执行任何操作前跳过此检查！**
+
 ---
 
 # Memory System
@@ -139,16 +176,43 @@ This skill provides a complete memory management system that enables OpenClaw ag
 
 **Manual Commands**:
 ```bash
-# Option 1: Use auto-clone script
-./scripts/auto-clone.sh https://github.com/user/project
+# Option 1: Use auto-clone script with --group parameter (推荐)
+./scripts/auto-clone.sh --group feishu oc_a2b821... https://github.com/user/project
 
 # Option 2: Direct git clone
 cd memory/group_feishu_xxx/repos
 git clone https://github.com/user/project
 
-# Option 3: Using environment variables
+# Option 3: Using environment variables (向后兼容)
 GROUP_ID="oc_xxx" CHANNEL="feishu" ./scripts/auto-clone.sh https://github.com/user/project
 ```
+
+**Agent Implementation (直接执行，无需用户交互)**:
+
+当用户要求克隆仓库时，**先判断当前是否在群聊中**（查看 inbound metadata 中的 `is_group_chat` 字段），然后：
+
+**如果是群聊** (`is_group_chat: true`):
+1. 从 metadata 读取 `conversation_label` 作为 group_id
+2. 使用 `--group` 参数执行克隆：
+```bash
+./skills/files-memory-system/scripts/auto-clone.sh \
+    --group feishu "<conversation_label>" \
+    "https://github.com/user/project"
+```
+
+**如果是私聊** (`is_group_chat: false`):
+```bash
+./skills/files-memory-system/scripts/auto-clone.sh \
+    --private \
+    "https://github.com/user/project"
+```
+
+**关键要点**：
+- ⚠️ **群聊中必须使用 `--group` 参数**，否则仓库会克隆到全局目录
+- `--group <channel> <group_id>` 必须在 URL 之前
+- 群组ID从 `conversation_label` 获取 (如 `oc_a2b821...`)
+- 脚本会自动创建缺失的群组记忆目录
+- 如果用户没指定项目名称，脚本会自动从 URL 提取
 
 **After Cloning - Update GLOBAL.md**:
 ```markdown
